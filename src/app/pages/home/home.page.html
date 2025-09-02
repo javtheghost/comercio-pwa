@@ -57,15 +57,28 @@
       </div>
     </div>
 
+    <!-- Estado de error -->
+    <div *ngIf="!loading && error" class="error-state">
+      <ion-icon name="warning-outline" class="error-icon"></ion-icon>
+      <h3>Error al cargar productos</h3>
+      <p>{{ errorMessage }}</p>
+      <ion-button
+        color="primary"
+        (click)="ionViewWillEnter()"
+        fill="outline">
+        Reintentar
+      </ion-button>
+    </div>
+
     <!-- Estado vacío -->
-    <div *ngIf="!loading && products.length === 0" class="empty-state">
+    <div *ngIf="!loading && !error && products.length === 0" class="empty-state">
       <ion-icon name="search-outline" class="empty-icon"></ion-icon>
       <h3>No se encontraron productos</h3>
       <p>Intenta con otros términos de búsqueda o categorías</p>
     </div>
 
     <!-- Grid de productos -->
-    <div *ngIf="!loading && products.length > 0" class="products-grid">
+    <div *ngIf="!loading && !error && products.length > 0" class="products-grid">
       <ion-card
         *ngFor="let product of products"
         class="product-card"

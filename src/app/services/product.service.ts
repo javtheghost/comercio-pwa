@@ -1,36 +1,29 @@
 import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
+import { Observable } from 'rxjs';
 import { Product, Category } from '../interfaces/product.interfaces';
+import { ApiService } from './api.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ProductService {
 
-  constructor() { }
+  constructor(private apiService: ApiService) { }
 
   getProducts(): Observable<Product[]> {
-    // TODO: Implement actual API call
-    // For now, return empty array
-    return of([]);
+    return this.apiService.getProducts();
   }
 
   getRootCategories(): Observable<Category[]> {
-    // TODO: Implement actual API call
-    // For now, return empty array
-    return of([]);
+    return this.apiService.getRootCategories();
   }
 
   searchProducts(query: string): Observable<Product[]> {
-    // TODO: Implement actual API call
-    // For now, return empty array
-    return of([]);
+    return this.apiService.searchProducts(query);
   }
 
   getCategoryProducts(categoryId: number): Observable<Product[]> {
-    // TODO: Implement actual API call
-    // For now, return empty array
-    return of([]);
+    return this.apiService.getCategoryProducts(categoryId);
   }
 }
 
