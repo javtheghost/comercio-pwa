@@ -1,0 +1,325 @@
+// Variables
+:root {
+  --ion-color-primary: #3880ff;
+  --ion-color-danger: #eb445a;
+  --ion-color-medium: #92949c;
+  --ion-color-light: #f4f5f8;
+}
+
+// Contenedor de búsqueda
+.search-container {
+  padding: 16px;
+  background: var(--ion-color-light);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+
+  ion-searchbar {
+    flex: 1;
+    --background: white;
+    --border-radius: 12px;
+    --box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  ion-button {
+    --border-radius: 8px;
+    --box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+}
+
+// Contenedor de categorías
+.categories-container {
+  padding: 16px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  background: white;
+  border-bottom: 1px solid var(--ion-color-light);
+
+  .category-chip {
+    --background: var(--ion-color-light);
+    --color: var(--ion-color-medium);
+    --border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      --background: var(--ion-color-primary);
+      --color: white;
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+}
+
+// Contenedor principal
+.main-content {
+  padding: 16px;
+}
+
+// Estado de carga con skeletons
+.loading-container {
+  .skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+
+    .skeleton-card {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+
+      .skeleton-image {
+        width: 100%;
+        height: 160px;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+      }
+
+      .skeleton-content {
+        padding: 12px;
+
+        .skeleton-title {
+          height: 16px;
+          background: #f0f0f0;
+          border-radius: 4px;
+          margin-bottom: 8px;
+          animation: shimmer 1.5s infinite;
+        }
+
+        .skeleton-price {
+          height: 14px;
+          width: 60%;
+          background: #f0f0f0;
+          border-radius: 4px;
+          margin-bottom: 8px;
+          animation: shimmer 1.5s infinite;
+        }
+
+        .skeleton-description {
+          height: 12px;
+          width: 80%;
+          background: #f0f0f0;
+          border-radius: 4px;
+          animation: shimmer 1.5s infinite;
+        }
+      }
+    }
+  }
+}
+
+// Animación de shimmer para skeletons
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+// Estado vacío
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--ion-color-medium);
+
+  .empty-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+
+  h3 {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+    font-size: 14px;
+    opacity: 0.8;
+  }
+}
+
+// Grid de productos
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+// Tarjeta de producto
+.product-card {
+  margin: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: white;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  }
+
+  &:active {
+    transform: translateY(-2px);
+  }
+
+  .product-image-container {
+    position: relative;
+
+    .product-image {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .discount-badge {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 12px;
+    }
+
+    .favorite-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      --background: rgba(255,255,255,0.9);
+      --border-radius: 50%;
+      --width: 32px;
+      --height: 32px;
+      --padding-start: 0;
+      --padding-end: 0;
+
+      ion-icon {
+        font-size: 16px;
+      }
+    }
+  }
+
+  .product-content {
+    padding: 12px;
+
+    .product-title {
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.3;
+      margin: 0 0 8px 0;
+      color: #333;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .product-price-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+
+      .current-price {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--ion-color-primary);
+      }
+
+      .original-price {
+        font-size: 12px;
+        color: var(--ion-color-medium);
+        text-decoration: line-through;
+      }
+    }
+
+    .product-description {
+      font-size: 12px;
+      color: var(--ion-color-medium);
+      line-height: 1.4;
+      margin: 0 0 8px 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .product-category {
+      ion-chip {
+        --background: var(--ion-color-light);
+        --color: var(--ion-color-medium);
+        font-size: 10px;
+        height: 20px;
+      }
+    }
+  }
+}
+
+// Responsive
+@media (max-width: 480px) {
+  .products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+
+  .search-container {
+    padding: 12px;
+
+    ion-button {
+      --padding-start: 8px;
+      --padding-end: 8px;
+    }
+  }
+
+  .categories-container {
+    padding: 12px;
+  }
+
+  .main-content {
+    padding: 12px;
+  }
+}
+
+// Estados de interacción
+.product-card {
+  &:focus {
+    outline: 2px solid var(--ion-color-primary);
+    outline-offset: 2px;
+  }
+}
+
+// Mejoras de accesibilidad
+.product-card {
+  .product-image {
+    &:focus {
+      outline: 2px solid var(--ion-color-primary);
+      outline-offset: 2px;
+    }
+  }
+}
+
+// Indicador de carga para imágenes
+.product-image {
+  background: #f8f9fa;
+
+  &[src=""] {
+    background: linear-gradient(45deg, #f0f0f0 25%, transparent 25%),
+                linear-gradient(-45deg, #f0f0f0 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #f0f0f0 75%),
+                linear-gradient(-45deg, transparent 75%, #f0f0f0 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  }
+}

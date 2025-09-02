@@ -1,0 +1,157 @@
+.product-container {
+  padding-bottom: 100px; // Espacio para la action bar
+}
+
+.product-image-section {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  background: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.favorite-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  --background: white;
+  --color: #ff4757;
+  --border-radius: 50%;
+  --width: 44px;
+  --height: 44px;
+  --padding: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.discount-badge {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  --background: #ff4757;
+  --color: white;
+}
+
+.product-info {
+  padding: 24px 20px;
+  background: white;
+}
+
+.product-name {
+  font-size: 24px;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 16px 0;
+}
+
+.product-price {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.current-price {
+  font-size: 24px;
+  font-weight: 700;
+  color: #333;
+}
+
+.original-price {
+  font-size: 18px;
+  color: #999;
+  text-decoration: line-through;
+}
+
+.product-description {
+  color: #666;
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 16px 0 24px 0;
+}
+
+.size-section {
+  margin-bottom: 24px;
+}
+
+.size-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 16px 0;
+}
+
+.size-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.size-buttons ion-button {
+  --width: 60px;
+  --height: 44px;
+  --border-radius: 8px;
+  font-weight: 600;
+}
+
+.action-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  padding: 20px;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1000;
+}
+
+.price-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.price-label {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.price-amount {
+  color: #333;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.add-to-cart-btn {
+  --background: #333;
+  --color: white;
+  --border-radius: 12px;
+  --padding-start: 24px;
+  --padding-end: 24px;
+  --padding-top: 16px;
+  --padding-bottom: 16px;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: #666;
+}
+
+.loading-container ion-spinner {
+  margin-bottom: 16px;
+}

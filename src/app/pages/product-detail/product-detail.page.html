@@ -1,0 +1,87 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-button fill="clear" slot="start" (click)="goBack()">
+      <ion-icon name="arrow-back-outline"></ion-icon>
+    </ion-button>
+    <ion-title>Detalles del Producto</ion-title>
+    <ion-button fill="clear" slot="end">
+      <ion-icon name="heart-outline"></ion-icon>
+    </ion-button>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div *ngIf="product" class="product-container">
+    <!-- Product Image Section -->
+    <div class="product-image-section">
+      <img [src]="product.image" [alt]="product.name" class="product-image">
+      <ion-button
+        fill="clear"
+        class="favorite-btn"
+        (click)="toggleFavorite()">
+        <ion-icon [name]="product.isFavorite ? 'heart' : 'heart-outline'"></ion-icon>
+      </ion-button>
+
+      <ion-badge
+        *ngIf="product.discount"
+        color="danger"
+        class="discount-badge">
+        -{{ product.discount }}%
+      </ion-badge>
+    </div>
+
+    <!-- Product Information -->
+    <div class="product-info">
+      <h1 class="product-name">{{ product.name }}</h1>
+
+      <div class="product-price">
+        <span class="current-price">${{ product.price }}</span>
+        <span class="original-price" *ngIf="product.originalPrice">${{ product.originalPrice }}</span>
+      </div>
+
+      <p class="product-description" *ngIf="product.description">
+        {{ product.description }}
+      </p>
+
+      <!-- Size Selection -->
+      <div class="size-section">
+        <h3 class="size-title">Elegir talla</h3>
+        <div class="size-buttons">
+          <ion-button
+            [color]="selectedSize === 'S' ? 'primary' : 'medium'"
+            (click)="selectSize('S')">
+            S
+          </ion-button>
+          <ion-button
+            [color]="selectedSize === 'M' ? 'primary' : 'medium'"
+            (click)="selectSize('M')">
+            M
+          </ion-button>
+          <ion-button
+            [color]="selectedSize === 'L' ? 'primary' : 'medium'"
+            (click)="selectSize('L')">
+            L
+          </ion-button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading or Error State -->
+  <div *ngIf="!product" class="loading-container">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Cargando producto...</p>
+  </div>
+</ion-content>
+
+<!-- Bottom Action Bar -->
+<div class="action-bar" *ngIf="product">
+  <div class="price-section">
+    <span class="price-label">Precio</span>
+    <span class="price-amount">${{ product.price }}</span>
+  </div>
+  <ion-button class="add-to-cart-btn" (click)="addToCart()">
+    <ion-icon name="cart-outline" slot="start"></ion-icon>
+    Agregar al Carrito
+  </ion-button>
+</div>

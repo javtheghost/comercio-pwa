@@ -1,0 +1,119 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Descubrir</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <!-- Barra de búsqueda -->
+  <div class="search-container">
+    <ion-searchbar
+      placeholder="Buscar ropa..."
+      (ionInput)="onSearchChange($event)"
+      [debounce]="300">
+    </ion-searchbar>
+
+    <!-- Botón de prueba temporal -->
+    <ion-button
+      color="danger"
+      size="small"
+      (click)="testClick()">
+      ✔ TEST CLICK
+    </ion-button>
+  </div>
+
+  <!-- Filtros de categorías -->
+  <div class="categories-container">
+    <ion-chip
+      [color]="null"
+      (click)="filterByCategory(null)"
+      class="category-chip">
+      Todas
+    </ion-chip>
+
+    <ion-chip
+      *ngFor="let category of categories"
+      [color]="null"
+      (click)="filterByCategory(category.id)"
+      class="category-chip">
+      {{ category.name }}
+    </ion-chip>
+  </div>
+
+  <!-- Contenido principal -->
+  <div class="main-content">
+
+    <!-- Estado de carga con skeletons -->
+    <div *ngIf="loading" class="loading-container">
+      <div class="skeleton-grid">
+        <div class="skeleton-card" *ngFor="let item of [1,2,3,4,5,6]">
+          <div class="skeleton-image"></div>
+          <div class="skeleton-content">
+            <div class="skeleton-title"></div>
+            <div class="skeleton-price"></div>
+            <div class="skeleton-description"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Estado vacío -->
+    <div *ngIf="!loading && products.length === 0" class="empty-state">
+      <ion-icon name="search-outline" class="empty-icon"></ion-icon>
+      <h3>No se encontraron productos</h3>
+      <p>Intenta con otros términos de búsqueda o categorías</p>
+    </div>
+
+    <!-- Grid de productos -->
+    <div *ngIf="!loading && products.length > 0" class="products-grid">
+      <ion-card
+        *ngFor="let product of products"
+        class="product-card"
+        (click)="goToProductDetail(product)">
+
+        <div class="product-image-container">
+          <img
+            [src]="product.image || 'assets/placeholder-product.jpg'"
+            [alt]="product.name"
+            class="product-image"
+            loading="lazy">
+
+          <!-- Botón de favorito -->
+          <ion-button
+            fill="clear"
+            size="small"
+            class="favorite-btn"
+            (click)="toggleFavorite(product); $event.stopPropagation()">
+            <ion-icon
+              [name]="product.isFavorite ? 'heart' : 'heart-outline'"
+              [color]="product.isFavorite ? 'danger' : 'medium'">
+            </ion-icon>
+          </ion-button>
+        </div>
+
+        <ion-card-content class="product-content">
+          <ion-card-title class="product-title">
+            {{ product.name }}
+          </ion-card-title>
+
+          <div class="product-price-container">
+            <span class="current-price">
+              ${{ product.price }}
+            </span>
+
+          </div>
+
+          <ion-card-subtitle class="product-description">
+            {{ product.description }}
+          </ion-card-subtitle>
+
+          <div class="product-category">
+            <ion-chip size="small" color="light">
+              {{ product.category?.name }}
+            </ion-chip>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </div>
+  </div>
+</ion-content>
