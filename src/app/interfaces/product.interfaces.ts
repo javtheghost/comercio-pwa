@@ -22,13 +22,28 @@ export interface Product {
   deleted_at: string | null;
   category: Category;
   variants: any[];
-  images: any[];
+  images: ProductImage[];
   discounts: any[];
 }
 
 export interface ProductUI extends Product {
   isFavorite: boolean;
   image: string;
+  originalPrice?: string;
+  discount?: number;
+}
+
+export interface ProductImage {
+  id: number;
+  product_id: number;
+  image_url: string;
+  alt_text: string;
+  sort_order: number;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  full_image_url: string;
 }
 
 export interface Category {
@@ -42,5 +57,29 @@ export interface Category {
   sort_order: number;
   created_at: string;
   updated_at: string;
+}
+
+// Interfaz para respuestas de la API
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
+// Interfaz para respuestas paginadas
+export interface PaginatedResponse<T> {
+  current_page: number;
+  data: T[];
+  first_page_url: string;
+  from: number;
+  last_page: number;
+  last_page_url: string;
+  links: any[];
+  next_page_url: string | null;
+  path: string;
+  per_page: number;
+  prev_page_url: string | null;
+  to: number;
+  total: number;
 }
 

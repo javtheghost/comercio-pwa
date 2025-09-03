@@ -9,13 +9,10 @@ import {
   IonButton,
   IonIcon,
   IonBadge,
-  IonChip,
-  IonGrid,
-  IonRow,
-  IonCol,
   IonSpinner
 } from '@ionic/angular/standalone';
-import { ApiService, Product, ProductUI } from '../../services/api.service';
+import { ApiService } from '../../services/api.service';
+import { Product, ProductUI } from '../../interfaces/product.interfaces';
 
 @Component({
   selector: 'app-product-detail',
@@ -29,10 +26,6 @@ import { ApiService, Product, ProductUI } from '../../services/api.service';
     IonButton,
     IonIcon,
     IonBadge,
-    IonChip,
-    IonGrid,
-    IonRow,
-    IonCol,
     IonSpinner
   ],
   templateUrl: './product-detail.page.html',

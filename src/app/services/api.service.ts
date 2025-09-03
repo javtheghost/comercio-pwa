@@ -2,92 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-
-export interface Product {
-  id: number;
-  category_id: number;
-  name: string;
-  slug: string;
-  sku: string;
-  description: string;
-  long_description: string;
-  price: string;
-  compare_price: string;
-  cost_price: string;
-  stock_quantity: number;
-  min_stock_level: number;
-  track_stock: boolean;
-  is_active: boolean;
-  is_featured: boolean;
-  is_virtual: boolean;
-  weight: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
-  category: Category;
-  variants: any[];
-  images: ProductImage[];
-  discounts: any[];
-}
-
-// Interfaz extendida para la UI
-export interface ProductUI extends Product {
-  isFavorite?: boolean;
-  originalPrice?: string;
-  discount?: number;
-  image?: string;
-}
-
-export interface ProductImage {
-  id: number;
-  product_id: number;
-  image_url: string;
-  alt_text: string;
-  sort_order: number;
-  is_primary: boolean;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
-  full_image_url: string;
-}
-
-export interface Category {
-  id: number;
-  parent_id: number | null;
-  name: string;
-  slug: string;
-  description: string;
-  image: string;
-  is_active: boolean;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-  children?: Category[];
-  products?: Product[];
-}
-
-export interface ApiResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
-}
-
-export interface PaginatedResponse<T> {
-  current_page: number;
-  data: T[];
-  first_page_url: string;
-  from: number;
-  last_page: number;
-  last_page_url: string;
-  links: any[];
-  next_page_url: string | null;
-  path: string;
-  per_page: number;
-  prev_page_url: string | null;
-  to: number;
-  total: number;
-}
+import { Product, Category, ApiResponse, PaginatedResponse } from '../interfaces/product.interfaces';
 
 @Injectable({
   providedIn: 'root'
@@ -102,6 +17,14 @@ export class ApiService {
     return this.http.get<ApiResponse<PaginatedResponse<Product>>>(`${this.baseUrl}/products`)
       .pipe(
         map(response => response.data.data)
+      );
+  }
+
+  // Nuevo método para obtener productos paginados
+  getProductsPaginated(page: number = 1, perPage: number = 15): Observable<PaginatedResponse<Product>> {
+    return this.http.get<ApiResponse<PaginatedResponse<Product>>>(`${this.baseUrl}/products?page=${page}&per_page=${perPage}`)
+      .pipe(
+        map(response => response.data)
       );
   }
 

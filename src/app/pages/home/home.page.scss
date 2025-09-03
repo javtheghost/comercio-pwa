@@ -53,6 +53,23 @@
       transform: translateY(0);
     }
   }
+
+  // Skeleton para categorías
+  .categories-skeleton {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+
+    .skeleton-chip {
+      width: 80px;
+      height: 32px;
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      border-radius: 20px;
+      animation: shimmer 1.5s infinite;
+      flex-shrink: 0;
+    }
+  }
 }
 
 // Contenedor principal
@@ -253,7 +270,6 @@
       margin: 0 0 8px 0;
       color: #333;
       display: -webkit-box;
-      -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
@@ -283,7 +299,6 @@
       line-height: 1.4;
       margin: 0 0 8px 0;
       display: -webkit-box;
-      -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
@@ -355,3 +370,66 @@
     background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
   }
 }
+
+//
+// INFINITE SCROLL - ESTÁNDAR REAL
+// ===============================
+// Solo estilos para el indicador de carga
+// El scroll normal funciona con el navegador/dispositivo
+//
+ion-infinite-scroll {
+  margin-top: 20px;
+}
+
+ion-infinite-scroll-content {
+  --color: var(--ion-color-medium);
+  --spinner-color: var(--ion-color-primary);
+}
+
+// Información de paginación
+.pagination-info {
+  text-align: center;
+  padding: 20px;
+  margin: 20px 0;
+
+  ion-chip {
+    --background: var(--ion-color-primary);
+    --color: white;
+    font-weight: 500;
+
+    ion-icon {
+      margin-right: 8px;
+    }
+  }
+}
+
+// Mensaje cuando no hay más productos
+.no-more-products {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--ion-color-medium);
+  background: var(--ion-color-light);
+  border-radius: 12px;
+  margin: 20px 0;
+
+  ion-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.8;
+  }
+
+  p {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+    opacity: 0.8;
+  }
+}
+
+// Indicador de carga para productos adicionales
+.is-loading-more {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+

@@ -1,11 +1,11 @@
 import { Component } from '@angular/core';
 import { CurrencyPipe, NgFor, NgIf } from '@angular/common';
-import { IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonButton, IonIcon, IonBadge, IonList, IonThumbnail } from '@ionic/angular/standalone';
+import { IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonButton, IonIcon, IonList, IonThumbnail } from '@ionic/angular/standalone';
 
 @Component({
   selector: 'app-cart',
   standalone: true,
-  imports: [CurrencyPipe, NgFor, NgIf, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonButton, IonIcon, IonBadge, IonList, IonThumbnail],
+  imports: [CurrencyPipe, NgFor, NgIf, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonButton, IonIcon, IonList, IonThumbnail],
   template: `
     <ion-header>
       <ion-toolbar>

@@ -20,24 +20,72 @@
       (click)="testClick()">
       ✔ TEST CLICK
     </ion-button>
+
+    <!-- Botón de prueba adicional -->
+    <ion-button
+      color="primary"
+      size="small"
+      (click)="testClick()">
+      🔧 TEST 2
+    </ion-button>
+
+    <!-- Botón HTML nativo para comparar -->
+    <button
+      type="button"
+      style="background: #3880ff; color: white; border: none; padding: 8px 16px; border-radius: 8px; margin-left: 8px;"
+      (click)="testClick()">
+      🎯 HTML NATIVE
+    </button>
+
+    <!-- Botón de prueba de scroll -->
+    <button
+      type="button"
+      style="background: #10dc60; color: white; border: none; padding: 8px 16px; border-radius: 8px; margin-left: 8px;"
+      (click)="testScroll()">
+      📜 TEST SCROLL
+    </button>
+
+    <!-- Botón de prueba de infinite scroll -->
+    <button
+      type="button"
+      style="background: #ff6b35; color: white; border: none; padding: 8px 16px; border-radius: 8px; margin-left: 8px;"
+      (click)="forceLoadMoreProducts()">
+      🔄 INFINITE SCROLL
+    </button>
+
+    <!-- Botón para verificar estado del scroll -->
+    <button
+      type="button"
+      style="background: #7044ff; color: white; border: none; padding: 8px 16px; border-radius: 8px; margin-left: 8px;"
+      (click)="checkScrollStatus()">
+      🔍 CHECK SCROLL
+    </button>
   </div>
 
   <!-- Filtros de categorías -->
   <div class="categories-container">
-    <ion-chip
-      [color]="null"
-      (click)="filterByCategory(null)"
-      class="category-chip">
-      Todas
-    </ion-chip>
+    <!-- Skeleton para categorías mientras cargan -->
+    <div *ngIf="loadingCategories" class="categories-skeleton">
+      <div class="skeleton-chip" *ngFor="let item of [1,2,3,4,5]"></div>
+    </div>
 
-    <ion-chip
-      *ngFor="let category of categories"
-      [color]="null"
-      (click)="filterByCategory(category.id)"
-      class="category-chip">
-      {{ category.name }}
-    </ion-chip>
+    <!-- Categorías reales cuando están cargadas -->
+    <div *ngIf="!loadingCategories">
+      <ion-chip
+        [color]="null"
+        (click)="filterByCategory(null)"
+        class="category-chip">
+        Todas
+      </ion-chip>
+
+      <ion-chip
+        *ngFor="let category of categories"
+        [color]="null"
+        (click)="filterByCategory(category.id)"
+        class="category-chip">
+        {{ category.name }}
+      </ion-chip>
+    </div>
   </div>
 
   <!-- Contenido principal -->
@@ -77,56 +125,82 @@
       <p>Intenta con otros términos de búsqueda o categorías</p>
     </div>
 
-    <!-- Grid de productos -->
-    <div *ngIf="!loading && !error && products.length > 0" class="products-grid">
-      <ion-card
-        *ngFor="let product of products"
-        class="product-card"
-        (click)="goToProductDetail(product)">
+         <!-- Grid de productos -->
+     <div *ngIf="!loading && !error && products.length > 0" class="products-grid">
+       <ion-card
+         *ngFor="let product of products"
+         class="product-card"
+         (click)="goToProductDetail(product)">
 
-        <div class="product-image-container">
-          <img
-            [src]="product.image || 'assets/placeholder-product.jpg'"
-            [alt]="product.name"
-            class="product-image"
-            loading="lazy">
+         <div class="product-image-container">
+           <img
+             [src]="getProductImageUrl(product)"
+             [alt]="product.name"
+             class="product-image"
+             loading="lazy">
 
-          <!-- Botón de favorito -->
-          <ion-button
-            fill="clear"
-            size="small"
-            class="favorite-btn"
-            (click)="toggleFavorite(product); $event.stopPropagation()">
-            <ion-icon
-              [name]="product.isFavorite ? 'heart' : 'heart-outline'"
-              [color]="product.isFavorite ? 'danger' : 'medium'">
-            </ion-icon>
-          </ion-button>
-        </div>
+           <!-- Botón de favorito -->
+           <ion-button
+             fill="clear"
+             size="small"
+             class="favorite-btn"
+             (click)="toggleFavorite(product); $event.stopPropagation()">
+             <ion-icon
+               [name]="product.isFavorite ? 'heart' : 'heart-outline'"
+               [color]="product.isFavorite ? 'danger' : 'medium'">
+             </ion-icon>
+           </ion-button>
+         </div>
 
-        <ion-card-content class="product-content">
-          <ion-card-title class="product-title">
-            {{ product.name }}
-          </ion-card-title>
+         <ion-card-content class="product-content">
+           <ion-card-title class="product-title">
+             {{ product.name }}
+           </ion-card-title>
 
-          <div class="product-price-container">
-            <span class="current-price">
-              ${{ product.price }}
-            </span>
+           <div class="product-price-container">
+             <span class="current-price">
+               ${{ product.price }}
+             </span>
 
-          </div>
+           </div>
 
-          <ion-card-subtitle class="product-description">
-            {{ product.description }}
-          </ion-card-subtitle>
+           <ion-card-subtitle class="product-description">
+             {{ product.description }}
+           </ion-card-subtitle>
 
-          <div class="product-category">
-            <ion-chip size="small" color="light">
-              {{ product.category?.name }}
-            </ion-chip>
-          </div>
-        </ion-card-content>
-      </ion-card>
+           <div class="product-category">
+             <ion-chip size="small" color="light">
+               {{ product.category.name }}
+             </ion-chip>
+           </div>
+         </ion-card-content>
+       </ion-card>
+     </div>
+
+    <!-- INFINITE SCROLL - DENTRO DEL CONTENIDO PRINCIPAL -->
+    <ion-infinite-scroll
+      *ngIf="!loading && !error && hasMoreProducts"
+      threshold="100px"
+      (ionInfinite)="loadMoreProducts($event)">
+      <ion-infinite-scroll-content
+        loadingSpinner="bubbles"
+        loadingText="Cargando más productos...">
+      </ion-infinite-scroll-content>
+    </ion-infinite-scroll>
+
+    <!-- Información de paginación -->
+    <div *ngIf="!loading && !error && products.length > 0" class="pagination-info">
+      <ion-chip size="small" color="primary">
+        <ion-icon name="information-circle-outline"></ion-icon>
+        <span>Página {{ currentPage }} - {{ products.length }} productos</span>
+      </ion-chip>
+    </div>
+
+    <!-- Mensaje cuando no hay más productos -->
+    <div *ngIf="!loading && !error && !hasMoreProducts && products.length > 0"
+         class="no-more-products">
+      <ion-icon name="checkmark-circle-outline" color="success"></ion-icon>
+      <p>Has visto todos los productos disponibles</p>
     </div>
   </div>
 </ion-content>

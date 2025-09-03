@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { NgFor, NgIf } from '@angular/common';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -12,15 +12,14 @@ import {
   IonSearchbar,
   IonCard,
   IonCardContent,
-  IonCardHeader,
   IonCardTitle,
   IonCardSubtitle,
-  IonBadge,
   IonChip,
-  IonSpinner
+  IonInfiniteScroll,
+  IonInfiniteScrollContent
 } from '@ionic/angular/standalone';
 import { ProductService } from '../../services/product.service';
-import { Product, ProductUI, Category } from '../../interfaces/product.interfaces';
+import { Product, ProductUI, Category, PaginatedResponse } from '../../interfaces/product.interfaces';
 import { ProductUtils } from '../../utils/product.utils';
 
 @Component({
@@ -38,12 +37,11 @@ import { ProductUtils } from '../../utils/product.utils';
     IonSearchbar,
     IonCard,
     IonCardContent,
-    IonCardHeader,
     IonCardTitle,
     IonCardSubtitle,
-    IonBadge,
     IonChip,
-    IonSpinner
+    IonInfiniteScroll,
+    IonInfiniteScrollContent
   ],
   templateUrl: './home.page.html',
   styleUrls: ['./home.page.scss']
@@ -52,13 +50,21 @@ export class HomePage implements OnInit {
   products: ProductUI[] = [];
   categories: Category[] = [];
   loading = true;
+  loadingCategories = true;
   error = false;
   errorMessage = '';
   searchQuery = '';
 
+  // Infinite Scroll properties - Solo para cargar más contenido
+  currentPage = 1;
+  itemsPerPage = 12;
+  hasMoreProducts = true;
+  isLoadingMore = false;
+
   constructor(
     private router: Router,
-    private productService: ProductService
+    private productService: ProductService,
+    private cdr: ChangeDetectorRef
   ) {
     console.log('🏠 HomePage constructor ejecutado');
   }
@@ -66,6 +72,9 @@ export class HomePage implements OnInit {
   ngOnInit() {
     console.log('🚀 HomePage ngOnInit ejecutado');
     // No cargar datos aquí, esperar a ionViewWillEnter
+
+    // Agregar listener global para debugging de clicks
+    this.addClickDebugging();
   }
 
   ionViewWillEnter() {
@@ -74,238 +83,109 @@ export class HomePage implements OnInit {
     console.log('📊 Estado después de reset - loading:', this.loading, 'error:', this.error, 'products:', this.products.length);
     this.loadProducts();
     this.loadCategories();
+
+    // Probar que el método funciona inmediatamente
+  // Removed automatic testClick call to avoid blocking UI with alert during navigation
   }
 
   resetState() {
     console.log('🔄 Reseteando estado...');
     this.loading = true;
+    this.loadingCategories = true;
     this.error = false;
     this.errorMessage = '';
     this.products = [];
     this.categories = [];
+
+    // NO resetear la paginación para mantener el scroll funcionando
+    // this.currentPage = 1;
+    // this.hasMoreProducts = true;
+
     console.log('✅ Estado reseteado - loading:', this.loading, 'error:', this.error, 'products:', this.products.length);
+    console.log('📜 Paginación mantenida - currentPage:', this.currentPage, 'hasMoreProducts:', this.hasMoreProducts);
   }
 
   loadProducts() {
+    console.log('🔄 Iniciando carga de productos...');
     this.loading = true;
     this.error = false;
 
-    // Timeout de seguridad para evitar que se quede cargando indefinidamente
-    const timeout = setTimeout(() => {
-      if (this.loading) {
-        console.log('⏰ Timeout alcanzado, cargando productos de fallback');
-        this.loadFallbackProducts();
-        this.loading = false;
-        this.error = false; // No mostrar error, solo productos de fallback
-        this.errorMessage = '';
-      }
-    }, 8000); // 8 segundos de timeout
+    // Forzar detección de cambios para mostrar skeleton
+    this.cdr.detectChanges();
 
-    this.productService.getProducts().subscribe({
-      next: (products: Product[]) => {
-        clearTimeout(timeout);
-        console.log('📦 Productos cargados desde API:', products);
-        this.products = ProductUtils.mapProductsToUI(products);
+    // Resetear paginación al cargar productos iniciales
+    this.currentPage = 1;
+    this.hasMoreProducts = true;
+
+    this.productService.getProductsPaginated(this.currentPage, this.itemsPerPage).subscribe({
+      next: (response: PaginatedResponse<Product>) => {
+        console.log('✅ Respuesta exitosa del API:', response);
+
+        this.products = ProductUtils.mapProductsToUI(response.data);
+        this.hasMoreProducts = response.current_page < response.last_page;
+
+        console.log('📦 Productos mapeados:', this.products.length);
+        console.log('🔄 Cambiando loading a false...');
+
         this.loading = false;
         this.error = false;
+
+        // Forzar detección de cambios para ocultar skeleton
+        this.cdr.detectChanges();
+
+        console.log('✅ Estado después de actualizar:', {
+          loading: this.loading,
+          error: this.error,
+          productsCount: this.products.length
+        });
+
+        this.logImageDebugInfo(); // Log image info after loading
+
+        console.log('📦 Productos iniciales cargados:', {
+          totalProducts: this.products.length,
+          currentPage: this.currentPage,
+          lastPage: response.last_page,
+          hasMoreProducts: this.hasMoreProducts
+        });
       },
       error: (error: any) => {
-        clearTimeout(timeout);
         console.error('❌ Error cargando productos:', error);
-        this.error = false; // No mostrar error, solo productos de fallback
-        this.errorMessage = '';
-        // Fallback a productos de ejemplo si la API falla
-        this.loadFallbackProducts();
+        this.error = true;
+        this.errorMessage = 'Error al cargar productos. Por favor, intenta de nuevo.';
         this.loading = false;
+
+        // Forzar detección de cambios en caso de error también
+        this.cdr.detectChanges();
       }
     });
   }
 
-  loadCategories() {
+    loadCategories() {
+    console.log('📂 Iniciando carga de categorías...');
+    this.loadingCategories = true;
+    this.cdr.detectChanges(); // Forzar detección de cambios para mostrar skeleton
+
     this.productService.getRootCategories().subscribe({
       next: (categories: Category[]) => {
-        console.log('📂 Categorías cargadas desde API:', categories);
+        console.log('✅ Categorías cargadas exitosamente:', categories);
         this.categories = categories;
+        this.loadingCategories = false;
+        this.cdr.detectChanges(); // Forzar detección de cambios para ocultar skeleton
+        console.log('📂 Total de categorías:', this.categories.length);
       },
       error: (error: any) => {
         console.error('❌ Error cargando categorías:', error);
-        // Fallback a categorías de ejemplo
-        this.loadFallbackCategories();
+        this.categories = [];
+        this.loadingCategories = false;
+        this.cdr.detectChanges(); // Forzar detección de cambios en caso de error
+        console.log('📂 Categorías establecidas como array vacío');
       }
     });
   }
 
-  loadFallbackProducts() {
-    console.log('🔄 Cargando productos de fallback...');
-    // Crear productos de fallback con la estructura completa
-    this.products = [
-      {
-        id: 1,
-        category_id: 1,
-        name: 'Regular Fit Slogan',
-        slug: 'regular-fit-slogan',
-        sku: 'REG-SLOGAN',
-        description: 'Camiseta básica de algodón',
-        long_description: 'Camiseta básica de algodón 100% premium',
-        price: '1,190',
-        compare_price: '1,190',
-        cost_price: '600',
-        stock_quantity: 100,
-        min_stock_level: 10,
-        track_stock: true,
-        is_active: true,
-        is_featured: false,
-        is_virtual: false,
-        weight: '150',
-        status: 'published',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        deleted_at: null,
-        category: {
-          id: 1,
-          parent_id: null,
-          name: 'Camisetas',
-          slug: 'camisetas',
-          description: 'Camisetas básicas',
-          image: '',
-          is_active: true,
-          sort_order: 1,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        variants: [],
-        images: [],
-        discounts: [],
-        isFavorite: false,
-        image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop&crop=center'
-      } as ProductUI,
-      {
-        id: 2,
-        category_id: 2,
-        name: 'Jeans Slim Fit',
-        slug: 'jeans-slim-fit',
-        sku: 'JEANS-SLIM',
-        description: 'Jeans modernos de corte slim',
-        long_description: 'Jeans de alta calidad con corte moderno',
-        price: '2,490',
-        compare_price: '2,490',
-        cost_price: '1,200',
-        stock_quantity: 50,
-        min_stock_level: 5,
-        track_stock: true,
-        is_active: true,
-        is_featured: true,
-        is_virtual: false,
-        weight: '300',
-        status: 'published',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        deleted_at: null,
-        category: {
-          id: 2,
-          parent_id: null,
-          name: 'Jeans',
-          slug: 'jeans',
-          description: 'Jeans y pantalones',
-          image: '',
-          is_active: true,
-          sort_order: 2,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        variants: [],
-        images: [],
-        discounts: [],
-        isFavorite: false,
-        image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=400&fit=crop&crop=center'
-      } as ProductUI,
-      {
-        id: 3,
-        category_id: 3,
-        name: 'Sneakers Urban',
-        slug: 'sneakers-urban',
-        sku: 'SNEAKERS-URBAN',
-        description: 'Zapatillas urbanas cómodas',
-        long_description: 'Zapatillas ideales para el día a día',
-        price: '3,290',
-        compare_price: '3,290',
-        cost_price: '1,800',
-        stock_quantity: 75,
-        min_stock_level: 8,
-        track_stock: true,
-        is_active: true,
-        is_featured: false,
-        is_virtual: false,
-        weight: '250',
-        status: 'published',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        deleted_at: null,
-        category: {
-          id: 3,
-          parent_id: null,
-          name: 'Zapatillas',
-          slug: 'zapatillas',
-          description: 'Zapatillas deportivas y urbanas',
-          image: '',
-          is_active: true,
-          sort_order: 3,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        variants: [],
-        images: [],
-        discounts: [],
-        isFavorite: false,
-        image: 'https://images.unsplash.com/photo-1549298916-b41d5d2f7b5d?w=400&h=400&fit=crop&crop=center'
-      } as ProductUI
-    ];
-    console.log('✅ Productos de fallback cargados:', this.products.length);
-    console.log('📊 Estado final - loading:', this.loading, 'error:', this.error, 'products:', this.products.length);
-  }
 
-  loadFallbackCategories() {
-    console.log('🔄 Cargando categorías de fallback...');
-    this.categories = [
-      {
-        id: 1,
-        parent_id: null,
-        name: 'Camisetas',
-        slug: 'camisetas',
-        description: 'Camisetas básicas',
-        image: '',
-        is_active: true,
-        sort_order: 1,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      },
-      {
-        id: 2,
-        parent_id: null,
-        name: 'Jeans',
-        slug: 'jeans',
-        description: 'Jeans y pantalones',
-        image: '',
-        is_active: true,
-        sort_order: 2,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      },
-      {
-        id: 3,
-        parent_id: null,
-        name: 'Zapatillas',
-        slug: 'zapatillas',
-        description: 'Zapatillas deportivas y urbanas',
-        image: '',
-        is_active: true,
-        sort_order: 3,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-    ];
-    console.log('✅ Categorías de fallback cargadas:', this.categories.length);
-  }
+
+
 
   toggleFavorite(product: ProductUI) {
     product.isFavorite = !product.isFavorite;
@@ -313,8 +193,129 @@ export class HomePage implements OnInit {
 
   testClick() {
     console.log('🧪 BOTÓN DE PRUEBA CLICKEADO');
+    console.log('📍 Evento de click detectado en HomePage');
+    console.log('🕐 Timestamp:', new Date().toISOString());
+
+    // Múltiples formas de confirmar que funciona
     alert('¡El botón de prueba funciona!');
+
+    // También mostrar en consola
+    console.log('✅ Alert mostrado exitosamente');
+
+    // Cambiar el texto del botón temporalmente para confirmar
+    setTimeout(() => {
+      const button = document.querySelector('ion-button[color="danger"]') as HTMLElement;
+      if (button) {
+        const originalText = button.textContent;
+        button.textContent = '¡FUNCIONA!';
+        console.log('🔄 Texto del botón cambiado temporalmente');
+
+        setTimeout(() => {
+          button.textContent = originalText;
+          console.log('🔄 Texto del botón restaurado');
+        }, 2000);
+      }
+    }, 100);
   }
+
+  // Método para probar el scroll
+  testScroll() {
+    console.log('📜 PROBANDO SCROLL...');
+    console.log('📍 Evento de scroll detectado en HomePage');
+    console.log('🕐 Timestamp:', new Date().toISOString());
+
+    // Verificar estado de paginación
+    console.log('📊 Estado de paginación:', {
+      currentPage: this.currentPage,
+      hasMoreProducts: this.hasMoreProducts,
+      productsCount: this.products.length,
+      isLoadingMore: this.isLoadingMore
+    });
+
+    // Verificar estado del scroll
+    const content = document.querySelector('ion-content');
+    if (content) {
+      console.log('📜 Estado actual del scroll:', {
+        scrollTop: content.scrollTop,
+        scrollHeight: content.scrollHeight,
+        clientHeight: content.clientHeight,
+        hasScroll: content.scrollHeight > content.clientHeight
+      });
+    }
+
+    alert('¡Scroll de prueba ejecutado! Revisa la consola.');
+  }
+
+  // Método para forzar carga de más productos
+  forceLoadMoreProducts() {
+    console.log('🚀 Forzando carga de más productos...');
+
+    if (this.hasMoreProducts && !this.isLoadingMore) {
+      // Simular evento de infinite scroll
+      const mockEvent = {
+        target: {
+          complete: () => {
+            console.log('✅ Evento de infinite scroll completado manualmente');
+          }
+        }
+      };
+
+      this.loadMoreProducts(mockEvent);
+    } else {
+      console.log('⚠️ No se pueden cargar más productos:', {
+        hasMoreProducts: this.hasMoreProducts,
+        isLoadingMore: this.isLoadingMore
+      });
+    }
+  }
+
+  // Método para verificar el estado del scroll
+  checkScrollStatus() {
+    console.log('🔍 Verificando estado del scroll...');
+
+    const content = document.querySelector('ion-content');
+    if (content) {
+      console.log('📜 Estado actual del scroll:', {
+        scrollTop: content.scrollTop,
+        scrollHeight: content.scrollHeight,
+        clientHeight: content.clientHeight,
+        hasScroll: content.scrollHeight > content.clientHeight,
+        scrollPercentage: Math.round((content.scrollTop / (content.scrollHeight - content.clientHeight)) * 100) + '%'
+      });
+    } else {
+      console.warn('⚠️ ion-content no encontrado');
+    }
+
+    // Verificar si hay productos suficientes para scroll
+    console.log('📊 Estado de productos para scroll:', {
+      totalProducts: this.products.length,
+      hasMoreProducts: this.hasMoreProducts,
+      currentPage: this.currentPage,
+      isLoadingMore: this.isLoadingMore
+    });
+  }
+
+  // Método para debugging de eventos de click
+  addClickDebugging() {
+    console.log('🔍 Agregando debugging de clicks...');
+
+    // Listener específico solo para los botones de prueba
+    setTimeout(() => {
+      const testButtons = document.querySelectorAll('ion-button[color="danger"], ion-button[color="primary"]');
+      console.log(`🔍 Encontrados ${testButtons.length} botones de prueba en el DOM`);
+
+      testButtons.forEach((button, index) => {
+        button.addEventListener('click', () => {
+          console.log(`🖱️ Click en botón de prueba ${index + 1}`);
+          this.testClick();
+        });
+      });
+
+      console.log('✅ Listeners agregados solo a botones de prueba');
+    }, 1000);
+  }
+
+
 
   goToProductDetail(product: ProductUI) {
     alert(`CLICK EN PRODUCTO: ${product.name}`);
@@ -341,37 +342,219 @@ export class HomePage implements OnInit {
   searchProducts() {
     if (!this.searchQuery.trim()) return;
 
+    console.log('🔍 Iniciando búsqueda:', this.searchQuery);
     this.loading = true;
+    this.cdr.detectChanges(); // Forzar detección de cambios
+
     this.productService.searchProducts(this.searchQuery).subscribe({
       next: (products: Product[]) => {
         console.log('🔍 Resultados de búsqueda:', products);
         this.products = ProductUtils.mapProductsToUI(products);
         this.loading = false;
+        this.cdr.detectChanges(); // Forzar detección de cambios
+        this.logImageDebugInfo(); // Log image info after search
       },
       error: (error: any) => {
         console.error('❌ Error en búsqueda:', error);
         this.loading = false;
+        this.cdr.detectChanges(); // Forzar detección de cambios
       }
     });
   }
 
   filterByCategory(categoryId: number | null) {
     if (categoryId === null) {
+      console.log('📂 Mostrando todos los productos');
       this.loadProducts(); // Mostrar todos los productos
       return;
     }
 
+    console.log(`📂 Filtrando por categoría: ${categoryId}`);
     this.loading = true;
+    this.cdr.detectChanges(); // Forzar detección de cambios
+
     this.productService.getCategoryProducts(categoryId).subscribe({
       next: (products: Product[]) => {
         console.log(`📂 Productos de categoría ${categoryId}:`, products);
         this.products = ProductUtils.mapProductsToUI(products);
         this.loading = false;
+        this.cdr.detectChanges(); // Forzar detección de cambios
+        this.logImageDebugInfo(); // Log image info after loading
       },
       error: (error: any) => {
         console.error('❌ Error cargando productos de categoría:', error);
         this.loading = false;
+        this.cdr.detectChanges(); // Forzar detección de cambios
       }
     });
   }
+
+  // Método para debuggear información de imágenes
+  logImageDebugInfo() {
+
+
+    this.products.forEach((product, index) => {
+      // Verificar el tipo de imagen y manejarlo de forma segura
+      const imageValue = product.image;
+      const imageType = typeof imageValue;
+
+      // Extraer la URL de la imagen si es un objeto
+      let imageUrl = '';
+      if (imageValue && typeof imageValue === 'object') {
+        // Intentar diferentes propiedades comunes para la URL de imagen
+        const imageObj = imageValue as any; // Type assertion para evitar errores de TypeScript
+        imageUrl = imageObj.url || imageObj.src || imageObj.path || imageObj.image_url ||
+                   imageObj.thumbnail || imageObj.medium || imageObj.large || '';
+
+
+      } else if (typeof imageValue === 'string') {
+        imageUrl = imageValue;
+      }
+
+      const hasImage = !!imageUrl && imageUrl !== '';
+      const imageLength = hasImage ? imageUrl.length : 0;
+      const imageStartsWith = hasImage ?
+        (imageUrl.length > 50 ? imageUrl.substring(0, 50) + '...' : imageUrl) : 'NO IMAGE';
+
+      console.log(`📦 Producto ${index + 1}:`, {
+        id: product.id,
+        name: product.name,
+        originalImage: imageValue,
+        imageType: imageType,
+        extractedImageUrl: imageUrl,
+        hasImage: hasImage,
+        imageLength: imageLength,
+        imageStartsWith: imageStartsWith,
+        isString: typeof imageValue === 'string',
+        isObject: typeof imageValue === 'object',
+        isNull: imageValue === null,
+        isUndefined: imageValue === undefined
+      });
+
+      // Verificar si la imagen es válida y es una string
+      if (hasImage && typeof imageUrl === 'string') {
+        this.testImageLoad(imageUrl, product.name);
+      } else {
+        console.warn(`⚠️ Producto ${product.name} no tiene imagen válida:`, {
+          originalValue: imageValue,
+          extractedUrl: imageUrl,
+          type: imageType
+        });
+      }
+    });
+
+    console.log('🖼️ === FIN DEBUG DE IMÁGENES ===');
+  }
+
+  // Método para probar la carga de una imagen
+  testImageLoad(imageUrl: string, productName: string) {
+    const img = new Image();
+
+    img.onload = () => {
+      console.log(`✅ Imagen cargada exitosamente para ${productName}:`, {
+        url: imageUrl,
+        width: img.width,
+        height: img.height,
+        naturalWidth: img.naturalWidth,
+        naturalHeight: img.naturalHeight
+      });
+    };
+
+    img.onerror = () => {
+      console.error(`❌ Error cargando imagen para ${productName}:`, {
+        url: imageUrl,
+        error: 'Failed to load image'
+      });
+    };
+
+    // Establecer timeout para detectar imágenes que no cargan
+    setTimeout(() => {
+      if (!img.complete) {
+        console.warn(`⏰ Timeout cargando imagen para ${productName}:`, {
+          url: imageUrl,
+          complete: img.complete
+        });
+      }
+    }, 5000);
+
+    img.src = imageUrl;
+  }
+
+  // Método para obtener la URL de la imagen del producto (para usar en el template)
+  getProductImageUrl(product: ProductUI): string {
+    const imageValue = product.image;
+
+    if (imageValue && typeof imageValue === 'object') {
+      // Extraer URL del objeto de imagen
+      const imageObj = imageValue as any;
+      return imageObj.url || imageObj.src || imageObj.path || imageObj.image_url ||
+             imageObj.thumbnail || imageObj.medium || imageObj.large || '';
+    } else if (typeof imageValue === 'string') {
+      // Si ya es una string, devolverla directamente
+      return imageValue;
+    }
+
+    // Fallback a imagen por defecto
+    return 'assets/placeholder-product.jpg';
+  }
+
+
+
+  // Método para cargar más productos - Usando API real
+  loadMoreProducts(event: any) {
+    console.log('📜 Infinite scroll activado:', {
+      hasMoreProducts: this.hasMoreProducts,
+      isLoadingMore: this.isLoadingMore,
+      currentPage: this.currentPage,
+      productsCount: this.products.length
+    });
+
+    if (!this.hasMoreProducts || this.isLoadingMore) {
+      console.log('⚠️ No se pueden cargar más productos');
+      event.target.complete();
+      return;
+    }
+
+    this.isLoadingMore = true;
+    this.currentPage++;
+
+    // Usar el servicio real de paginación
+    this.productService.getProductsPaginated(this.currentPage, this.itemsPerPage).subscribe({
+      next: (response: PaginatedResponse<Product>) => {
+        console.log('📦 Productos de página', this.currentPage, ':', response.data);
+
+        // Convertir productos a UI y agregarlos a la lista existente
+        const newProducts = ProductUtils.mapProductsToUI(response.data);
+        this.products = [...this.products, ...newProducts];
+
+        // Verificar si hay más páginas disponibles
+        this.hasMoreProducts = response.current_page < response.last_page;
+
+        console.log('✅ Infinite scroll completado:', {
+          hasMoreProducts: this.hasMoreProducts,
+          totalProducts: this.products.length,
+          currentPage: this.currentPage,
+          lastPage: response.last_page
+        });
+
+        // Completar el evento de infinite scroll
+        if (event && event.target) {
+          event.target.complete();
+        }
+
+        this.isLoadingMore = false;
+      },
+      error: (error: any) => {
+        console.error('❌ Error cargando más productos:', error);
+        this.isLoadingMore = false;
+
+        // Completar el evento incluso si hay error
+        if (event && event.target) {
+          event.target.complete();
+        }
+      }
+    });
+  }
+
+
 }
