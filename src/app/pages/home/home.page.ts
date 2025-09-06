@@ -66,21 +66,17 @@ export class HomePage implements OnInit {
     private productService: ProductService,
     private cdr: ChangeDetectorRef
   ) {
-    console.log('🏠 HomePage constructor ejecutado');
   }
 
   ngOnInit() {
-    console.log('🚀 HomePage ngOnInit ejecutado');
-    // No cargar datos aquí, esperar a ionViewWillEnter
 
-    // Agregar listener global para debugging de clicks
-    this.addClickDebugging();
   }
 
   ionViewWillEnter() {
     console.log('🔄 HomePage ionViewWillEnter ejecutado');
     this.resetState();
     console.log('📊 Estado después de reset - loading:', this.loading, 'error:', this.error, 'products:', this.products.length);
+
     this.loadProducts();
     this.loadCategories();
 
@@ -97,12 +93,6 @@ export class HomePage implements OnInit {
     this.products = [];
     this.categories = [];
 
-    // NO resetear la paginación para mantener el scroll funcionando
-    // this.currentPage = 1;
-    // this.hasMoreProducts = true;
-
-    console.log('✅ Estado reseteado - loading:', this.loading, 'error:', this.error, 'products:', this.products.length);
-    console.log('📜 Paginación mantenida - currentPage:', this.currentPage, 'hasMoreProducts:', this.hasMoreProducts);
   }
 
   loadProducts() {
@@ -191,60 +181,7 @@ export class HomePage implements OnInit {
     product.isFavorite = !product.isFavorite;
   }
 
-  testClick() {
-    console.log('🧪 BOTÓN DE PRUEBA CLICKEADO');
-    console.log('📍 Evento de click detectado en HomePage');
-    console.log('🕐 Timestamp:', new Date().toISOString());
 
-    // Múltiples formas de confirmar que funciona
-    alert('¡El botón de prueba funciona!');
-
-    // También mostrar en consola
-    console.log('✅ Alert mostrado exitosamente');
-
-    // Cambiar el texto del botón temporalmente para confirmar
-    setTimeout(() => {
-      const button = document.querySelector('ion-button[color="danger"]') as HTMLElement;
-      if (button) {
-        const originalText = button.textContent;
-        button.textContent = '¡FUNCIONA!';
-        console.log('🔄 Texto del botón cambiado temporalmente');
-
-        setTimeout(() => {
-          button.textContent = originalText;
-          console.log('🔄 Texto del botón restaurado');
-        }, 2000);
-      }
-    }, 100);
-  }
-
-  // Método para probar el scroll
-  testScroll() {
-    console.log('📜 PROBANDO SCROLL...');
-    console.log('📍 Evento de scroll detectado en HomePage');
-    console.log('🕐 Timestamp:', new Date().toISOString());
-
-    // Verificar estado de paginación
-    console.log('📊 Estado de paginación:', {
-      currentPage: this.currentPage,
-      hasMoreProducts: this.hasMoreProducts,
-      productsCount: this.products.length,
-      isLoadingMore: this.isLoadingMore
-    });
-
-    // Verificar estado del scroll
-    const content = document.querySelector('ion-content');
-    if (content) {
-      console.log('📜 Estado actual del scroll:', {
-        scrollTop: content.scrollTop,
-        scrollHeight: content.scrollHeight,
-        clientHeight: content.clientHeight,
-        hasScroll: content.scrollHeight > content.clientHeight
-      });
-    }
-
-    alert('¡Scroll de prueba ejecutado! Revisa la consola.');
-  }
 
   // Método para forzar carga de más productos
   forceLoadMoreProducts() {
@@ -269,56 +206,7 @@ export class HomePage implements OnInit {
     }
   }
 
-  // Método para verificar el estado del scroll
-  checkScrollStatus() {
-    console.log('🔍 Verificando estado del scroll...');
-
-    const content = document.querySelector('ion-content');
-    if (content) {
-      console.log('📜 Estado actual del scroll:', {
-        scrollTop: content.scrollTop,
-        scrollHeight: content.scrollHeight,
-        clientHeight: content.clientHeight,
-        hasScroll: content.scrollHeight > content.clientHeight,
-        scrollPercentage: Math.round((content.scrollTop / (content.scrollHeight - content.clientHeight)) * 100) + '%'
-      });
-    } else {
-      console.warn('⚠️ ion-content no encontrado');
-    }
-
-    // Verificar si hay productos suficientes para scroll
-    console.log('📊 Estado de productos para scroll:', {
-      totalProducts: this.products.length,
-      hasMoreProducts: this.hasMoreProducts,
-      currentPage: this.currentPage,
-      isLoadingMore: this.isLoadingMore
-    });
-  }
-
-  // Método para debugging de eventos de click
-  addClickDebugging() {
-    console.log('🔍 Agregando debugging de clicks...');
-
-    // Listener específico solo para los botones de prueba
-    setTimeout(() => {
-      const testButtons = document.querySelectorAll('ion-button[color="danger"], ion-button[color="primary"]');
-      console.log(`🔍 Encontrados ${testButtons.length} botones de prueba en el DOM`);
-
-      testButtons.forEach((button, index) => {
-        button.addEventListener('click', () => {
-          console.log(`🖱️ Click en botón de prueba ${index + 1}`);
-          this.testClick();
-        });
-      });
-
-      console.log('✅ Listeners agregados solo a botones de prueba');
-    }, 1000);
-  }
-
-
-
   goToProductDetail(product: ProductUI) {
-    alert(`CLICK EN PRODUCTO: ${product.name}`);
     console.log('🔄 CLICK DETECTADO en producto:', product.name);
     console.log('🔄 Intentando navegar al producto:', product);
     console.log('📍 Ruta objetivo:', `/product/${product.id}`);
@@ -451,7 +339,7 @@ export class HomePage implements OnInit {
     const img = new Image();
 
     img.onload = () => {
-      console.log(`✅ Imagen cargada exitosamente para ${productName}:`, {
+      console.log(`${productName}:`, {
         url: imageUrl,
         width: img.width,
         height: img.height,
@@ -555,6 +443,7 @@ export class HomePage implements OnInit {
       }
     });
   }
+
 
 
 }

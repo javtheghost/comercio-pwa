@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NgIf } from '@angular/common';
 import {
@@ -11,7 +11,7 @@ import {
   IonBadge,
   IonSpinner
 } from '@ionic/angular/standalone';
-import { ApiService } from '../../services/api.service';
+import { ProductService } from '../../services/product.service';
 import { Product, ProductUI } from '../../interfaces/product.interfaces';
 
 @Component({
@@ -40,7 +40,8 @@ export class ProductDetailPage implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private apiService: ApiService
+    private productService: ProductService,
+    private cdr: ChangeDetectorRef
   ) {
     console.log('🏗️ ProductDetailPage constructor ejecutado');
   }
@@ -62,25 +63,39 @@ export class ProductDetailPage implements OnInit {
     console.log('📦 Iniciando carga de producto con ID:', this.productId);
     this.loading = true;
 
-    this.apiService.getProduct(Number(this.productId)).subscribe({
+    this.productService.getProduct(Number(this.productId)).subscribe({
       next: (product) => {
         console.log('🔍 Producto encontrado en API:', product);
+        console.log('🔍 Tipo de producto:', typeof product);
+        console.log('🔍 Producto tiene images?', product.images);
+        console.log('🔍 Cantidad de imágenes:', product.images?.length);
+
         this.product = {
           ...product,
           isFavorite: false, // Por defecto no favorito
           // Mapear propiedades para compatibilidad con la UI
           originalPrice: product.compare_price,
           discount: this.calculateDiscount(product.price, product.compare_price),
-          image: product.images && product.images.length > 0 ? product.images[0].image_url : ''
+          image: product.images && product.images.length > 0 ? product.images[0].full_image_url || product.images[0].image_url : ''
         } as ProductUI;
+
+        console.log('🔍 Producto mapeado:', this.product);
+        console.log('🔍 Imagen asignada:', this.product.image);
+
         this.loading = false;
         console.log('✅ Producto cargado exitosamente:', this.product.name);
+        console.log('✅ Loading cambiado a false');
+
+        // Forzar detección de cambios
+        this.cdr.detectChanges();
+        console.log('✅ Detección de cambios forzada');
       },
       error: (error) => {
         console.error('❌ Error cargando producto desde API:', error);
-        // Fallback a producto de ejemplo si la API falla
-        this.loadFallbackProduct();
         this.loading = false;
+        this.cdr.detectChanges();
+        // Redirigir a home si hay error
+        this.router.navigate(['/tabs/home']);
       }
     });
   }
@@ -93,51 +108,6 @@ export class ProductDetailPage implements OnInit {
     return Math.round(discount);
   }
 
-  loadFallbackProduct() {
-    // Crear un producto de fallback con la estructura completa
-    const fallbackProduct = {
-      id: Number(this.productId),
-      category_id: 1,
-      name: 'Producto de Ejemplo',
-      slug: 'producto-ejemplo',
-      sku: 'PROD-EJEMPLO',
-      description: 'Este es un producto de ejemplo',
-      long_description: 'Descripción larga del producto de ejemplo',
-      price: '999.00',
-      compare_price: '999.00',
-      cost_price: '500.00',
-      stock_quantity: 50,
-      min_stock_level: 5,
-      track_stock: true,
-      is_active: true,
-      is_featured: false,
-      is_virtual: false,
-      weight: '200',
-      status: 'published',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      deleted_at: null,
-      category: {
-        id: 1,
-        parent_id: null,
-        name: 'Categoría Ejemplo',
-        slug: 'categoria-ejemplo',
-        description: 'Categoría de ejemplo',
-        image: '',
-        is_active: true,
-        sort_order: 1,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      },
-      variants: [],
-      images: [],
-      discounts: [],
-      isFavorite: false,
-      image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop&crop=center'
-    } as ProductUI;
-
-    this.product = fallbackProduct;
-  }
 
   selectSize(size: string) {
     this.selectedSize = size;

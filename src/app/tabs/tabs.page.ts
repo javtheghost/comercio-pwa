@@ -1,12 +1,12 @@
 import { Component } from '@angular/core';
 import { Router } from '@angular/router';
 import { NavController } from '@ionic/angular';
-import { IonTabs, IonIcon, IonRouterOutlet } from '@ionic/angular/standalone';
+import { IonIcon, IonRouterOutlet } from '@ionic/angular/standalone';
 
 @Component({
   selector: 'app-tabs',
   standalone: true,
-  imports: [IonTabs, IonIcon, IonRouterOutlet],
+  imports: [IonIcon, IonRouterOutlet],
   template: `
     <div class="custom-tab-bar">
       <button (click)="navigate('/tabs/home')" [class.active]="isActive('/tabs/home')">

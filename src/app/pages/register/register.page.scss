@@ -1,0 +1,411 @@
+.register-content {
+  --background: #ffffff;
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+}
+
+.register-container {
+  min-height: 100vh;
+  background: #ffffff;
+  padding: 40px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.register-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.register-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0 0 8px 0;
+  line-height: 1.2;
+}
+
+.register-subtitle {
+  font-size: 16px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.register-form {
+  margin-bottom: 32px;
+}
+
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.form-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 16px;
+  background: #ffffff;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  &.valid {
+    border-color: #10b981;
+    background-color: #f0fdf4;
+  }
+
+  &.error {
+    border-color: #ef4444;
+    background-color: #fef2f2;
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+}
+
+.input-icon {
+  position: absolute;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.valid-icon {
+  color: #10b981;
+  font-size: 20px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: #374151;
+  }
+
+  ion-icon {
+    font-size: 20px;
+  }
+}
+
+.error-message {
+  color: #ef4444;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.terms-container {
+  margin-bottom: 32px;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  position: relative;
+}
+
+.checkbox-input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.checkbox-mark {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  margin-top: 2px;
+
+  &::after {
+    content: '';
+    width: 6px;
+    height: 10px;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+}
+
+.checkbox-input:checked + .checkbox-mark {
+  background: #3b82f6;
+  border-color: #3b82f6;
+
+  &::after {
+    opacity: 1;
+  }
+}
+
+.checkbox-text {
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.5;
+
+  .terms-link {
+    color: #3b82f6;
+    text-decoration: underline;
+    cursor: pointer;
+
+    &:hover {
+      color: #2563eb;
+    }
+  }
+}
+
+.register-button {
+  width: 100%;
+  background: #000000;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  &:hover:not(:disabled) {
+    background: #1f2937;
+  }
+
+  &:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
+
+  .button-spinner {
+    --color: #ffffff;
+  }
+}
+
+.separator {
+  display: flex;
+  align-items: center;
+  margin: 32px 0;
+  gap: 16px;
+}
+
+.separator-line {
+  flex: 1;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.separator-text {
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.social-register {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.social-button {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+
+  &:hover {
+    border-color: #d1d5db;
+    background: #f9fafb;
+  }
+
+  &.google-button {
+    &:hover {
+      border-color: #4285f4;
+      background: #f8faff;
+    }
+  }
+
+  &.facebook-button {
+    background: #1877f2;
+    border-color: #1877f2;
+    color: #ffffff;
+
+    &:hover {
+      background: #166fe5;
+      border-color: #166fe5;
+    }
+  }
+}
+
+.google-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.facebook-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  ion-icon {
+    font-size: 20px;
+    color: #ffffff;
+  }
+}
+
+.login-link {
+  text-align: center;
+  font-size: 14px;
+  color: #6b7280;
+
+  .login-text {
+    color: #3b82f6;
+    text-decoration: underline;
+    cursor: pointer;
+
+    &:hover {
+      color: #2563eb;
+    }
+  }
+}
+
+// Forzar fondo blanco siempre
+.register-content {
+  --background: #ffffff !important;
+}
+
+.register-container {
+  background: #ffffff !important;
+}
+
+// Asegurar que el fondo sea blanco en todos los elementos
+:host {
+  background: #ffffff !important;
+}
+
+ion-content {
+  --background: #ffffff !important;
+}
+
+// Responsive adjustments
+@media (max-width: 480px) {
+  .register-container {
+    padding: 24px 16px;
+  }
+
+  .register-title {
+    font-size: 24px;
+  }
+
+  .register-subtitle {
+    font-size: 14px;
+  }
+}
+
+// Dark mode support (if needed) - Deshabilitado para mantener fondo blanco
+// @media (prefers-color-scheme: dark) {
+//   .register-content {
+//     --background: #1f2937;
+//   }
+
+//   .register-container {
+//     background: #1f2937;
+//   }
+
+//   .register-title {
+//     color: #ffffff;
+//   }
+
+//   .register-subtitle {
+//     color: #d1d5db;
+//   }
+
+//   .form-label {
+//     color: #e5e7eb;
+//   }
+
+//   .form-input {
+//     background: #374151;
+//     border-color: #4b5563;
+//     color: #ffffff;
+
+//     &:focus {
+//       border-color: #3b82f6;
+//     }
+
+//     &::placeholder {
+//       color: #9ca3af;
+//     }
+//   }
+
+//   .social-button {
+//     background: #374151;
+//     border-color: #4b5563;
+//     color: #e5e7eb;
+
+//     &:hover {
+//       background: #4b5563;
+//       border-color: #6b7280;
+//     }
+//   }
+// }
