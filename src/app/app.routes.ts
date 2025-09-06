@@ -4,12 +4,23 @@ import { ProfilePage } from './pages/profile/profile.page';
 import { OrdersPage } from './pages/orders/orders.page';
 import { CartPage } from './pages/cart/cart.page';
 import { ProductDetailPage } from './pages/product-detail/product-detail.page';
+import { LoginPage } from './pages/login/login.page';
+import { RegisterPage } from './pages/register/register.page';
+import { AuthGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   {
     path: '',
     redirectTo: '/tabs/home',
     pathMatch: 'full'
+  },
+  {
+    path: 'login',
+    component: LoginPage
+  },
+  {
+    path: 'register',
+    component: RegisterPage
   },
   {
     path: 'tabs',
@@ -30,11 +41,13 @@ export const routes: Routes = [
       },
       {
         path: 'cart',
-        component: CartPage
+        component: CartPage,
+        canActivate: [AuthGuard]
       },
       {
         path: 'orders',
-        component: OrdersPage
+        component: OrdersPage,
+        canActivate: [AuthGuard]
       },
       {
         path: 'profile',
@@ -47,3 +60,4 @@ export const routes: Routes = [
     component: ProductDetailPage
   }
 ];
+// ...existing code...

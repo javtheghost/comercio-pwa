@@ -1,0 +1,99 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Mi Carrito</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <!-- Empty Cart State -->
+  <div *ngIf="cartItems.length === 0" class="ion-text-center ion-padding empty-cart">
+    <ion-icon name="cart-outline" class="empty-cart-icon"></ion-icon>
+    <h2>¡Tu Carrito Está Vacío!</h2>
+    <p>Cuando agregues productos, aparecerán aquí.</p>
+    <ion-button routerLink="/tabs/products" expand="block" fill="outline" class="ion-margin-top">
+      Ver Productos
+    </ion-button>
+  </div>
+
+  <!-- Cart with Items -->
+  <div *ngIf="cartItems.length > 0">
+    <!-- Product List -->
+    <ion-list>
+      <ion-item *ngFor="let item of cartItems" class="cart-item">
+        <ion-thumbnail slot="start" class="product-image">
+          <img [src]="item.image" [alt]="item.name" />
+        </ion-thumbnail>
+
+        <ion-label class="product-info">
+          <h3>{{ item.name }}</h3>
+          <p class="size">Talla {{ item.size }}</p>
+          <p class="price">{{ item.price | currency:'USD' }}</p>
+        </ion-label>
+
+        <!-- Quantity Selector -->
+        <div slot="end" class="quantity-controls">
+          <div class="quantity-selector">
+            <ion-button fill="clear" size="small" (click)="decreaseQuantity(item)" class="quantity-btn">
+              <ion-icon name="remove-outline"></ion-icon>
+            </ion-button>
+
+            <div class="quantity-input-container">
+              <input
+                type="number"
+                [value]="item.quantity"
+                (input)="updateQuantity(item, $event)"
+                (click)="selectInput($event)"
+                class="quantity-input"
+                min="1"
+                max="99">
+            </div>
+
+            <ion-button fill="clear" size="small" (click)="increaseQuantity(item)" class="quantity-btn">
+              <ion-icon name="add-outline"></ion-icon>
+            </ion-button>
+          </div>
+
+          <!-- Remove Button -->
+          <ion-button fill="clear" color="danger" size="small" (click)="removeFromCart(item)" class="remove-btn">
+            <ion-icon name="trash-outline"></ion-icon>
+          </ion-button>
+        </div>
+      </ion-item>
+    </ion-list>
+
+    <!-- Order Summary -->
+    <ion-card class="order-summary">
+      <ion-card-content>
+        <h3>Resumen de Orden</h3>
+
+        <div class="summary-row">
+          <span>Sub-total</span>
+          <span>{{ getSubtotal() | currency:'USD' }}</span>
+        </div>
+
+        <div class="summary-row">
+          <span>IVA (16%)</span>
+          <span>{{ getVAT() | currency:'USD' }}</span>
+        </div>
+
+        <div class="summary-row">
+          <span>Costo de envío</span>
+          <span>{{ shippingFee | currency:'USD' }}</span>
+        </div>
+
+        <div class="summary-row total">
+          <span><strong>Total</strong></span>
+          <span><strong>{{ getTotal() | currency:'USD' }}</strong></span>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Checkout Button -->
+    <div class="checkout-section">
+      <ion-button expand="block" class="checkout-btn" (click)="goToCheckout()">
+        Ir al Checkout
+        <ion-icon name="arrow-forward" slot="end"></ion-icon>
+      </ion-button>
+    </div>
+  </div>
+</ion-content>

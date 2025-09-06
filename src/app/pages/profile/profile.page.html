@@ -1,0 +1,75 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Mi Perfil</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <!-- Usuario autenticado -->
+  <ion-card *ngIf="isAuthenticated">
+    <ion-card-content>
+      <ion-item>
+        <ion-avatar slot="start">
+          <img [src]="user?.avatar || 'https://via.placeholder.com/100x100'" alt="Avatar" />
+        </ion-avatar>
+        <ion-label>
+          <h2>{{ user?.name || 'Usuario' }}</h2>
+          <p>{{ user?.email || 'usuario@email.com' }}</p>
+        </ion-label>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="stacked">Nombre</ion-label>
+        <ion-input [value]="user?.name || ''" placeholder="Tu nombre" readonly></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="stacked">Email</ion-label>
+        <ion-input type="email" [value]="user?.email || ''" placeholder="tu@email.com" readonly></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="stacked">Miembro desde</ion-label>
+        <ion-input [value]="formatDate(user?.created_at)" readonly></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="stacked">Tipo de Cuenta</ion-label>
+        <ion-input value="Cliente" readonly></ion-input>
+      </ion-item>
+
+      <ion-button expand="block" class="ion-margin-top" (click)="onLogout()" [disabled]="loading">
+        <ion-spinner *ngIf="loading" name="crescent" class="button-spinner"></ion-spinner>
+        <span *ngIf="!loading">Cerrar Sesión</span>
+      </ion-button>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- Usuario no autenticado -->
+  <ion-card *ngIf="!isAuthenticated">
+    <ion-card-content>
+      <div class="guest-content">
+        <ion-icon name="person-circle-outline" class="guest-icon"></ion-icon>
+        <h2>¡Bienvenido!</h2>
+        <p>Inicia sesión para acceder a tu cuenta y realizar compras</p>
+
+        <div class="auth-buttons">
+          <ion-button expand="block" fill="solid" (click)="onLogin()" class="login-button">
+            Iniciar Sesión
+          </ion-button>
+
+          <ion-button expand="block" fill="outline" (click)="onRegister()" class="register-button">
+            Crear Cuenta
+          </ion-button>
+        </div>
+
+        <div class="guest-info">
+          <p class="guest-text">
+            <ion-icon name="information-circle-outline"></ion-icon>
+            Puedes navegar y ver productos sin cuenta, pero necesitarás iniciar sesión para realizar compras.
+          </p>
+        </div>
+      </div>
+    </ion-card-content>
+  </ion-card>
+</ion-content>

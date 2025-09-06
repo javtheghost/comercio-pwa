@@ -1,5 +1,12 @@
 /* You can add global styles to this file, and also import other style files */
 
+/* Ocultar el badge de reCAPTCHA v3 */
+.grecaptcha-badge {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 /* Ionic CSS imports for Ionic 8 */
 @import '@ionic/angular/css/core.css';
 @import '@ionic/angular/css/normalize.css';
