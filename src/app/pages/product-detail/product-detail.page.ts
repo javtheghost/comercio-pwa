@@ -1,6 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { NgIf } from '@angular/common';
+import { NgIf, JsonPipe } from '@angular/common';
 import {
   IonHeader,
   IonToolbar,
@@ -26,7 +26,8 @@ import { Product, ProductUI } from '../../interfaces/product.interfaces';
     IonButton,
     IonIcon,
     IonBadge,
-    IonSpinner
+  IonSpinner,
+  JsonPipe
   ],
   templateUrl: './product-detail.page.html',
   styleUrls: ['./product-detail.page.scss']
@@ -36,11 +37,13 @@ export class ProductDetailPage implements OnInit {
   product: ProductUI | null = null;
   productId: string | null = null;
   loading = true;
+  error: string | null = null;
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private apiService: ApiService
+    private apiService: ApiService,
+    private cdr: ChangeDetectorRef
   ) {
     console.log('🏗️ ProductDetailPage constructor ejecutado');
   }
@@ -64,6 +67,11 @@ export class ProductDetailPage implements OnInit {
 
     this.apiService.getProduct(Number(this.productId)).subscribe({
       next: (product) => {
+        if (!product || !product.id) {
+          this.error = 'Producto no encontrado.';
+          this.loading = false;
+          return;
+        }
         console.log('🔍 Producto encontrado en API:', product);
         this.product = {
           ...product,
@@ -71,16 +79,17 @@ export class ProductDetailPage implements OnInit {
           // Mapear propiedades para compatibilidad con la UI
           originalPrice: product.compare_price,
           discount: this.calculateDiscount(product.price, product.compare_price),
-          image: product.images && product.images.length > 0 ? product.images[0].image_url : ''
+          image: product.images && product.images.length > 0 ? product.images[0].image_url : 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop&crop=center'
         } as ProductUI;
-        this.loading = false;
-        console.log('✅ Producto cargado exitosamente:', this.product.name);
+  this.loading = false;
+  this.cdr.detectChanges();
+  console.log('✅ Producto cargado exitosamente:', this.product.name);
       },
       error: (error) => {
         console.error('❌ Error cargando producto desde API:', error);
-        // Fallback a producto de ejemplo si la API falla
-        this.loadFallbackProduct();
-        this.loading = false;
+        this.error = 'No se pudo cargar el producto. Intenta más tarde.';
+  this.loading = false;
+  this.cdr.detectChanges();
       }
     });
   }

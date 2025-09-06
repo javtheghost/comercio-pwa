@@ -1,0 +1,38 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Búsqueda</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <div class="search-container">
+    <div class="searchbar-qr-row">
+      <ion-searchbar
+        placeholder="Buscar producto por nombre o código..."
+        (ionInput)="onSearchChange($event)"
+        [debounce]="300"
+        style="flex: 1;">
+      </ion-searchbar>
+      <button class="qr-icon-btn" type="button" (click)="showQr = true">
+        <ion-icon name="qr-code-outline" style="font-size: 28px; color: #3880ff;"></ion-icon>
+      </button>
+    </div>
+
+    <div *ngIf="showQr" class="qr-modal-backdrop" (click)="showQr = false">
+      <div class="qr-modal" (click)="$event.stopPropagation()">
+        <zxing-scanner
+          [torch]="false"
+          (scanSuccess)="onCodeResult($event); showQr = false"
+          [formats]="allowedFormats"
+          [tryHarder]="true"
+          style="display: block; width: 100%; max-width: 320px; margin: 0 auto; border-radius: 12px; overflow: hidden; background: #222;">
+        </zxing-scanner>
+        <div style="text-align: center; margin-top: 8px; color: #666;">
+          <ion-icon name="qr-code-outline" style="font-size: 32px; color: #3880ff;"></ion-icon>
+          <p>Escanea el código QR de un producto</p>
+        </div>
+        <button type="button" class="close-qr-btn" (click)="showQr = false">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</ion-content>

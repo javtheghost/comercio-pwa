@@ -37,6 +37,7 @@
     "@ionic/angular-toolkit": "^12.3.0",
     "@ionic/pwa-elements": "^3.3.0",
     "@ionic/storage-angular": "^4.0.0",
+    "@zxing/ngx-scanner": "^20.0.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

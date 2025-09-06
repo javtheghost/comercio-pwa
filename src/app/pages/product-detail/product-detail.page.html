@@ -68,14 +68,19 @@
   </div>
 
   <!-- Loading or Error State -->
-  <div *ngIf="!product" class="loading-container">
+  <div *ngIf="loading" class="loading-container">
     <ion-spinner name="crescent"></ion-spinner>
     <p>Cargando producto...</p>
+  </div>
+  <div *ngIf="!loading && error" class="error-container">
+    <ion-icon name="alert-circle-outline" style="font-size: 48px; color: #eb445a;"></ion-icon>
+    <h3>{{ error }}</h3>
+    <ion-button color="primary" (click)="goBack()">Volver</ion-button>
   </div>
 </ion-content>
 
 <!-- Bottom Action Bar -->
-<div class="action-bar" *ngIf="product">
+<div class="action-bar" *ngIf="!loading && !error && product">
   <div class="price-section">
     <span class="price-label">Precio</span>
     <span class="price-amount">${{ product.price }}</span>

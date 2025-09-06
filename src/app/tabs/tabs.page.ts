@@ -13,7 +13,7 @@ import { IonTabs, IonIcon, IonRouterOutlet } from '@ionic/angular/standalone';
         <ion-icon name="home-outline"></ion-icon>
         <span>Inicio</span>
       </button>
-      <button (click)="navigate('/tabs/products')" [class.active]="isActive('/tabs/products')">
+      <button (click)="navigate('/tabs/search')" [class.active]="isActive('/tabs/search')">
         <ion-icon name="search-outline"></ion-icon>
         <span>Buscar</span>
       </button>
