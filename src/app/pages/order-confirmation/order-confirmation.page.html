@@ -1,0 +1,37 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Orden Confirmada</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <div class="confirmation-container">
+    <div class="success-icon">
+      <ion-icon name="checkmark-circle" color="success" size="large"></ion-icon>
+    </div>
+
+    <h1>¡Orden Confirmada!</h1>
+    <p class="order-id">Número de orden: #{{ orderId }}</p>
+
+    <ion-card>
+      <ion-card-content>
+        <h3>¿Qué sigue?</h3>
+        <ul>
+          <li>Recibirás un email de confirmación</li>
+          <li>Procesaremos tu orden en 1-2 días hábiles</li>
+          <li>Te notificaremos cuando esté en camino</li>
+        </ul>
+      </ion-card-content>
+    </ion-card>
+
+    <div class="actions">
+      <ion-button expand="block" fill="outline" (click)="goToOrders()">
+        Ver Mis Órdenes
+      </ion-button>
+      <ion-button expand="block" (click)="goToHome()">
+        Continuar Comprando
+      </ion-button>
+    </div>
+  </div>
+</ion-content>
+

@@ -12,7 +12,10 @@ import {
   IonSpinner
 } from '@ionic/angular/standalone';
 import { ProductService } from '../../services/product.service';
-import { Product, ProductUI } from '../../interfaces/product.interfaces';
+import { CartService, AddToCartRequest } from '../../services/cart.service';
+import { Product, ProductUI, ProductVariant, VariantInfo } from '../../interfaces/product.interfaces';
+import { ProductVariantSelectorComponent, VariantSelection } from '../../components/product-variant-selector/product-variant-selector.component';
+import { AddToCartToastComponent } from '../../components/add-to-cart-toast/add-to-cart-toast.component';
 
 @Component({
   selector: 'app-product-detail',
@@ -26,21 +29,42 @@ import { Product, ProductUI } from '../../interfaces/product.interfaces';
     IonButton,
     IonIcon,
     IonBadge,
-    IonSpinner
+    IonSpinner,
+    ProductVariantSelectorComponent,
+    AddToCartToastComponent
   ],
   templateUrl: './product-detail.page.html',
   styleUrls: ['./product-detail.page.scss']
 })
 export class ProductDetailPage implements OnInit {
-  selectedSize = 'S';
+  selectedSize: string | null = null;
+  selectedColor: string | null = null;
   product: ProductUI | null = null;
   productId: string | null = null;
   loading = true;
+  currentVariant: ProductVariant | null = null;
+  currentPrice: string = '';
+  currentStock: number = 0;
+  variantInfo: VariantInfo | null = null;
+  loadingVariants = false;
+
+  // Toast properties
+  showToast = false;
+  toastProductName = '';
+  toastProductImage = '';
+  toastSelectedSize = '';
+  toastSelectedColor = '';
+  toastPrice = 0;
+
+  // Loading state
+  addingToCart = false;
+
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private productService: ProductService,
+    private cartService: CartService,
     private cdr: ChangeDetectorRef
   ) {
     console.log('🏗️ ProductDetailPage constructor ejecutado');
@@ -69,6 +93,23 @@ export class ProductDetailPage implements OnInit {
         console.log('🔍 Tipo de producto:', typeof product);
         console.log('🔍 Producto tiene images?', product.images);
         console.log('🔍 Cantidad de imágenes:', product.images?.length);
+        console.log('🔍 Producto tiene variants?', product.variants);
+        console.log('🔍 Producto tiene attributes?', product.attributes);
+
+        // Debug: verificar imágenes del producto
+        console.log('🔍 Imágenes del producto:', {
+          hasImages: !!(product.images && product.images.length > 0),
+          imageCount: product.images?.length || 0,
+          firstImage: product.images?.[0],
+          fullImageUrl: product.images?.[0]?.full_image_url,
+          imageUrl: product.images?.[0]?.image_url
+        });
+
+        const imageUrl = product.images && product.images.length > 0
+          ? product.images[0].full_image_url || product.images[0].image_url
+          : 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop&crop=center';
+
+        console.log('🔍 URL de imagen final:', imageUrl);
 
         this.product = {
           ...product,
@@ -76,11 +117,15 @@ export class ProductDetailPage implements OnInit {
           // Mapear propiedades para compatibilidad con la UI
           originalPrice: product.compare_price,
           discount: this.calculateDiscount(product.price, product.compare_price),
-          image: product.images && product.images.length > 0 ? product.images[0].full_image_url || product.images[0].image_url : ''
+          image: imageUrl,
+          availableSizes: [],
+          availableColors: []
         } as ProductUI;
 
         console.log('🔍 Producto mapeado:', this.product);
-        console.log('🔍 Imagen asignada:', this.product.image);
+
+        // Cargar información de variantes usando la nueva API
+        this.loadVariantInfo();
 
         this.loading = false;
         console.log('✅ Producto cargado exitosamente:', this.product.name);
@@ -100,6 +145,52 @@ export class ProductDetailPage implements OnInit {
     });
   }
 
+  loadVariantInfo() {
+    if (!this.productId) return;
+
+    console.log('🔍 Cargando información de variantes...');
+    this.loadingVariants = true;
+
+    this.productService.getProductVariantInfo(Number(this.productId)).subscribe({
+      next: (variantInfo) => {
+        console.log('🎯 Información de variantes recibida:', variantInfo);
+
+        this.variantInfo = variantInfo;
+
+        // Actualizar el producto con la información de variantes
+        if (this.product) {
+          this.product.availableSizes = variantInfo.available_sizes;
+          this.product.availableColors = variantInfo.available_colors;
+        }
+
+        // Seleccionar primera talla disponible por defecto si no hay selección
+        if (variantInfo.available_sizes.length > 0 && !this.selectedSize) {
+          this.selectedSize = variantInfo.available_sizes[0];
+        }
+
+        // Seleccionar primer color disponible por defecto si no hay selección
+        if (variantInfo.available_colors.length > 0 && !this.selectedColor) {
+          this.selectedColor = variantInfo.available_colors[0];
+        }
+
+        console.log('🎯 Tallas disponibles:', variantInfo.available_sizes);
+        console.log('🎯 Colores disponibles:', variantInfo.available_colors);
+        console.log('🎯 Talla seleccionada:', this.selectedSize);
+        console.log('🎯 Color seleccionado:', this.selectedColor);
+        console.log('🎯 Necesita variantes:', variantInfo.needs_variants);
+        console.log('🎯 Tipo de tallas:', variantInfo.size_type);
+
+        this.loadingVariants = false;
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('❌ Error al cargar información de variantes:', error);
+        this.loadingVariants = false;
+        // No es crítico, continuar sin información de variantes
+      }
+    });
+  }
+
     calculateDiscount(price: string, comparePrice: string): number | undefined {
     if (!comparePrice || parseFloat(comparePrice) <= parseFloat(price)) {
       return undefined;
@@ -109,8 +200,117 @@ export class ProductDetailPage implements OnInit {
   }
 
 
+  /**
+   * Extrae las tallas disponibles del producto
+   */
+  extractAvailableSizes(product: any): string[] {
+    const sizes: string[] = [];
+
+    // Buscar en attributes
+    if (product.attributes) {
+      product.attributes.forEach((attr: any) => {
+        if (attr.type === 'size' && !sizes.includes(attr.value)) {
+          sizes.push(attr.value);
+        }
+      });
+    }
+
+    // Buscar en variants
+    if (product.variants) {
+      product.variants.forEach((variant: any) => {
+        if (variant.attributes && variant.attributes.size && !sizes.includes(variant.attributes.size)) {
+          sizes.push(variant.attributes.size);
+        }
+      });
+    }
+
+    // Ordenar tallas de manera lógica
+    return this.sortSizes(sizes);
+  }
+
+  /**
+   * Extrae los colores disponibles del producto
+   */
+  extractAvailableColors(product: any): string[] {
+    const colors: string[] = [];
+
+    // Buscar en attributes
+    if (product.attributes) {
+      product.attributes.forEach((attr: any) => {
+        if (attr.type === 'color' && !colors.includes(attr.value)) {
+          colors.push(attr.value);
+        }
+      });
+    }
+
+    // Buscar en variants
+    if (product.variants) {
+      product.variants.forEach((variant: any) => {
+        if (variant.attributes && variant.attributes.color && !colors.includes(variant.attributes.color)) {
+          colors.push(variant.attributes.color);
+        }
+      });
+    }
+
+    return colors;
+  }
+
+  /**
+   * Ordena las tallas de manera lógica (XS, S, M, L, XL, XXL, etc.)
+   */
+  sortSizes(sizes: string[]): string[] {
+    const sizeOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+    const numericSizes: string[] = [];
+    const otherSizes: string[] = [];
+
+    sizes.forEach(size => {
+      if (sizeOrder.includes(size.toUpperCase())) {
+        otherSizes.push(size);
+      } else if (!isNaN(Number(size))) {
+        numericSizes.push(size);
+      } else {
+        otherSizes.push(size);
+      }
+    });
+
+    // Ordenar numéricos
+    numericSizes.sort((a, b) => Number(a) - Number(b));
+
+    // Ordenar por orden predefinido
+    otherSizes.sort((a, b) => {
+      const indexA = sizeOrder.indexOf(a.toUpperCase());
+      const indexB = sizeOrder.indexOf(b.toUpperCase());
+      if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
+
+    return [...numericSizes, ...otherSizes];
+  }
+
+  /**
+   * Verifica si el producto tiene tallas
+   */
+  hasSizes(): boolean {
+    return !!(this.product?.availableSizes && this.product.availableSizes.length > 0);
+  }
+
+  /**
+   * Verifica si el producto tiene colores
+   */
+  hasColors(): boolean {
+    return !!(this.product?.availableColors && this.product.availableColors.length > 0);
+  }
+
   selectSize(size: string) {
     this.selectedSize = size;
+    console.log('📏 Talla seleccionada:', size);
+  }
+
+  selectColor(color: string) {
+    this.selectedColor = color;
+    console.log('🎨 Color seleccionado:', color);
   }
 
   toggleFavorite() {
@@ -121,16 +321,129 @@ export class ProductDetailPage implements OnInit {
   }
 
   addToCart() {
-    console.log('🛒 Agregando al carrito:', {
-      name: this.product?.name,
-      size: this.selectedSize,
-      price: this.product?.price
+    if (!this.product) {
+      console.error('❌ No hay producto para agregar al carrito');
+      return;
+    }
+
+    // Verificar si el producto requiere talla y no se ha seleccionado
+    if (this.hasSizes() && !this.selectedSize) {
+      console.warn('⚠️ Debe seleccionar una talla');
+      // Aquí podrías mostrar un toast o alert
+      return;
+    }
+
+    // Prevenir múltiples clics
+    if (this.addingToCart) {
+      return;
+    }
+
+    const request: AddToCartRequest = {
+      product_id: this.product.id,
+      quantity: 1,
+      product_variant_id: this.getSelectedVariantId(),
+      selected_attributes: {
+        size: this.selectedSize,
+        color: this.selectedColor
+      }
+    };
+
+    console.log('🛒 Agregando al carrito:', request);
+
+    // Activar estado de carga
+    this.addingToCart = true;
+    this.cdr.detectChanges();
+
+    this.cartService.addToCart(request).subscribe({
+      next: (cart) => {
+        console.log('✅ Producto agregado al carrito exitosamente:', cart);
+
+        // Desactivar estado de carga
+        this.addingToCart = false;
+
+        // Mostrar toast inmediatamente
+        this.showSuccessToast();
+
+        // Forzar detección de cambios
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('❌ Error agregando al carrito:', error);
+
+        // Desactivar estado de carga en caso de error
+        this.addingToCart = false;
+        this.cdr.detectChanges();
+
+        // Aquí podrías mostrar un toast de error
+      }
     });
-    // Aquí implementarías la lógica para agregar al carrito
+  }
+
+  /**
+   * Obtiene el ID de la variante seleccionada
+   */
+  getSelectedVariantId(): number | undefined {
+    if (!this.product?.variants) return undefined;
+
+    const variant = this.product.variants.find(v => {
+      const hasMatchingSize = !this.selectedSize ||
+        (v.attributes && v.attributes.size === this.selectedSize);
+      const hasMatchingColor = !this.selectedColor ||
+        (v.attributes && v.attributes.color === this.selectedColor);
+
+      return hasMatchingSize && hasMatchingColor;
+    });
+
+    return variant?.id || undefined;
   }
 
   goBack() {
     this.router.navigate(['/tabs/home']);
+  }
+
+  /**
+   * Muestra el toast de éxito al agregar al carrito
+   */
+  showSuccessToast() {
+    if (this.product) {
+      this.toastProductName = this.product.name;
+      this.toastProductImage = this.product.image || '/assets/images/no-image.png';
+      this.toastSelectedSize = this.selectedSize || '';
+      this.toastSelectedColor = this.selectedColor || '';
+      this.toastPrice = parseFloat(this.currentPrice);
+      this.showToast = true;
+
+      // Forzar detección de cambios inmediatamente
+      this.cdr.detectChanges();
+
+      console.log('🎉 Toast mostrado:', {
+        show: this.showToast,
+        productName: this.toastProductName,
+        price: this.toastPrice
+      });
+    }
+  }
+
+  /**
+   * Cierra el toast
+   */
+  closeToast() {
+    this.showToast = false;
+  }
+
+
+  onVariantSelectionChange(selection: VariantSelection) {
+    console.log('🔄 Variante seleccionada:', selection);
+    this.currentVariant = selection.variant || null;
+    this.currentPrice = selection.price || this.product?.price || '0';
+    this.currentStock = selection.stock || 0;
+    this.selectedSize = selection.size || null;
+    this.selectedColor = selection.color || null;
+  }
+
+  onVariantChange(variant: ProductVariant | null) {
+    console.log('🔄 Variante cambiada:', variant);
+    this.currentVariant = variant;
   }
 }
 

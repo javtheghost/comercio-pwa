@@ -1,12 +1,14 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { NavController } from '@ionic/angular';
-import { IonIcon, IonRouterOutlet } from '@ionic/angular/standalone';
+import { IonIcon, IonRouterOutlet, IonBadge } from '@ionic/angular/standalone';
+import { Subscription } from 'rxjs';
+import { CartService, Cart } from '../services/cart.service';
 
 @Component({
   selector: 'app-tabs',
   standalone: true,
-  imports: [IonIcon, IonRouterOutlet],
+  imports: [IonIcon, IonRouterOutlet, IonBadge],
   template: `
     <div class="custom-tab-bar">
       <button (click)="navigate('/tabs/home')" [class.active]="isActive('/tabs/home')">
@@ -21,8 +23,13 @@ import { IonIcon, IonRouterOutlet } from '@ionic/angular/standalone';
         <ion-icon name="heart-outline"></ion-icon>
         <span>Guardados</span>
       </button>
-      <button (click)="navigate('/tabs/cart')" [class.active]="isActive('/tabs/cart')">
-        <ion-icon name="cart-outline"></ion-icon>
+      <button (click)="navigate('/tabs/cart')" [class.active]="isActive('/tabs/cart')" class="cart-button">
+        <div class="cart-icon-container">
+          <ion-icon name="cart-outline"></ion-icon>
+          @if (cartItemsCount > 0) {
+            <ion-badge color="danger" class="cart-badge">{{ cartItemsCount }}</ion-badge>
+          }
+        </div>
         <span>Carrito</span>
       </button>
       <button (click)="navigate('/tabs/profile')" [class.active]="isActive('/tabs/profile')">
@@ -34,12 +41,35 @@ import { IonIcon, IonRouterOutlet } from '@ionic/angular/standalone';
   `,
   styleUrls: ['./tabs.page.scss']
 })
-export class TabsPage {
+export class TabsPage implements OnInit, OnDestroy {
   tabOrder = ['/tabs/home', '/tabs/products', '/tabs/orders', '/tabs/cart', '/tabs/profile'];
   currentTabIndex = 0;
+  cartItemsCount = 0;
+  private cartSubscription: Subscription = new Subscription();
 
-  constructor(private router: Router, private navCtrl: NavController) {
+  constructor(
+    private router: Router,
+    private navCtrl: NavController,
+    private cartService: CartService,
+    private cdr: ChangeDetectorRef
+  ) {
     this.currentTabIndex = this.tabOrder.indexOf(this.router.url);
+  }
+
+  ngOnInit() {
+    this.subscribeToCart();
+  }
+
+  ngOnDestroy() {
+    this.cartSubscription.unsubscribe();
+  }
+
+  private subscribeToCart(): void {
+    this.cartSubscription = this.cartService.cartItemsCount$.subscribe(count => {
+      this.cartItemsCount = count;
+      this.cdr.detectChanges(); // Forzar detección de cambios
+      console.log('🛒 [TABS] Contador actualizado:', count);
+    });
   }
 
   navigate(path: string) {

@@ -107,12 +107,23 @@ export class HomePage implements OnInit {
     this.currentPage = 1;
     this.hasMoreProducts = true;
 
-    this.productService.getProductsPaginated(this.currentPage, this.itemsPerPage).subscribe({
-      next: (response: PaginatedResponse<Product>) => {
-        console.log('✅ Respuesta exitosa del API:', response);
+     this.productService.getProductsPaginated(this.currentPage, this.itemsPerPage).subscribe({
+       next: (response: PaginatedResponse<Product>) => {
+         console.log('✅ Respuesta exitosa del API:', response);
+         console.log('🔍 Productos recibidos:', response.data);
 
-        this.products = ProductUtils.mapProductsToUI(response.data);
-        this.hasMoreProducts = response.current_page < response.last_page;
+         this.products = ProductUtils.mapProductsToUI(response.data);
+         this.hasMoreProducts = response.current_page < response.last_page;
+
+         // Debug: verificar categorías de productos
+         this.products.forEach((product, index) => {
+           console.log(`🔍 Producto ${index + 1}:`, {
+             id: product.id,
+             name: product.name,
+             hasCategory: !!product.category,
+             categoryName: product.category?.name || 'SIN CATEGORÍA'
+           });
+         });
 
         console.log('📦 Productos mapeados:', this.products.length);
         console.log('🔄 Cambiando loading a false...');
@@ -162,6 +173,7 @@ export class HomePage implements OnInit {
         this.loadingCategories = false;
         this.cdr.detectChanges(); // Forzar detección de cambios para ocultar skeleton
         console.log('📂 Total de categorías:', this.categories.length);
+        console.log('📂 Categorías mostradas:', this.categories.map(c => c.name));
       },
       error: (error: any) => {
         console.error('❌ Error cargando categorías:', error);
@@ -188,16 +200,7 @@ export class HomePage implements OnInit {
     console.log('🚀 Forzando carga de más productos...');
 
     if (this.hasMoreProducts && !this.isLoadingMore) {
-      // Simular evento de infinite scroll
-      const mockEvent = {
-        target: {
-          complete: () => {
-            console.log('✅ Evento de infinite scroll completado manualmente');
-          }
-        }
-      };
-
-      this.loadMoreProducts(mockEvent);
+      this.loadMoreProducts();
     } else {
       console.log('⚠️ No se pueden cargar más productos:', {
         hasMoreProducts: this.hasMoreProducts,
@@ -209,9 +212,9 @@ export class HomePage implements OnInit {
   goToProductDetail(product: ProductUI) {
     console.log('🔄 CLICK DETECTADO en producto:', product.name);
     console.log('🔄 Intentando navegar al producto:', product);
-    console.log('📍 Ruta objetivo:', `/product/${product.id}`);
+    console.log('📍 Ruta objetivo:', `/tabs/product/${product.id}`);
 
-    this.router.navigate(['/product', product.id]).then(() => {
+    this.router.navigate(['/tabs/product', product.id]).then(() => {
       console.log('✅ Navegación exitosa a producto:', product.id);
     }).catch((error) => {
       console.error('❌ Error en navegación:', error);
@@ -264,13 +267,33 @@ export class HomePage implements OnInit {
     this.productService.getCategoryProducts(categoryId).subscribe({
       next: (products: Product[]) => {
         console.log(`📂 Productos de categoría ${categoryId}:`, products);
-        this.products = ProductUtils.mapProductsToUI(products);
+
+         // Validar que products sea un array válido
+         if (products && Array.isArray(products)) {
+           this.products = ProductUtils.mapProductsToUI(products);
+           console.log(`✅ ${products.length} productos cargados para la categoría ${categoryId}`);
+
+           // Debug: verificar categorías de productos filtrados
+           this.products.forEach((product, index) => {
+             console.log(`🔍 Producto filtrado ${index + 1}:`, {
+               id: product.id,
+               name: product.name,
+               hasCategory: !!product.category,
+               categoryName: product.category?.name || 'SIN CATEGORÍA'
+             });
+           });
+         } else {
+           console.warn(`⚠️ No se recibieron productos válidos para la categoría ${categoryId}`);
+           this.products = [];
+         }
+
         this.loading = false;
         this.cdr.detectChanges(); // Forzar detección de cambios
         this.logImageDebugInfo(); // Log image info after loading
       },
       error: (error: any) => {
         console.error('❌ Error cargando productos de categoría:', error);
+        this.products = [];
         this.loading = false;
         this.cdr.detectChanges(); // Forzar detección de cambios
       }
@@ -389,7 +412,7 @@ export class HomePage implements OnInit {
 
 
   // Método para cargar más productos - Usando API real
-  loadMoreProducts(event: any) {
+  loadMoreProducts(event?: any) {
     console.log('📜 Infinite scroll activado:', {
       hasMoreProducts: this.hasMoreProducts,
       isLoadingMore: this.isLoadingMore,
@@ -399,7 +422,9 @@ export class HomePage implements OnInit {
 
     if (!this.hasMoreProducts || this.isLoadingMore) {
       console.log('⚠️ No se pueden cargar más productos');
-      event.target.complete();
+      if (event?.target?.complete) {
+        event.target.complete();
+      }
       return;
     }
 

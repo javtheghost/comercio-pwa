@@ -74,6 +74,31 @@
   margin-bottom: 2px;
 }
 
+/* Estilos para el badge del carrito */
+.cart-button {
+  position: relative;
+}
+
+.cart-icon-container {
+  position: relative;
+  display: inline-block;
+}
+
+.cart-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 10px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  z-index: 1;
+}
+
 @media (max-width: 480px) {
   .custom-tab-bar {
     height: 44px;
@@ -82,5 +107,14 @@
   .custom-tab-bar button {
     min-width: 44px;
     font-size: 12px;
+  }
+
+  .cart-badge {
+    font-size: 9px;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    top: -6px;
+    right: -6px;
   }
 }

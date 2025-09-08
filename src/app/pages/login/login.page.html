@@ -10,13 +10,16 @@
     <form [formGroup]="loginForm" (ngSubmit)="onLogin()" class="login-form">
       <!-- Email Field -->
       <div class="form-group">
-        <label class="form-label">Correo Electrónico</label>
+        <label class="form-label" for="email">Correo Electrónico</label>
         <div class="input-container" [class.valid]="isFieldValid('email')" [class.error]="hasFieldError('email')">
           <input
             type="email"
             formControlName="email"
             class="form-input"
             placeholder="Ingresa tu correo electrónico"
+            autocomplete="email"
+            name="email"
+            id="email"
             [class.valid]="isFieldValid('email')"
             [class.error]="hasFieldError('email')"
           />
@@ -68,9 +71,10 @@
       <button
         type="submit"
         class="login-button"
+        [disabled]="authLoading"
       >
-        <ion-spinner *ngIf="loading" name="crescent" class="button-spinner"></ion-spinner>
-        <span *ngIf="!loading">Iniciar Sesión</span>
+        <ion-spinner *ngIf="authLoading" name="crescent" class="button-spinner"></ion-spinner>
+        <span *ngIf="!authLoading">Iniciar Sesión</span>
       </button>
     </form>
 

@@ -21,9 +21,37 @@ export interface Product {
   updated_at: string;
   deleted_at: string | null;
   category: Category;
-  variants: any[];
+  variants: ProductVariant[];
   images: ProductImage[];
+  attributes: ProductAttribute[];
   discounts: any[];
+}
+
+export interface ProductVariant {
+  id: number;
+  product_id: number;
+  sku: string;
+  name: string;
+  price: string;
+  compare_price: string;
+  stock_quantity: number;
+  weight: string;
+  attributes: any; // JSON con talla, color, etc.
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductAttribute {
+  id: number;
+  product_id: number;
+  name: string; // "Talla", "Color", "Material"
+  value: string; // "S", "Rojo", "Algodón"
+  type: 'color' | 'size' | 'material' | 'weight' | 'dimensions' | 'brand' | 'model' | 'warranty' | 'origin' | 'custom';
+  is_required: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ProductUI extends Product {
@@ -31,6 +59,31 @@ export interface ProductUI extends Product {
   image: string;
   originalPrice?: string;
   discount?: number;
+  availableSizes?: string[];
+  availableColors?: string[];
+  selectedVariant?: ProductVariant;
+}
+
+// Interfaz para información de variantes del sistema inteligente
+export interface VariantInfo {
+  size_type: string;
+  needs_variants: boolean;
+  display_name: string;
+  size_guide: string;
+  available_sizes: string[];
+  available_colors: string[];
+  available_materials: string[];
+  product: {
+    id: number;
+    name: string;
+    slug: string;
+    category: {
+      id: number;
+      name: string;
+      slug: string;
+    } | null;
+  };
+  existing_variants: ProductVariant[];
 }
 
 export interface ProductImage {

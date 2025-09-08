@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -28,10 +28,10 @@ import { LoginRequest } from '../../interfaces/auth.interfaces';
 })
 export class LoginPage implements OnInit {
   loginForm: FormGroup;
-  loading = false;
   showPassword = false;
   showToast = false;
   toastMessage = '';
+  authLoading = false;
 
   // reCAPTCHA
   recaptchaToken = '';
@@ -40,6 +40,7 @@ export class LoginPage implements OnInit {
     private formBuilder: FormBuilder,
     private authService: AuthService,
     private router: Router,
+    private cdr: ChangeDetectorRef,
     public recaptchaService: RecaptchaService
   ) {
     this.loginForm = this.formBuilder.group({
@@ -51,8 +52,13 @@ export class LoginPage implements OnInit {
   ngOnInit() {
     // Check if user is already authenticated
     if (this.authService.isAuthenticated()) {
-      this.router.navigate(['/tabs/profile']);
+      this.router.navigate(['/tabs/home']);
     }
+
+    // Suscribirse a cambios en el estado de autenticación
+    this.authService.authState$.subscribe(authState => {
+      this.authLoading = authState.loading;
+    });
 
     // Debug reCAPTCHA status
     setTimeout(() => {
@@ -67,13 +73,15 @@ export class LoginPage implements OnInit {
       return;
     }
 
-    this.loading = true;
+    // Prevenir múltiples clics
+    if (this.authLoading) {
+      return;
+    }
 
     try {
       // Verificar si reCAPTCHA está disponible
       if (!this.recaptchaService.isRecaptchaAvailable()) {
         this.showToastMessage('reCAPTCHA no disponible. Por favor, recarga la página e intenta nuevamente.');
-        this.loading = false;
         return;
       }
 
@@ -91,20 +99,13 @@ export class LoginPage implements OnInit {
 
       this.authService.login(dataWithRecaptcha).subscribe({
         next: (response) => {
-          this.loading = false;
           console.log('✅ Respuesta del login en componente:', response);
-          console.log('✅ Estado de autenticación después del login:', this.authService.isAuthenticated());
-          console.log('✅ Usuario actual:', this.authService.getCurrentUserValue());
 
-          if (this.authService.isAuthenticated()) {
-            this.showToastMessage('¡Inicio de sesión exitoso!');
-            this.router.navigate(['/tabs/profile']);
-          } else {
-            this.showToastMessage('Error: No se pudo establecer la sesión');
-          }
+          // Si llegamos aquí, el login fue exitoso
+          this.showToastMessage('¡Inicio de sesión exitoso!');
+          this.router.navigate(['/tabs/home']);
         },
         error: (error) => {
-          this.loading = false;
           console.log('❌ Error completo del backend:', error);
 
           // Aplicar errores específicos a los campos correspondientes
@@ -129,7 +130,6 @@ export class LoginPage implements OnInit {
         }
       });
     } catch (error) {
-      this.loading = false;
       this.showToastMessage('Error de reCAPTCHA. Error al verificar reCAPTCHA. Por favor, recarga la página e intenta nuevamente.');
     }
   }
@@ -201,5 +201,6 @@ export class LoginPage implements OnInit {
   private showToastMessage(message: string) {
     this.toastMessage = message;
     this.showToast = true;
+    this.cdr.detectChanges();
   }
 }

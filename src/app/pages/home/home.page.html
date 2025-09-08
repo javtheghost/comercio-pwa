@@ -13,9 +13,9 @@
       [debounce]="300">
     </ion-searchbar>
 
-    
-  </div>
 
+  </div>
+   <h3 class="ion-padding-start  text-sm font-weight-semibold">Categorías</h3>
   <!-- Filtros de categorías -->
   <div class="categories-container">
     <!-- Skeleton para categorías mientras cargan -->
@@ -122,7 +122,7 @@
              {{ product.description }}
            </ion-card-subtitle>
 
-           <div class="product-category">
+           <div class="product-category" *ngIf="product.category">
              <ion-chip size="small" color="light">
                {{ product.category.name }}
              </ion-chip>

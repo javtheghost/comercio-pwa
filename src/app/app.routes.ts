@@ -6,6 +6,8 @@ import { CartPage } from './pages/cart/cart.page';
 import { ProductDetailPage } from './pages/product-detail/product-detail.page';
 import { LoginPage } from './pages/login/login.page';
 import { RegisterPage } from './pages/register/register.page';
+import { CheckoutPage } from './pages/checkout/checkout.page';
+import { OrderConfirmationPage } from './pages/order-confirmation/order-confirmation.page';
 import { AuthGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
@@ -23,6 +25,16 @@ export const routes: Routes = [
     component: RegisterPage
   },
   {
+    path: 'checkout',
+    component: CheckoutPage,
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'order-confirmation',
+    component: OrderConfirmationPage,
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'tabs',
     loadComponent: () => import('./tabs/tabs.page').then(m => m.TabsPage),
     children: [
@@ -37,8 +49,7 @@ export const routes: Routes = [
       },
       {
         path: 'cart',
-        component: CartPage,
-        canActivate: [AuthGuard]
+        component: CartPage
       },
       {
         path: 'orders',
@@ -48,11 +59,11 @@ export const routes: Routes = [
       {
         path: 'profile',
         component: ProfilePage
+      },
+      {
+        path: 'product/:id',
+        component: ProductDetailPage
       }
     ]
-  },
-  {
-    path: 'product/:id',
-    component: ProductDetailPage
   }
 ];
