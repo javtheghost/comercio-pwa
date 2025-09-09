@@ -55,7 +55,7 @@ export class RegisterPage implements OnInit {
   ngOnInit() {
     // Check if user is already authenticated
     if (this.authService.isAuthenticated()) {
-      this.router.navigate(['/tabs/profile']);
+      this.router.navigate(['/tabs/home']);
     }
   }
 
@@ -108,7 +108,7 @@ export class RegisterPage implements OnInit {
         next: (response) => {
           this.loading = false;
           this.showToastMessage('¡Cuenta creada exitosamente!');
-          this.router.navigate(['/tabs/profile']);
+          this.router.navigate(['/tabs/home']);
         },
         error: (error) => {
           this.loading = false;

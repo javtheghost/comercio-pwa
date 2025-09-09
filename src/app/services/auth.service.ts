@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, throwError, firstValueFrom } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
 import { LoginRequest, LoginResponse, User, AuthState, RegisterRequest, ForgotPasswordRequest, ResetPasswordRequest } from '../interfaces/auth.interfaces';
 import { AuthApiService } from './auth-api.service';
+import { SecurityService } from './security.service';
 
 @Injectable({
   providedIn: 'root'
@@ -18,17 +19,19 @@ export class AuthService {
 
   public authState$ = this.authStateSubject.asObservable();
 
-  constructor(private authApiService: AuthApiService) {
+  constructor(
+    private authApiService: AuthApiService,
+    private securityService: SecurityService
+  ) {
     this.initializeAuth();
   }
 
-  private initializeAuth(): void {
-    const token = localStorage.getItem('auth_token');
-    const userStr = localStorage.getItem('auth_user');
+  private async initializeAuth(): Promise<void> {
+    try {
+      const token = this.securityService.getTokenSync();
+      const user = await this.securityService.getSecureUser();
 
-    if (token && userStr) {
-      try {
-        const user = JSON.parse(userStr);
+      if (token && user) {
         this.authStateSubject.next({
           isAuthenticated: true,
           user,
@@ -36,45 +39,53 @@ export class AuthService {
           loading: false,
           error: null
         });
-      } catch (error) {
-        this.clearAuthData();
+        console.log('✅ [AUTH SERVICE] Datos de autenticación restaurados desde localStorage');
       }
+    } catch (error) {
+      console.error('❌ [AUTH SERVICE] Error inicializando autenticación:', error);
+      this.clearAuthData();
     }
   }
 
   login(credentials: LoginRequest): Observable<LoginResponse> {
+    console.log('🚪 [AUTH SERVICE] Iniciando login...');
     this.setLoading(true);
 
     return this.authApiService.login(credentials).pipe(
       tap((response: any) => {
-        console.log('🔍 Respuesta completa del login:', response);
+        console.log('🔍 [AUTH SERVICE] Respuesta completa del login:', response);
 
         // Manejar diferentes estructuras de respuesta
         if (response.success && response.data) {
           // Estructura esperada: { success: true, data: { user, token } }
           const { user, token } = response.data;
-          this.handleSuccessfulLogin(user, token);
+          this.handleSuccessfulLogin(user, token, response.refresh_token);
         } else if (response.user && response.token) {
           // Estructura alternativa: { user, token }
-          this.handleSuccessfulLogin(response.user, response.token);
+          this.handleSuccessfulLogin(response.user, response.token, response.refresh_token);
         } else if (response.access_token && response.user) {
           // Estructura Laravel Sanctum: { access_token, user }
-          this.handleSuccessfulLogin(response.user, response.access_token);
+          this.handleSuccessfulLogin(response.user, response.access_token, response.refresh_token);
         } else {
-          console.error('❌ Estructura de respuesta no reconocida:', response);
+          console.error('❌ [AUTH SERVICE] Estructura de respuesta no reconocida:', response);
           this.setError(response.message || 'Login failed - estructura de respuesta no reconocida');
         }
       }),
       catchError((error) => {
-        console.error('❌ Error en login:', error);
+        console.error('❌ [AUTH SERVICE] Error en login:', error);
         this.setError(error.error?.message || 'Login failed');
         return throwError(() => error);
+      }),
+      tap(() => {
+        // Asegurar que el loading se resetee en cualquier caso
+        this.setLoading(false);
+        console.log('🔄 [AUTH SERVICE] Loading reseteado después del login');
       })
     );
   }
 
-  private handleSuccessfulLogin(user: any, token: string): void {
-    console.log('✅ Login exitoso, guardando datos:', { user, token });
+  private async handleSuccessfulLogin(user: any, token: string, refreshToken?: string): Promise<void> {
+    console.log('✅ Login exitoso, guardando datos:', { user, token, refreshToken });
     console.log('🔍 Usuario recibido del backend:', {
       id: user?.id,
       email: user?.email,
@@ -84,28 +95,25 @@ export class AuthService {
       last_name: user?.last_name
     });
 
-    // Store auth data
-    localStorage.setItem('auth_token', token);
-    localStorage.setItem('auth_user', JSON.stringify(user));
+    try {
+      // Store auth data using security service
+      await this.securityService.setSecureToken(token);
+      await this.securityService.setSecureUser(user);
 
-    // Update auth state
-    this.authStateSubject.next({
-      isAuthenticated: true,
-      user,
-      token,
-      loading: false,
-      error: null
-    });
+      // El refresh token se maneja automáticamente via cookies del backend
+      // No necesitamos guardarlo en localStorage
 
-    console.log('✅ Estado de autenticación actualizado:', this.authStateSubject.value);
-    console.log('🔍 Usuario guardado en localStorage:', JSON.parse(localStorage.getItem('auth_user') || '{}'));
+      // Obtener información completa del usuario con roles desde /auth/me ANTES de actualizar el estado
+      console.log('🚀 Llamando a getCurrentUser() después del login...');
 
-    // Obtener información completa del usuario con roles desde /auth/me
-    console.log('🚀 Llamando a getCurrentUser() después del login...');
-    this.getCurrentUser().subscribe({
-      next: (completeUser) => {
+      // Usar firstValueFrom para esperar la respuesta de getCurrentUser
+      const completeUser = await firstValueFrom(this.getCurrentUser());
+
+      if (completeUser) {
         console.log('🔄 Usuario completo obtenido desde /auth/me:', completeUser);
-        localStorage.setItem('auth_user', JSON.stringify(completeUser));
+        await this.securityService.setSecureUser(completeUser);
+
+        // Actualizar estado UNA SOLA VEZ con los datos completos
         this.authStateSubject.next({
           isAuthenticated: true,
           user: completeUser,
@@ -113,13 +121,56 @@ export class AuthService {
           loading: false,
           error: null
         });
-        console.log('✅ Usuario actualizado con roles completos:', this.authStateSubject.value);
-      },
-      error: (error) => {
-        console.error('❌ Error obteniendo usuario completo:', error);
-        // No fallar el login si no se puede obtener la info completa
+
+        console.log('✅ Estado de autenticación actualizado con datos completos:', this.authStateSubject.value);
+
+        // Emitir evento para que el CartService pueda fusionar el carrito
+        console.log('🛒 Emitiendo evento de login exitoso para fusión del carrito...');
+        console.log('🛒 Datos del evento:', { user: completeUser, token: token });
+
+        // Emitir evento inmediatamente
+        const event = new CustomEvent('userLoggedIn', {
+          detail: { user: completeUser, token: token }
+        });
+        window.dispatchEvent(event);
+        console.log('✅ Evento userLoggedIn emitido correctamente');
+
+      } else {
+        // Fallback: usar datos básicos si no se puede obtener la info completa
+        console.log('⚠️ No se pudo obtener usuario completo, usando datos básicos');
+        this.authStateSubject.next({
+          isAuthenticated: true,
+          user,
+          token,
+          loading: false,
+          error: null
+        });
+
+        // Emitir evento con datos básicos
+        const event = new CustomEvent('userLoggedIn', {
+          detail: { user, token }
+        });
+        window.dispatchEvent(event);
       }
-    });
+
+    } catch (error) {
+      console.error('❌ Error en handleSuccessfulLogin:', error);
+
+      // Fallback: usar datos básicos en caso de error
+      this.authStateSubject.next({
+        isAuthenticated: true,
+        user,
+        token,
+        loading: false,
+        error: null
+      });
+
+      // Emitir evento con datos básicos
+      const event = new CustomEvent('userLoggedIn', {
+        detail: { user, token }
+      });
+      window.dispatchEvent(event);
+    }
   }
 
   register(userData: RegisterRequest): Observable<LoginResponse> {
@@ -130,9 +181,9 @@ export class AuthService {
         if (response.success && response.data) {
           const { user, token } = response.data;
 
-          // Store auth data
-          localStorage.setItem('auth_token', token);
-          localStorage.setItem('auth_user', JSON.stringify(user));
+          // Store auth data using security service
+          this.securityService.setSecureToken(token);
+          this.securityService.setSecureUser(user);
 
           // Update auth state
           this.authStateSubject.next({
@@ -146,9 +197,9 @@ export class AuthService {
           // Obtener información completa del usuario con roles desde /auth/me
           console.log('🚀 Llamando a getCurrentUser() después del registro...');
           this.getCurrentUser().subscribe({
-            next: (completeUser) => {
+            next: async (completeUser) => {
               console.log('🔄 Usuario completo obtenido después del registro:', completeUser);
-              localStorage.setItem('auth_user', JSON.stringify(completeUser));
+              await this.securityService.setSecureUser(completeUser);
               this.authStateSubject.next({
                 isAuthenticated: true,
                 user: completeUser,
@@ -156,6 +207,19 @@ export class AuthService {
                 loading: false,
                 error: null
               });
+
+              // Emitir evento para que el CartService pueda fusionar el carrito
+              console.log('🛒 Emitiendo evento de registro exitoso para fusión del carrito...');
+              console.log('🛒 Datos del evento:', { user: completeUser, token: token });
+
+              // Emitir evento con un pequeño delay para asegurar que el CartService esté listo
+              setTimeout(() => {
+                const event = new CustomEvent('userLoggedIn', {
+                  detail: { user: completeUser, token: token }
+                });
+                window.dispatchEvent(event);
+                console.log('✅ Evento userLoggedIn emitido correctamente después del registro');
+              }, 100);
             },
             error: (error) => {
               console.error('❌ Error obteniendo usuario completo después del registro:', error);
@@ -173,30 +237,30 @@ export class AuthService {
   }
 
   logout(): Observable<any> {
+    console.log('🚪 [AUTH SERVICE] Iniciando logout...');
     this.setLoading(true);
 
     return this.authApiService.logout().pipe(
       tap(() => {
+        console.log('✅ [AUTH SERVICE] Logout exitoso en backend');
         this.clearAuthData();
-        this.authStateSubject.next({
-          isAuthenticated: false,
-          user: null,
-          token: null,
-          loading: false,
-          error: null
-        });
+        // Emitir evento para que el CartService pueda limpiar la sesión
+        window.dispatchEvent(new CustomEvent('userLoggedOut'));
+        console.log('✅ [AUTH SERVICE] Estado de autenticación limpiado');
       }),
       catchError((error) => {
+        console.error('❌ [AUTH SERVICE] Error en logout del backend:', error);
         // Even if logout fails on server, clear local data
         this.clearAuthData();
-        this.authStateSubject.next({
-          isAuthenticated: false,
-          user: null,
-          token: null,
-          loading: false,
-          error: null
-        });
+        // Emitir evento para que el CartService pueda limpiar la sesión
+        window.dispatchEvent(new CustomEvent('userLoggedOut'));
+        console.log('✅ [AUTH SERVICE] Datos locales limpiados a pesar del error');
         return throwError(() => error);
+      }),
+      tap(() => {
+        // Asegurar que el loading se resetee en cualquier caso
+        this.setLoading(false);
+        console.log('🔄 [AUTH SERVICE] Loading reseteado');
       })
     );
   }
@@ -209,16 +273,18 @@ export class AuthService {
     return this.authApiService.resetPassword(data);
   }
 
+
   getCurrentUser(): Observable<User> {
     console.log('🔄 AuthService.getCurrentUser() - Iniciando petición a /auth/me');
-    console.log('🔑 Token actual:', this.getToken() ? 'Presente' : 'Ausente');
+    const token = this.getToken();
+    console.log('🔑 Token actual:', token ? 'Presente' : 'Ausente');
 
     return this.authApiService.getCurrentUser().pipe(
-      tap((user) => {
+      tap(async (user) => {
         console.log('✅ AuthService.getCurrentUser() - Respuesta recibida:', user);
         console.log('👤 Usuario recibido - role:', user.role, 'roles:', user.roles);
 
-        localStorage.setItem('auth_user', JSON.stringify(user));
+        await this.securityService.setSecureUser(user);
         const currentState = this.authStateSubject.value;
         this.authStateSubject.next({
           ...currentState,
@@ -236,8 +302,8 @@ export class AuthService {
         if (response.success && response.data) {
           const { user, token } = response.data;
 
-          localStorage.setItem('auth_token', token);
-          localStorage.setItem('auth_user', JSON.stringify(user));
+          this.securityService.setSecureToken(token);
+          this.securityService.setSecureUser(user);
 
           this.authStateSubject.next({
             isAuthenticated: true,
@@ -266,8 +332,8 @@ export class AuthService {
       return stateToken;
     }
 
-    // Fallback al localStorage
-    return localStorage.getItem('auth_token');
+    // Fallback al security service
+    return this.securityService.getTokenSync();
   }
 
   // Método para obtener el rol principal del usuario
@@ -360,8 +426,21 @@ export class AuthService {
   }
 
   private clearAuthData(): void {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
+    console.log('🧹 [AUTH SERVICE] Limpiando datos de autenticación...');
+
+    // Limpiar datos del localStorage
+    this.securityService.clearSecureData();
+
+    // Limpiar estado de autenticación (sin tocar el loading, se maneja en logout)
+    this.authStateSubject.next({
+      isAuthenticated: false,
+      user: null,
+      token: null,
+      loading: this.authStateSubject.value.loading, // Mantener el estado actual del loading
+      error: null
+    });
+
+    console.log('✅ [AUTH SERVICE] Datos de autenticación limpiados completamente');
   }
 
   clearError(): void {
@@ -370,5 +449,39 @@ export class AuthService {
       ...currentState,
       error: null
     });
+  }
+
+  /**
+   * Método de debug temporal para verificar el estado de autenticación
+   */
+  debugAuthState(): void {
+    console.log('🔍 [AUTH SERVICE DEBUG] ===== ESTADO DE AUTENTICACIÓN =====');
+    console.log('🔍 [AUTH SERVICE DEBUG] Estado actual:', this.authStateSubject.value);
+    console.log('🔍 [AUTH SERVICE DEBUG] isAuthenticated():', this.isAuthenticated());
+
+    // Verificar localStorage directamente
+    const tokenFromStorage = localStorage.getItem('auth_token');
+    const userFromStorage = localStorage.getItem('auth_user');
+
+    console.log('🔍 [AUTH SERVICE DEBUG] Token en localStorage:', tokenFromStorage ? 'SÍ' : 'NO');
+    if (tokenFromStorage) {
+      console.log('🔍 [AUTH SERVICE DEBUG] Token (primeros 50 chars):', tokenFromStorage.substring(0, 50) + '...');
+    }
+
+    console.log('🔍 [AUTH SERVICE DEBUG] Usuario en localStorage:', userFromStorage ? 'SÍ' : 'NO');
+    if (userFromStorage) {
+      try {
+        const user = JSON.parse(userFromStorage);
+        console.log('🔍 [AUTH SERVICE DEBUG] Usuario:', user);
+      } catch (e) {
+        console.log('🔍 [AUTH SERVICE DEBUG] Error parseando usuario:', e);
+      }
+    }
+
+    // Verificar SecurityService
+    const tokenFromSecurity = this.securityService.getTokenSync();
+    console.log('🔍 [AUTH SERVICE DEBUG] Token desde SecurityService:', tokenFromSecurity ? 'SÍ' : 'NO');
+
+    console.log('🔍 [AUTH SERVICE DEBUG] ===== FIN DEBUG =====');
   }
 }

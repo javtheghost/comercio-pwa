@@ -40,32 +40,32 @@ export class LoginPage implements OnInit {
     private formBuilder: FormBuilder,
     private authService: AuthService,
     private router: Router,
-      private cdr: ChangeDetectorRef,
-      public recaptchaService: RecaptchaService
-    ) {
-      this.loginForm = this.formBuilder.group({
-        email: ['', [Validators.required, Validators.email]],
-        password: ['', [Validators.required, Validators.minLength(6)]]
-      });
+    private cdr: ChangeDetectorRef,
+    public recaptchaService: RecaptchaService
+  ) {
+    this.loginForm = this.formBuilder.group({
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(6)]]
+    });
+  }
+
+  ngOnInit() {
+    // Check if user is already authenticated
+    if (this.authService.isAuthenticated()) {
+      this.router.navigate(['/tabs/home']);
     }
 
-    ngOnInit() {
-      // Check if user is already authenticated
-      if (this.authService.isAuthenticated()) {
-        this.router.navigate(['/tabs/home']);
-      }
+    // Suscribirse a cambios en el estado de autenticación
+    this.authService.authState$.subscribe(authState => {
+      this.authLoading = authState.loading;
+    });
 
-      // Suscribirse a cambios en el estado de autenticación
-      this.authService.authState$.subscribe(authState => {
-        this.authLoading = authState.loading;
-      });
-
-      // Debug reCAPTCHA status
-      setTimeout(() => {
-        const status = this.recaptchaService.getRecaptchaStatus();
-        console.log('🔍 Estado de reCAPTCHA en login ngOnInit:', status);
-      }, 3000);
-    }
+    // Debug reCAPTCHA status
+    setTimeout(() => {
+      const status = this.recaptchaService.getRecaptchaStatus();
+      console.log('🔍 Estado de reCAPTCHA en login ngOnInit:', status);
+    }, 3000);
+  }
 
   async onLogin() {
     if (this.loginForm.invalid) {
@@ -164,4 +164,4 @@ export class LoginPage implements OnInit {
       this.showToast = false;
     }, 3000);
   }
-  }
+}

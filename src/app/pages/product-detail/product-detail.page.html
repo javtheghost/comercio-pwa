@@ -10,83 +10,76 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
-  <div *ngIf="product" class="product-container">
-    <!-- Product Image Section -->
-    <div class="product-image-section">
-      <img [src]="product.image" [alt]="product.name" class="product-image">
-      <ion-button
-        fill="clear"
-        class="favorite-btn"
-        (click)="toggleFavorite()">
-        <ion-icon [name]="product.isFavorite ? 'heart' : 'heart-outline'"></ion-icon>
-      </ion-button>
-
-      <ion-badge
-        *ngIf="product.discount"
-        color="danger"
-        class="discount-badge">
-        -{{ product.discount }}%
-      </ion-badge>
+<!-- PRODUCT DETAIL PAGE - Unificado y seguro para ambas ramas -->
+<ion-content class="product-detail-content">
+  <div class="product-detail-container">
+    <!-- Imagen principal del producto -->
+    <div class="product-image">
+      <img [src]="product.image || 'assets/img/default-product.png'" alt="Imagen del producto" />
     </div>
 
-    <!-- Product Information -->
+    <!-- Información principal -->
     <div class="product-info">
-      <h1 class="product-name">{{ product.name }}</h1>
+      <h1 class="product-title">{{ product.name || 'Producto' }}</h1>
+      <p class="product-description">{{ product.description || 'Sin descripción.' }}</p>
+    </div>
 
-      <div class="product-price">
-        <span class="current-price">${{ product.price }}</span>
-        <span class="original-price" *ngIf="product.originalPrice">${{ product.originalPrice }}</span>
-      </div>
+    <!-- Selector de variantes (componente personalizado, descomenta si lo tienes implementado) -->
+    <app-product-variant-selector
+      *ngIf="product.variants && product.variants.length > 0"
+      [variants]="product.variants"
+      [attributes]="product.attributes"
+      [basePrice]="(product.price || 0) + ''"
+      [baseImage]="product.image || ''"
+      [selectedSize]="selectedSize"
+      [selectedColor]="selectedColor"
+      (selectionChange)="onVariantSelectionChange($event)"
+      (variantChange)="onVariantChange($event)">
+    </app-product-variant-selector>
 
-      <p class="product-description" *ngIf="product.description">
-        {{ product.description }}
-      </p>
-
-      <!-- Size Selection -->
-      <div class="size-section">
-        <h3 class="size-title">Elegir talla</h3>
-        <div class="size-buttons">
-          <ion-button
-            [color]="selectedSize === 'S' ? 'primary' : 'medium'"
-            (click)="selectSize('S')">
-            S
-          </ion-button>
-          <ion-button
-            [color]="selectedSize === 'M' ? 'primary' : 'medium'"
-            (click)="selectSize('M')">
-            M
-          </ion-button>
-          <ion-button
-            [color]="selectedSize === 'L' ? 'primary' : 'medium'"
-            (click)="selectSize('L')">
-            L
-          </ion-button>
-        </div>
+    <!-- Información de variantes -->
+    <div *ngIf="variantInfo?.needs_variants">
+      <div class="variant-info">
+        <span *ngIf="variantInfo?.size_guide"><strong>Guía de tallas:</strong> {{ variantInfo?.size_guide || '' }}</span>
+        <span *ngIf="variantInfo?.display_name"><strong>Tipo de tallas:</strong> {{ variantInfo?.display_name || '' }}</span>
+        <p class="available-options" *ngIf="variantInfo?.available_materials?.length">
+          <strong>Materiales disponibles:</strong> {{ (variantInfo?.available_materials || []).join(', ') }}
+        </p>
       </div>
     </div>
-  </div>
+    <div class="no-variants" *ngIf="variantInfo && !variantInfo.needs_variants">
+      <span>No hay variantes para este producto.</span>
+    </div>
 
-  <!-- Loading or Error State -->
-  <div *ngIf="loading" class="loading-container">
-    <ion-spinner name="crescent"></ion-spinner>
-    <p>Cargando producto...</p>
-  </div>
-  <div *ngIf="!loading && error" class="error-container">
-    <ion-icon name="alert-circle-outline" style="font-size: 48px; color: #eb445a;"></ion-icon>
-    <h3>{{ error }}</h3>
-    <ion-button color="primary" (click)="goBack()">Volver</ion-button>
+    <!-- Estado de carga de variantes -->
+    <div *ngIf="loadingVariants" class="loading-variants">
+      <ion-spinner name="crescent"></ion-spinner> Cargando variantes...
+    </div>
+
+    <!-- Precio y stock -->
+    <div class="product-purchase-info">
+      <span class="price-amount">${{ currentPrice || product.price }}</span>
+      <span class="stock-info" *ngIf="currentStock > 0">{{ currentStock }} disponibles</span>
+      <span class="stock-info" *ngIf="currentStock <= 0">Agotado</span>
+    </div>
+
+    <!-- Botón de agregar al carrito -->
+    <button class="add-to-cart-btn" [disabled]="currentStock <= 0 || addingToCart" (click)="addToCart()">
+      <ion-spinner *ngIf="addingToCart" name="crescent" class="button-spinner"></ion-spinner>
+      <span *ngIf="!addingToCart">Agregar al Carrito</span>
+      <span *ngIf="addingToCart">Agregando...</span>
+    </button>
+
+    <!-- Toast de confirmación (componente personalizado) -->
+    <app-add-to-cart-toast
+      [show]="showToast"
+      [productName]="toastProductName"
+      [productImage]="toastProductImage"
+      [selectedSize]="toastSelectedSize"
+      [selectedColor]="toastSelectedColor"
+      [price]="toastPrice"
+      (close)="showToast = false">
+    </app-add-to-cart-toast>
   </div>
 </ion-content>
 
-<!-- Bottom Action Bar -->
-<div class="action-bar" *ngIf="!loading && !error && product">
-  <div class="price-section">
-    <span class="price-label">Precio</span>
-    <span class="price-amount">${{ product.price }}</span>
-  </div>
-  <ion-button class="add-to-cart-btn" (click)="addToCart()">
-    <ion-icon name="cart-outline" slot="start"></ion-icon>
-    Agregar al Carrito
-  </ion-button>
-</div>

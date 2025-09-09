@@ -14,8 +14,8 @@ import { User } from '../../interfaces/auth.interfaces';
 })
 export class ProfilePage implements OnInit {
   user: User | null = null;
-  loading = false;
   isAuthenticated = false;
+  authLoading = false;
 
   constructor(
     private authService: AuthService,
@@ -29,6 +29,7 @@ export class ProfilePage implements OnInit {
     this.authService.authState$.subscribe(authState => {
       this.isAuthenticated = authState.isAuthenticated;
       this.user = authState.user;
+      this.authLoading = authState.loading;
     });
   }
 
@@ -51,18 +52,15 @@ export class ProfilePage implements OnInit {
   }
 
   onLogout() {
-    this.loading = true;
     console.log('🚪 Iniciando proceso de logout...');
 
     this.authService.logout().subscribe({
       next: () => {
-        this.loading = false;
         console.log('✅ Logout exitoso');
         // El estado se actualiza automáticamente a través de authState$
         // No necesitamos redirigir, el componente se actualiza automáticamente
       },
       error: (error) => {
-        this.loading = false;
         console.error('❌ Error en logout:', error);
         // Even if logout fails on server, local state is cleared
         // El usuario ya no está autenticado localmente

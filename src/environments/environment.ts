@@ -4,6 +4,8 @@ export const environment = {
   apiUrl: 'http://127.0.0.1:8000/api', // URL del backend Laravel
   appName: 'STORE',
   version: '1.0.0',
+  // Clave secreta para encriptación (en producción usar variable de entorno)
+  encryptionSecret: 'your-super-secret-encryption-key-change-in-production',
   recaptcha: {
     siteKey: '6LdlHK8rAAAAALfyPtW17XXmJBUOZ3hjRul9wSLN' // Nueva Site Key
   },
