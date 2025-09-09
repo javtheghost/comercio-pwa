@@ -16,7 +16,9 @@ import {
   IonCardSubtitle,
   IonChip,
   IonInfiniteScroll,
-  IonInfiniteScrollContent
+  IonInfiniteScrollContent,
+  IonFab,
+  IonFabButton
 } from '@ionic/angular/standalone';
 import { ProductService } from '../../services/product.service';
 import { Product, ProductUI, Category, PaginatedResponse } from '../../interfaces/product.interfaces';
@@ -41,12 +43,27 @@ import { ProductUtils } from '../../utils/product.utils';
     IonCardSubtitle,
     IonChip,
     IonInfiniteScroll,
-    IonInfiniteScrollContent
+  IonInfiniteScrollContent,
+  IonFab,
+  IonFabButton
   ],
   templateUrl: './home.page.html',
   styleUrls: ['./home.page.scss']
 })
 export class HomePage implements OnInit {
+  showScrollTop = false;
+  onContentScroll(event: any) {
+    // Mostrar el botón si el scroll vertical es mayor a 300px
+    this.showScrollTop = event && event.detail && event.detail.scrollTop > 300;
+    this.cdr.detectChanges();
+  }
+
+  scrollToTop() {
+    const content = document.querySelector('ion-content');
+    if (content) {
+      (content as any).scrollToTop(400);
+    }
+  }
   products: ProductUI[] = [];
   categories: Category[] = [];
   loading = true;

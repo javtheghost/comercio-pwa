@@ -1,3 +1,24 @@
+ion-fab[vertical="bottom"][horizontal="end"] {
+  bottom: 60px !important; /* Justo por encima de la barra de navegación */
+  right: 20px !important;
+  z-index: 20;
+}
+
+ion-fab-button.custom-scrolltop-btn {
+  --background: var(--ion-color-secondary, #4bcffa);
+  --color: #fff;
+  --box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  border-radius: 18px;
+  width: 54px;
+  height: 54px;
+  transition: box-shadow 0.2s;
+}
+ion-fab-button.custom-scrolltop-btn:hover {
+  --box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+}
+ion-fab-button.custom-scrolltop-btn ion-icon {
+  font-size: 2.2rem;
+}
 // Variables
 :root {
   --ion-color-primary: #3880ff;
@@ -410,7 +431,7 @@ ion-infinite-scroll-content {
   color: var(--ion-color-medium);
   background: var(--ion-color-light);
   border-radius: 12px;
-  margin: 20px 0;
+  margin: -20px auto 50px auto; /* Subido un poco más */
 
   ion-icon {
     font-size: 48px;

@@ -1,3 +1,6 @@
+// ...existing code...
+// ...existing code...
+// ...existing code...
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
@@ -27,6 +30,9 @@ import { LoginRequest } from '../../interfaces/auth.interfaces';
   styleUrls: ['./login.page.scss']
 })
 export class LoginPage implements OnInit {
+onSkip() {
+  this.router.navigate(['/tabs/home']);
+}
   loginForm: FormGroup;
   loading = false;
   showPassword = false;

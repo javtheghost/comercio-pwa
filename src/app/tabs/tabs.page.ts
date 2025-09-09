@@ -35,7 +35,7 @@ import { IonIcon, IonRouterOutlet } from '@ionic/angular/standalone';
   styleUrls: ['./tabs.page.scss']
 })
 export class TabsPage {
-  tabOrder = ['/tabs/home', '/tabs/products', '/tabs/orders', '/tabs/cart', '/tabs/profile'];
+  tabOrder = ['/tabs/home', '/tabs/search', '/tabs/orders', '/tabs/cart', '/tabs/profile'];
   currentTabIndex = 0;
 
   constructor(private router: Router, private navCtrl: NavController) {

@@ -1,5 +1,6 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Location } from '@angular/common';
 import { NgIf, JsonPipe } from '@angular/common';
 import {
   IonHeader,
@@ -39,21 +40,18 @@ export class ProductDetailPage implements OnInit {
   loading = true;
   error: string | null = null;
 
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private productService: ProductService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private location: Location
   ) {
     console.log('🏗️ ProductDetailPage constructor ejecutado');
   }
 
-  ngOnInit() {
-    console.log('🚀 ProductDetailPage ngOnInit iniciado');
-    this.productId = this.route.snapshot.paramMap.get('id');
-    console.log('🆔 ID del producto recibido:', this.productId);
-    this.loadProduct();
-  }
+
 
   loadProduct() {
     if (!this.productId) {
@@ -97,7 +95,7 @@ export class ProductDetailPage implements OnInit {
     });
   }
 
-// ...existing code...
+
 
 // ...existing code...
 
@@ -130,8 +128,22 @@ export class ProductDetailPage implements OnInit {
     // Aquí implementarías la lógica para agregar al carrito
   }
 
+  fromSearch = false;
+
+  ngOnInit() {
+    this.productId = this.route.snapshot.paramMap.get('id');
+    this.route.queryParams.subscribe(params => {
+      this.fromSearch = params['from'] === 'search';
+    });
+    this.loadProduct();
+  }
+
   goBack() {
-    this.router.navigate(['/tabs/home']);
+    if (this.fromSearch) {
+      this.router.navigate(['/tabs/search']);
+    } else {
+      this.router.navigate(['/tabs/home']);
+    }
   }
 }
 

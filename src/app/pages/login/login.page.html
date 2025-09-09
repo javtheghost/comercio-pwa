@@ -72,6 +72,37 @@
         <ion-spinner *ngIf="loading" name="crescent" class="button-spinner"></ion-spinner>
         <span *ngIf="!loading">Iniciar Sesión</span>
       </button>
+
+      <!-- Omitir e ir al catálogo como enlace -->
+      <div class="skip-link-container">
+        <span class="skip-link-text">¿Solo quieres ver productos?</span>
+        <a class="skip-link" (click)="onSkip()">Explorar como invitado</a>
+      </div>
+<style>
+.skip-link-container {
+  margin-top: 18px;
+  text-align: center;
+}
+.skip-link-text {
+  display: block;
+  color: #888;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+.skip-link {
+  color: #3880ff;
+  font-size: 16px;
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  transition: color 0.2s;
+}
+.skip-link:hover {
+  color: #2563c7;
+}
+</style>
     </form>
 
     <!-- Separator -->
