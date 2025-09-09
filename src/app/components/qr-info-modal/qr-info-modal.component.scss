@@ -1,0 +1,80 @@
+
+.qr-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 1000;
+  transition: background 0.2s;
+}
+
+.qr-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+  padding: 2.2rem 1.5rem 1.5rem 1.5rem;
+  z-index: 1001;
+  min-width: 320px;
+  max-width: 95vw;
+  outline: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: modalCenterIn 0.28s cubic-bezier(.36,1.01,.32,1) forwards;
+}
+
+@keyframes modalCenterIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -40%) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.qr-modal h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #222;
+  text-align: center;
+}
+.qr-modal h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #666;
+  text-align: center;
+}
+.qr-modal p {
+  margin: 0 0 1.7rem 0;
+  font-size: 1.02rem;
+  color: #444;
+  text-align: center;
+}
+.qr-modal-btn {
+  width: 100%;
+  background: #3880ff;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 1rem 0;
+  font-size: 1.08rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(56,128,255,0.08);
+  transition: background 0.2s;
+  margin-top: 0.5rem;
+}
+.qr-modal-btn:focus {
+  outline: 2px solid #3880ff;
+  outline-offset: 2px;
+}
+.qr-modal-btn:hover {
+  background: #2563c9;
+}

@@ -9,8 +9,8 @@
     <div class="searchbar-qr-row">
       <ion-searchbar
         placeholder="Buscar producto por nombre o código..."
-  (ionInput)="onSearchChange($event)"
-  (ionChange)="onSearchbarEnter($event)"
+        (ionInput)="onSearchChange($event)"
+        (keydown.enter)="onSearchbarEnter($event)"
         [debounce]="300"
         style="flex: 1;">
       </ion-searchbar>
@@ -48,19 +48,10 @@
       <div class="qr-alert-content">
         <strong>¡Nuevo!</strong> También puedes <span class="qr-alert-link" (click)="showQr = true">escanear el código QR</span> de un producto para encontrarlo más rápido.
       </div>
-      <button class="qr-info-btn" type="button" (click)="showQrInfo()" title="¿Cómo funciona?">
+      <button class="qr-info-btn" type="button" (click)="showQrInfo($event)" title="¿Cómo funciona?">
         <ion-icon name="help-circle-outline"></ion-icon>
       </button>
-  <!-- Modal/alert de información sobre escanear productos -->
-  <ion-alert
-    header="¿Cómo escanear productos?"
-    subHeader="Escaneo de código QR"
-    message="Pulsa el ícono de QR junto al buscador y apunta la cámara al código QR del producto. Así podrás encontrarlo rápidamente sin escribir. ¡Ideal para tiendas físicas o catálogos impresos!"
-    [isOpen]="showQrInfoAlert"
-    (didDismiss)="showQrInfoAlert = false"
-  [backdropDismiss]="false"
-  [buttons]="qrInfoButtons">
-  </ion-alert>
+      <app-qr-info-modal *ngIf="showQrInfoModal" (didDismiss)="closeQrInfo()"></app-qr-info-modal>
     </div>
   </div>
 

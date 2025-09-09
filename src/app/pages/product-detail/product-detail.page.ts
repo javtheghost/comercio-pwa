@@ -1,5 +1,6 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { NavController } from '@ionic/angular';
 import { Location } from '@angular/common';
 import { NgIf, JsonPipe } from '@angular/common';
 import {
@@ -18,6 +19,7 @@ import { Product, ProductUI, ProductVariant, VariantInfo } from '../../interface
 import { ProductVariantSelectorComponent, VariantSelection } from '../../components/product-variant-selector/product-variant-selector.component';
 import { AddToCartToastComponent } from '../../components/add-to-cart-toast/add-to-cart-toast.component';
 
+import { ChangeDetectionStrategy } from '@angular/core';
 @Component({
   selector: 'app-product-detail',
   standalone: true,
@@ -28,13 +30,14 @@ import { AddToCartToastComponent } from '../../components/add-to-cart-toast/add-
     IonContent,
     IonButton,
     IonIcon,
-  ProductVariantSelectorComponent,
-  AddToCartToastComponent,
-  IonSpinner,
-  NgIf
+    ProductVariantSelectorComponent,
+    AddToCartToastComponent,
+    IonSpinner,
+    NgIf
   ],
   templateUrl: './product-detail.page.html',
-  styleUrls: ['./product-detail.page.scss']
+  styleUrls: ['./product-detail.page.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProductDetailPage implements OnInit {
   selectedSize: string | null = null;
@@ -98,7 +101,8 @@ export class ProductDetailPage implements OnInit {
     private productService: ProductService,
   private cartService: CartService,
   private cdr: ChangeDetectorRef,
-  private location: Location
+  private location: Location,
+  private navCtrl: NavController
   ) {
     console.log('🏗️ ProductDetailPage constructor ejecutado');
   }
@@ -194,11 +198,12 @@ export class ProductDetailPage implements OnInit {
         console.log('🎯 Tipo de tallas:', variantInfo.size_type);
 
         this.loadingVariants = false;
-        this.cdr.detectChanges();
+        this.cdr.markForCheck();
       },
       error: (error) => {
-        console.error('❌ Error al cargar información de variantes:', error);
-        this.loadingVariants = false;
+  console.error('❌ Error al cargar información de variantes:', error);
+  this.loadingVariants = false;
+  this.cdr.markForCheck();
         // No es crítico, continuar sin información de variantes
       }
     });
@@ -422,9 +427,11 @@ export class ProductDetailPage implements OnInit {
 
   goBack() {
     if (this.fromSearch) {
-      this.router.navigate(['/tabs/search']);
+      // Forzar animación de regreso (izquierda a derecha)
+      this.navCtrl.navigateBack(['/tabs/search'], { animated: true, animationDirection: 'back' });
     } else {
-      this.router.navigate(['/tabs/home']);
+      // También usar animación de regreso para Home
+      this.navCtrl.navigateBack(['/tabs/home'], { animated: true, animationDirection: 'back' });
     }
   }
 

@@ -145,8 +145,15 @@
   border-top: 2px solid #f0f0f0;
 }
 
+
 .checkout-section {
-  padding: 20px 16px;
+  padding: 0 16px 0 16px;
+}
+
+
+
+ion-content {
+  --padding-bottom: 56px; /* solo la barra de tabs, el botón queda pegado */
 }
 
 .checkout-btn {

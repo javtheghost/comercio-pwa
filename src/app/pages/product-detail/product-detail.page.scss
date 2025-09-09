@@ -149,6 +149,18 @@
   backdrop-filter: blur(10px);
 }
 
+.product-purchase-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  padding: 20px 24px 16px 24px;
+  margin: 24px 0 12px 0;
+  position: relative;
+}
+
 .price-section {
   display: flex;
   flex-direction: column;
@@ -164,45 +176,48 @@
 }
 
 .price-amount {
-  color: #1a1a1a;
-  font-size: 22px;
+  font-size: 2rem;
   font-weight: 800;
-  letter-spacing: -0.5px;
+  color: #1a1a1a;
+  margin-bottom: 6px;
+  letter-spacing: -1px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .stock-info {
+  font-size: 1rem;
   color: #28a745;
-  font-size: 12px;
-  display: block;
-  margin-top: 2px;
   font-weight: 600;
+  margin-bottom: 10px;
 }
 
 .add-to-cart-btn {
-  --background: linear-gradient(135deg, #007bff, #0056b3);
-  --color: white;
-  --border-radius: 16px;
-  --padding-start: 20px;
-  --padding-end: 20px;
-  --padding-top: 14px;
-  --padding-bottom: 14px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 16px 0;
+  font-size: 1.1rem;
   font-weight: 700;
-  font-size: 15px;
-  min-width: 140px;
-  box-shadow: 0 4px 16px rgba(0, 123, 255, 0.3);
-  transition: all 0.3s ease;
+  border-radius: 14px;
+  background: linear-gradient(90deg, #007bff 60%, #00c6ff 100%);
+  box-shadow: 0 4px 16px rgba(0, 123, 255, 0.13);
+  transition: background 0.2s, box-shadow 0.2s;
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
 
-.add-to-cart-btn:hover {
-  --background: linear-gradient(135deg, #0056b3, #004085);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
+.add-to-cart-btn:active {
+  background: linear-gradient(90deg, #0056b3 60%, #007bff 100%);
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.10);
 }
 
 .add-to-cart-btn:disabled {
-  --background: #6c757d;
+  background: #bdbdbd;
+  color: #fff;
   box-shadow: none;
-  transform: none;
 }
 
 .loading-container {
@@ -305,6 +320,14 @@
     font-size: 14px;
     font-weight: 500;
   }
+}
+
+.product-detail-content {
+  --padding-bottom: 40px; // Reducir espacio inferior
+}
+
+.product-detail-container {
+  padding-bottom: 40px; // Reducir espacio inferior
 }
 
 // Estilos responsivos

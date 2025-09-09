@@ -1,25 +1,8 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, ViewChild } from '@angular/core';
 import { NgFor, NgIf } from '@angular/common';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import {
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
-  IonButton,
-  IonIcon,
-  IonSearchbar,
-  IonCard,
-  IonCardContent,
-  IonCardTitle,
-  IonCardSubtitle,
-  IonChip,
-  IonInfiniteScroll,
-  IonInfiniteScrollContent,
-  IonFab,
-  IonFabButton
-} from '@ionic/angular/standalone';
+import { IonicModule } from '@ionic/angular';
 import { ProductService } from '../../services/product.service';
 import { Product, ProductUI, Category, PaginatedResponse } from '../../interfaces/product.interfaces';
 import { ProductUtils } from '../../utils/product.utils';
@@ -30,27 +13,16 @@ import { ProductUtils } from '../../utils/product.utils';
   imports: [
     NgFor,
     NgIf,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonContent,
-    IonButton,
-    IonIcon,
-    IonSearchbar,
-    IonCard,
-    IonCardContent,
-    IonCardTitle,
-    IonCardSubtitle,
-    IonChip,
-    IonInfiniteScroll,
-  IonInfiniteScrollContent,
-  IonFab,
-  IonFabButton
+  IonicModule,
+  CommonModule,
+  NgFor,
+  NgIf
   ],
   templateUrl: './home.page.html',
   styleUrls: ['./home.page.scss']
 })
 export class HomePage implements OnInit {
+  @ViewChild('content', { static: false }) ionContent: any;
   showScrollTop = false;
   onContentScroll(event: any) {
     // Mostrar el botón si el scroll vertical es mayor a 300px
@@ -59,10 +31,14 @@ export class HomePage implements OnInit {
   }
 
   scrollToTop() {
-    const content = document.querySelector('ion-content');
-    if (content) {
-      (content as any).scrollToTop(400);
+    if (this.ionContent) {
+      this.ionContent.scrollToTop(400);
     }
+  }
+
+  ionViewWillLeave() {
+    this.showScrollTop = false;
+    this.cdr.detectChanges();
   }
   products: ProductUI[] = [];
   categories: Category[] = [];

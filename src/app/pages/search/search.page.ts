@@ -1,7 +1,9 @@
 // ...existing code...
 // ...existing code...
 // ...existing code...
-import { Component, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, ChangeDetectorRef, ViewChild } from '@angular/core';
+import { IonContent } from '@ionic/angular';
+import { QrInfoModalComponent } from '../../components/qr-info-modal/qr-info-modal.component';
 import { IonicModule } from '@ionic/angular';
 import { CommonModule, NgIf, NgFor } from '@angular/common';
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
@@ -14,25 +16,33 @@ import { ProductUtils } from '../../utils/product.utils';
 @Component({
   selector: 'app-search',
   standalone: true,
-  imports: [IonicModule, ZXingScannerModule, CommonModule],
+  imports: [IonicModule, ZXingScannerModule, CommonModule, QrInfoModalComponent],
   templateUrl: './search.page.html',
   styleUrls: ['./search.page.scss']
 })
 
 export class SearchPage {
-  qrInfoButtons = [
-    {
-      text: 'Aceptar',
-      role: 'confirm',
-      handler: () => {
-        this.showQrInfoAlert = false;
-      }
-    }
-  ];
-  showQrInfoAlert = false;
+  @ViewChild(IonContent, { static: false }) ionContent!: IonContent;
+  showQrInfoModal = false;
+  qrInfoTrigger: HTMLElement | null = null;
 
-  showQrInfo() {
-    this.showQrInfoAlert = true;
+  showQrInfo(event?: Event) {
+    if (event) {
+      this.qrInfoTrigger = event.target as HTMLElement;
+      setTimeout(() => {
+        (event.target as HTMLElement).blur();
+      }, 10);
+    }
+    this.showQrInfoModal = true;
+  }
+
+  closeQrInfo() {
+    this.showQrInfoModal = false;
+    setTimeout(() => {
+      if (this.qrInfoTrigger) {
+        this.qrInfoTrigger.focus();
+      }
+    }, 100);
   }
   onSearchbarEnter(event: any) {
     // Ejecuta la búsqueda solo si hay texto
@@ -271,9 +281,9 @@ export class SearchPage {
 
   goToProductDetail(product: ProductUI, origin?: string) {
     if (origin) {
-      this.router.navigate(['/product', product.id], { queryParams: { from: origin } });
+      this.router.navigate(['/tabs/product', product.id], { queryParams: { from: origin } });
     } else {
-      this.router.navigate(['/product', product.id]);
+      this.router.navigate(['/tabs/product', product.id], { queryParams: { from: 'search' } });
     }
   }
 
@@ -281,7 +291,7 @@ export class SearchPage {
     if (result) {
       this.showQr = false;
       setTimeout(() => {
-        this.router.navigate(['/product', result]);
+        this.router.navigate(['/tabs/product', result], { queryParams: { from: 'search' } });
       }, 200);
     }
   }
@@ -295,10 +305,14 @@ export class SearchPage {
   }
 
   scrollToTop() {
-    const content = document.querySelector('ion-content');
-    if (content) {
-      (content as any).scrollToTop(400);
+    if (this.ionContent) {
+      this.ionContent.scrollToTop(400);
     }
+  }
+
+  ionViewWillLeave() {
+    this.showScrollTop = false;
+    this.cdr.detectChanges();
   }
   
   toggleFavorite(product: ProductUI) {

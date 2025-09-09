@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, NavigationEnd } from '@angular/router';
 import { NavController } from '@ionic/angular';
 import { IonIcon, IonRouterOutlet, IonBadge } from '@ionic/angular/standalone';
 import { Subscription } from 'rxjs';
@@ -47,6 +47,7 @@ export class TabsPage implements OnInit, OnDestroy {
   currentTabIndex = 0;
   cartItemsCount = 0;
   private cartSubscription: Subscription = new Subscription();
+  private routerEventsSubscription: Subscription = new Subscription();
 
   constructor(
     private router: Router,
@@ -54,15 +55,29 @@ export class TabsPage implements OnInit, OnDestroy {
     private cartService: CartService,
     private cdr: ChangeDetectorRef
   ) {
-    this.currentTabIndex = this.tabOrder.indexOf(this.router.url);
+  this.currentTabIndex = this.tabOrder.indexOf(this.router.url);
   }
+
 
   ngOnInit() {
     this.subscribeToCart();
+    // Suscribirse a los cambios de ruta para actualizar el tab activo
+    this.routerEventsSubscription = this.router.events.subscribe(event => {
+      if (event instanceof NavigationEnd) {
+        const idx = this.tabOrder.indexOf(event.urlAfterRedirects);
+        if (idx !== -1 && idx !== this.currentTabIndex) {
+          setTimeout(() => {
+            this.currentTabIndex = idx;
+            this.cdr.detectChanges();
+          });
+        }
+      }
+    });
   }
 
   ngOnDestroy() {
     this.cartSubscription.unsubscribe();
+    this.routerEventsSubscription.unsubscribe();
   }
 
   private subscribeToCart(): void {
@@ -78,12 +93,12 @@ export class TabsPage implements OnInit, OnDestroy {
     let direction: 'forward' | 'back' = 'forward';
     if (newIndex > -1) {
       direction = newIndex > this.currentTabIndex ? 'forward' : 'back';
-      this.currentTabIndex = newIndex;
     }
     this.navCtrl.navigateRoot(path, { animationDirection: direction });
   }
 
   isActive(path: string): boolean {
-    return this.router.url === path;
+    const idx = this.tabOrder.indexOf(path);
+    return idx === this.currentTabIndex;
   }
 }

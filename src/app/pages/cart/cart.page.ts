@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { CurrencyPipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -9,14 +10,19 @@ import { AuthService } from '../../services/auth.service';
 @Component({
   selector: 'app-cart',
   standalone: true,
-  imports: [CurrencyPipe, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonButton, IonIcon, IonList, IonThumbnail, IonSpinner, IonText],
+  imports: [CommonModule, CurrencyPipe, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonButton, IonIcon, IonList, IonThumbnail, IonSpinner, IonText],
   templateUrl: './cart.page.html',
   styleUrls: ['./cart.page.scss']
 })
 export class CartPage implements OnInit, OnDestroy {
+  get isAnyQuantityLoading(): boolean {
+    if (!this.cart || !this.cart.items) return false;
+    return this.cart.items.some((i: CartItem) => !!this.quantityLoading[i.id]);
+  }
   cart: Cart | null = null;
   loading = false;
   error: string | null = null;
+  quantityLoading: { [itemId: number]: boolean } = {};
   private cartSubscription: Subscription = new Subscription();
 
   // Configuración - Los valores se obtienen del servidor
@@ -28,10 +34,12 @@ export class CartPage implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef
   ) {}
 
+
   ngOnInit() {
     this.loadCart();
     this.subscribeToCart();
   }
+
 
   ngOnDestroy() {
     this.cartSubscription.unsubscribe();
@@ -81,18 +89,66 @@ export class CartPage implements OnInit, OnDestroy {
    * Aumenta la cantidad de un item
    */
   increaseQuantity(item: CartItem): void {
+    if (this.quantityLoading[item.id]) return;
     const newQuantity = item.quantity + 1;
-    this.updateItemQuantity(item, newQuantity);
+    this.quantityLoading[item.id] = true;
+    this.optimisticUpdateQuantity(item, newQuantity, () => {
+      this.quantityLoading[item.id] = false;
+      this.cdr.detectChanges();
+    });
   }
 
   /**
    * Disminuye la cantidad de un item
    */
   decreaseQuantity(item: CartItem): void {
-    if (item.quantity > 1) {
+    if (item.quantity > 1 && !this.quantityLoading[item.id]) {
       const newQuantity = item.quantity - 1;
-      this.updateItemQuantity(item, newQuantity);
+      this.quantityLoading[item.id] = true;
+      this.optimisticUpdateQuantity(item, newQuantity, () => {
+        this.quantityLoading[item.id] = false;
+        this.cdr.detectChanges();
+      });
     }
+  }
+
+  /**
+   * Actualización optimista de cantidad: actualiza la UI al instante y revierte si falla
+   */
+  private optimisticUpdateQuantity(item: CartItem, newQuantity: number, done?: () => void): void {
+    if (!this.cart) return;
+    const prevQuantity = item.quantity;
+    // Actualiza la UI localmente
+    item.quantity = newQuantity;
+    // Actualiza el total del item y del carrito localmente
+    const prevTotal = item.total_price;
+    const unitPrice = parseFloat(item.unit_price);
+    item.total_price = (unitPrice * newQuantity).toFixed(2);
+    // Actualiza el subtotal y total del carrito localmente
+    const prevCartSubtotal = this.cart.subtotal;
+    const prevCartTotal = this.cart.total;
+    const subtotal = this.cart.items.reduce((sum, it) => sum + (it.id === item.id ? unitPrice * newQuantity : unitPrice * it.quantity), 0);
+    this.cart.subtotal = subtotal.toFixed(2);
+    this.cart.total = subtotal.toFixed(2); // Si tienes descuentos/impuestos, ajusta aquí
+    this.cdr.detectChanges();
+
+    this.cartService.updateItemQuantity(item.id, { quantity: newQuantity }).subscribe({
+      next: (cart) => {
+        // El backend responde, el observable de cart$ actualizará el carrito real
+        if (done) done();
+      },
+      error: (error) => {
+        // Si falla, revierte los cambios locales
+        item.quantity = prevQuantity;
+        item.total_price = prevTotal;
+        this.cart!.subtotal = prevCartSubtotal;
+        this.cart!.total = prevCartTotal;
+        this.error = 'No se pudo actualizar la cantidad. Intenta de nuevo.';
+        this.cdr.detectChanges();
+        if (done) done();
+      }
+    });
+  // <- aquí estaba la llave extra
   }
 
   /**

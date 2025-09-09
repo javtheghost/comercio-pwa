@@ -1,7 +1,10 @@
 import { Product, ProductUI, ProductImage } from '../interfaces/product.interfaces';
 
 export class ProductUtils {
-  static mapProductsToUI(products: Product[]): ProductUI[] {
+  static mapProductsToUI(products: Product[] | undefined | null): ProductUI[] {
+    if (!Array.isArray(products)) {
+      return [];
+    }
     return products.map(product => ({
       ...product,
       isFavorite: false,

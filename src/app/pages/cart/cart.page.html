@@ -66,7 +66,7 @@
         <!-- Quantity Selector -->
         <div slot="end" class="quantity-controls">
           <div class="quantity-selector">
-            <ion-button fill="clear" size="small" (click)="decreaseQuantity(item)" class="quantity-btn">
+            <ion-button fill="clear" size="small" (click)="decreaseQuantity(item)" class="quantity-btn" [disabled]="quantityLoading[item.id]">
               <ion-icon name="remove-outline"></ion-icon>
             </ion-button>
 
@@ -81,7 +81,7 @@
                 max="99">
             </div>
 
-            <ion-button fill="clear" size="small" (click)="increaseQuantity(item)" class="quantity-btn">
+            <ion-button fill="clear" size="small" (click)="increaseQuantity(item)" class="quantity-btn" [disabled]="quantityLoading[item.id]">
               <ion-icon name="add-outline"></ion-icon>
             </ion-button>
           </div>
@@ -114,7 +114,14 @@
 
         <div class="summary-row">
           <span>IVA</span>
-          <span>{{ getVAT() | currency:'MXN' }}</span>
+          <span>
+            <ng-container *ngIf="!isAnyQuantityLoading; else actualizandoIVA">
+              {{ getVAT() | currency:'MXN' }}
+            </ng-container>
+            <ng-template #actualizandoIVA>
+              Actualizando...
+            </ng-template>
+          </span>
         </div>
 
         <div class="summary-row">
@@ -124,17 +131,25 @@
 
         <div class="summary-row total">
           <span><strong>Total</strong></span>
-          <span><strong>{{ getTotal() | currency:'MXN' }}</strong></span>
+          <span><strong>
+            <ng-container *ngIf="!isAnyQuantityLoading; else actualizando">
+              {{ getTotal() | currency:'MXN' }}
+            </ng-container>
+            <ng-template #actualizando>
+              Actualizando...
+            </ng-template>
+          </strong></span>
         </div>
       </ion-card-content>
     </ion-card>
 
     <!-- Checkout Button -->
-    <div class="checkout-section">
+  <div class="checkout-section">
       <ion-button expand="block" class="checkout-btn" (click)="goToCheckout()">
         Ir al Checkout
         <ion-icon name="arrow-forward" slot="end"></ion-icon>
       </ion-button>
     </div>
+
   }
 </ion-content>
