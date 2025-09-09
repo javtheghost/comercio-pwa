@@ -43,32 +43,57 @@
         {{ product.description }}
       </p>
 
-      <!-- Size Selection -->
-      <div class="size-section">
-        <h3 class="size-title">Elegir talla</h3>
-        <div class="size-buttons">
-          <ion-button
-            [color]="selectedSize === 'S' ? 'primary' : 'medium'"
-            (click)="selectSize('S')">
-            S
-          </ion-button>
-          <ion-button
-            [color]="selectedSize === 'M' ? 'primary' : 'medium'"
-            (click)="selectSize('M')">
-            M
-          </ion-button>
-          <ion-button
-            [color]="selectedSize === 'L' ? 'primary' : 'medium'"
-            (click)="selectSize('L')">
-            L
-          </ion-button>
+      <!-- Variant Selector Component -->
+      <div *ngIf="!loadingVariants && variantInfo">
+        <app-product-variant-selector
+          [variants]="product.variants || []"
+          [attributes]="product.attributes || []"
+          [basePrice]="product.price || '0'"
+          [baseImage]="product.image || ''"
+          [selectedSize]="selectedSize"
+          [selectedColor]="selectedColor"
+          (selectionChange)="onVariantSelectionChange($event)"
+          (variantChange)="onVariantChange($event)">
+        </app-product-variant-selector>
+
+        <!-- Información adicional de variantes -->
+        <div class="variant-info" *ngIf="variantInfo.needs_variants">
+          <div class="size-guide">
+            <p class="size-guide-text">
+              <ion-icon name="information-circle-outline"></ion-icon>
+              {{ variantInfo.size_guide }}
+            </p>
+          </div>
+
+          <div class="variant-details">
+            <p class="variant-type">
+              <strong>Tipo de tallas:</strong> {{ variantInfo.display_name }}
+            </p>
+            <p class="available-options" *ngIf="variantInfo.available_materials.length > 0">
+              <strong>Materiales disponibles:</strong> {{ variantInfo.available_materials.join(', ') }}
+            </p>
+          </div>
         </div>
+
+        <!-- Mensaje para productos sin variantes -->
+        <div class="no-variants" *ngIf="!variantInfo.needs_variants">
+          <p class="no-variants-text">
+            <ion-icon name="checkmark-circle-outline"></ion-icon>
+            Producto de talla única - No requiere selección de variantes
+          </p>
+        </div>
+      </div>
+
+      <!-- Loading de variantes -->
+      <div *ngIf="loadingVariants" class="loading-variants">
+        <ion-spinner name="crescent"></ion-spinner>
+        <p>Cargando opciones de variantes...</p>
       </div>
     </div>
   </div>
 
   <!-- Loading or Error State -->
-  <div *ngIf="!product" class="loading-container">
+  <div *ngIf="loading" class="loading-container">
     <ion-spinner name="crescent"></ion-spinner>
     <p>Cargando producto...</p>
   </div>
@@ -78,10 +103,32 @@
 <div class="action-bar" *ngIf="product">
   <div class="price-section">
     <span class="price-label">Precio</span>
-    <span class="price-amount">${{ product.price }}</span>
+    <span class="price-amount">${{ currentPrice || product.price }}</span>
+    <span class="stock-info" *ngIf="currentStock > 0">
+      {{ currentStock }} disponibles
+    </span>
   </div>
-  <ion-button class="add-to-cart-btn" (click)="addToCart()">
-    <ion-icon name="cart-outline" slot="start"></ion-icon>
-    Agregar al Carrito
+  <ion-button
+    class="add-to-cart-btn"
+    (click)="addToCart()"
+    [disabled]="currentStock <= 0 || addingToCart">
+    @if (addingToCart) {
+      <ion-spinner name="crescent" slot="start"></ion-spinner>
+    } @else {
+      <ion-icon name="cart-outline" slot="start"></ion-icon>
+    }
+    {{ currentStock <= 0 ? 'Agotado' : (addingToCart ? 'Agregando...' : 'Agregar al Carrito') }}
   </ion-button>
 </div>
+
+<!-- Toast de confirmación -->
+<app-add-to-cart-toast
+  [show]="showToast"
+  [productName]="toastProductName"
+  [productImage]="toastProductImage"
+  [selectedSize]="toastSelectedSize"
+  [selectedColor]="toastSelectedColor"
+  [price]="toastPrice"
+  (close)="closeToast()">
+</app-add-to-cart-toast>
+

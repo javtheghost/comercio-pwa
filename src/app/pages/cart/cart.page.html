@@ -1,0 +1,140 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Mi Carrito</ion-title>
+    @if (!isCartEmpty()) {
+      <ion-button fill="clear" slot="end" (click)="clearCart()" color="danger">
+        <ion-icon name="trash-outline"></ion-icon>
+      </ion-button>
+    }
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <!-- Loading State -->
+  @if (loading) {
+    <div class="ion-text-center ion-padding">
+    <ion-spinner name="crescent"></ion-spinner>
+      <p>Cargando carrito...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (error && !loading) {
+    <div class="ion-text-center ion-padding error-state">
+    <ion-icon name="alert-circle-outline" color="danger" class="error-icon"></ion-icon>
+    <h3>Error</h3>
+    <p>{{ error }}</p>
+    <ion-button fill="outline" (click)="refreshCart()" class="ion-margin-top">
+        Reintentar
+      </ion-button>
+    </div>
+  }
+
+  <!-- Empty Cart State -->
+  @if (!loading && !error && isCartEmpty()) {
+    <div class="ion-text-center ion-padding empty-cart">
+    <ion-icon name="cart-outline" class="empty-cart-icon"></ion-icon>
+    <h2>¡Tu Carrito Está Vacío!</h2>
+    <p>Cuando agregues productos, aparecerán aquí.</p>
+    <ion-button (click)="continueShopping()" expand="block" fill="outline" class="ion-margin-top">
+        Continuar Comprando
+      </ion-button>
+    </div>
+  }
+
+  <!-- Cart with Items -->
+  @if (!loading && !error && !isCartEmpty()) {
+    <!-- Product List -->
+    <ion-list>
+      @for (item of cart?.items; track item.id) {
+        <ion-item class="cart-item">
+        <ion-thumbnail slot="start" class="product-image">
+          <img [src]="item.product_image || '/assets/images/no-image.png'" [alt]="item.product_name" />
+        </ion-thumbnail>
+
+        <ion-label class="product-info">
+          <h3>{{ item.product_name }}</h3>
+          <p class="price">{{ item.unit_price | currency:'MXN' }}</p>
+          <p class="total-price">Total: {{ item.total_price | currency:'MXN' }}</p>
+          @if (!item.is_available) {
+            <ion-text color="danger">
+              <small>Producto no disponible</small>
+            </ion-text>
+          }
+        </ion-label>
+
+        <!-- Quantity Selector -->
+        <div slot="end" class="quantity-controls">
+          <div class="quantity-selector">
+            <ion-button fill="clear" size="small" (click)="decreaseQuantity(item)" class="quantity-btn">
+              <ion-icon name="remove-outline"></ion-icon>
+            </ion-button>
+
+            <div class="quantity-input-container">
+              <input
+                type="number"
+                [value]="item.quantity"
+                (input)="updateQuantity(item, $event)"
+                (click)="selectInput($event)"
+                class="quantity-input"
+                min="1"
+                max="99">
+            </div>
+
+            <ion-button fill="clear" size="small" (click)="increaseQuantity(item)" class="quantity-btn">
+              <ion-icon name="add-outline"></ion-icon>
+            </ion-button>
+          </div>
+
+          <!-- Remove Button -->
+          <ion-button fill="clear" color="danger" size="small" (click)="removeFromCart(item)" class="remove-btn">
+            <ion-icon name="trash-outline"></ion-icon>
+          </ion-button>
+        </div>
+        </ion-item>
+      }
+    </ion-list>
+
+    <!-- Order Summary -->
+    <ion-card class="order-summary">
+      <ion-card-content>
+        <h3>Resumen de Orden</h3>
+
+        <div class="summary-row">
+          <span>Sub-total</span>
+          <span>{{ getSubtotal() | currency:'MXN' }}</span>
+        </div>
+
+        @if (hasDiscount()) {
+          <div class="summary-row">
+          <span>Descuento</span>
+            <span class="discount">-{{ getDiscountAmount() | currency:'MXN' }}</span>
+          </div>
+        }
+
+        <div class="summary-row">
+          <span>IVA</span>
+          <span>{{ getVAT() | currency:'MXN' }}</span>
+        </div>
+
+        <div class="summary-row">
+          <span>Costo de envío</span>
+          <span>{{ getShippingFee() | currency:'MXN' }}</span>
+        </div>
+
+        <div class="summary-row total">
+          <span><strong>Total</strong></span>
+          <span><strong>{{ getTotal() | currency:'MXN' }}</strong></span>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Checkout Button -->
+    <div class="checkout-section">
+      <ion-button expand="block" class="checkout-btn" (click)="goToCheckout()">
+        Ir al Checkout
+        <ion-icon name="arrow-forward" slot="end"></ion-icon>
+      </ion-button>
+    </div>
+  }
+</ion-content>

@@ -13,55 +13,9 @@
       [debounce]="300">
     </ion-searchbar>
 
-    <!-- Botón de prueba temporal -->
-    <ion-button
-      color="danger"
-      size="small"
-      (click)="testClick()">
-      ✔ TEST CLICK
-    </ion-button>
 
-    <!-- Botón de prueba adicional -->
-    <ion-button
-      color="primary"
-      size="small"
-      (click)="testClick()">
-      🔧 TEST 2
-    </ion-button>
-
-    <!-- Botón HTML nativo para comparar -->
-    <button
-      type="button"
-      style="background: #3880ff; color: white; border: none; padding: 8px 16px; border-radius: 8px; margin-left: 8px;"
-      (click)="testClick()">
-      🎯 HTML NATIVE
-    </button>
-
-    <!-- Botón de prueba de scroll -->
-    <button
-      type="button"
-      style="background: #10dc60; color: white; border: none; padding: 8px 16px; border-radius: 8px; margin-left: 8px;"
-      (click)="testScroll()">
-      📜 TEST SCROLL
-    </button>
-
-    <!-- Botón de prueba de infinite scroll -->
-    <button
-      type="button"
-      style="background: #ff6b35; color: white; border: none; padding: 8px 16px; border-radius: 8px; margin-left: 8px;"
-      (click)="forceLoadMoreProducts()">
-      🔄 INFINITE SCROLL
-    </button>
-
-    <!-- Botón para verificar estado del scroll -->
-    <button
-      type="button"
-      style="background: #7044ff; color: white; border: none; padding: 8px 16px; border-radius: 8px; margin-left: 8px;"
-      (click)="checkScrollStatus()">
-      🔍 CHECK SCROLL
-    </button>
   </div>
-
+   <h3 class="ion-padding-start  text-sm font-weight-semibold">Categorías</h3>
   <!-- Filtros de categorías -->
   <div class="categories-container">
     <!-- Skeleton para categorías mientras cargan -->
@@ -168,7 +122,7 @@
              {{ product.description }}
            </ion-card-subtitle>
 
-           <div class="product-category">
+           <div class="product-category" *ngIf="product.category">
              <ion-chip size="small" color="light">
                {{ product.category.name }}
              </ion-chip>

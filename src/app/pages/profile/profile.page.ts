@@ -1,53 +1,80 @@
-import { Component } from '@angular/core';
-import { IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonAvatar } from '@ionic/angular/standalone';
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
+import { IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonAvatar, IonSpinner, IonIcon } from '@ionic/angular/standalone';
+import { AuthService } from '../../services/auth.service';
+import { User } from '../../interfaces/auth.interfaces';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonAvatar],
-  template: `
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Mi Perfil</ion-title>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content>
-      <ion-card>
-        <ion-card-content>
-          <ion-item>
-            <ion-avatar slot="start">
-              <img src="https://via.placeholder.com/100x100" alt="Avatar" />
-            </ion-avatar>
-            <ion-label>
-              <h2>Usuario</h2>
-              <p>usuario@email.com</p>
-            </ion-label>
-          </ion-item>
-
-          <ion-item>
-            <ion-label position="stacked">Nombre</ion-label>
-            <ion-input placeholder="Tu nombre"></ion-input>
-          </ion-item>
-
-          <ion-item>
-            <ion-label position="stacked">Email</ion-label>
-            <ion-input type="email" placeholder="tu@email.com"></ion-input>
-          </ion-item>
-
-          <ion-item>
-            <ion-label position="stacked">Teléfono</ion-label>
-            <ion-input type="tel" placeholder="+1234567890"></ion-input>
-          </ion-item>
-
-          <ion-button expand="block" class="ion-margin-top">
-            Guardar Cambios
-          </ion-button>
-        </ion-card-content>
-      </ion-card>
-    </ion-content>
-  `
+  imports: [CommonModule, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonAvatar, IonSpinner, IonIcon],
+  templateUrl: './profile.page.html',
+  styleUrls: ['./profile.page.scss']
 })
-export class ProfilePage {
-  constructor() {}
+export class ProfilePage implements OnInit {
+  user: User | null = null;
+  isAuthenticated = false;
+  authLoading = false;
+
+  constructor(
+    private authService: AuthService,
+    private router: Router
+  ) {}
+
+  ngOnInit() {
+    this.checkAuthState();
+
+    // Suscribirse a cambios en el estado de autenticación
+    this.authService.authState$.subscribe(authState => {
+      this.isAuthenticated = authState.isAuthenticated;
+      this.user = authState.user;
+      this.authLoading = authState.loading;
+    });
+  }
+
+  private checkAuthState() {
+    this.isAuthenticated = this.authService.isAuthenticated();
+    this.user = this.authService.getCurrentUserValue();
+
+    console.log('🔍 Estado de autenticación:', {
+      isAuthenticated: this.isAuthenticated,
+      user: this.user
+    });
+  }
+
+  onLogin() {
+    this.router.navigate(['/login']);
+  }
+
+  onRegister() {
+    this.router.navigate(['/register']);
+  }
+
+  onLogout() {
+    console.log('🚪 Iniciando proceso de logout...');
+
+    this.authService.logout().subscribe({
+      next: () => {
+        console.log('✅ Logout exitoso');
+        // El estado se actualiza automáticamente a través de authState$
+        // No necesitamos redirigir, el componente se actualiza automáticamente
+      },
+      error: (error) => {
+        console.error('❌ Error en logout:', error);
+        // Even if logout fails on server, local state is cleared
+        // El usuario ya no está autenticado localmente
+      }
+    });
+  }
+
+  formatDate(dateString?: string): string {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  }
+
 }

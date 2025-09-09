@@ -1,0 +1,120 @@
+/* Animaciones de transición para navegación entre tabs */
+.slide-left {
+  animation: slideLeft 0.3s ease;
+}
+.slide-right {
+  animation: slideRight 0.3s ease;
+}
+
+@keyframes slideLeft {
+  from {
+    transform: translateX(100%);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideRight {
+  from {
+    transform: translateX(-100%);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+
+.custom-tab-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  background: #fff;
+  border-top: 1px solid #e0e0e0;
+  box-shadow: none;
+  padding: 0;
+  height: 56px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+}
+
+.custom-tab-bar button {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  margin: 0 0;
+  min-width: 48px;
+  height: 44px;
+  color: #888;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.custom-tab-bar button.active {
+  color: var(--ion-color-primary, #3880ff);
+  border-bottom: 2px solid var(--ion-color-primary, #3880ff);
+  background: transparent;
+}
+
+.custom-tab-bar ion-icon {
+  font-size: 18px;
+  margin-bottom: 2px;
+}
+
+/* Estilos para el badge del carrito */
+.cart-button {
+  position: relative;
+}
+
+.cart-icon-container {
+  position: relative;
+  display: inline-block;
+}
+
+.cart-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 10px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  z-index: 1;
+}
+
+@media (max-width: 480px) {
+  .custom-tab-bar {
+    height: 44px;
+    padding: 0 2px;
+  }
+  .custom-tab-bar button {
+    min-width: 44px;
+    font-size: 12px;
+  }
+
+  .cart-badge {
+    font-size: 9px;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    top: -6px;
+    right: -6px;
+  }
+}

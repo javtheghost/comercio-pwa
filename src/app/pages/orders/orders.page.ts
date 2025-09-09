@@ -6,42 +6,7 @@ import { IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, I
   selector: 'app-orders',
   standalone: true,
   imports: [CurrencyPipe, NgFor, NgIf, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonBadge, IonButton],
-  template: `
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Mis Pedidos</ion-title>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content>
-      <ion-card *ngFor="let order of orders">
-        <ion-card-content>
-          <ion-item>
-            <ion-label>
-              <h2>Pedido #{{ order.id }}</h2>
-              <ion-badge [color]="getStatusColor(order.status)" class="ion-margin-start">
-                {{ order.status }}
-              </ion-badge>
-              <p>Fecha: {{ order.date }}</p>
-              <p>Total: {{ order.total | currency:'USD' }}</p>
-              <p>Items: {{ order.items.length }}</p>
-            </ion-label>
-          </ion-item>
-
-          <ion-button expand="block" fill="outline" class="ion-margin-top">
-            Ver Detalles
-          </ion-button>
-        </ion-card-content>
-      </ion-card>
-
-      <div *ngIf="orders.length === 0" class="ion-text-center ion-padding">
-        <p>No tienes pedidos aún</p>
-        <ion-button routerLink="/tabs/products">
-          Comprar Productos
-        </ion-button>
-      </div>
-    </ion-content>
-  `
+  templateUrl: './orders.page.html'
 })
 export class OrdersPage {
   orders = [

@@ -1,0 +1,91 @@
+<div class="variant-selector" *ngIf="hasVariants()">
+
+  <!-- Size Selection -->
+  <div class="size-section" *ngIf="hasSizes()">
+    <div class="section-header">
+      <ion-label class="section-title">Elegir talla</ion-label>
+      <ion-chip [color]="getStockStatusColor()" class="stock-chip">
+        {{ getStockStatus() }}
+      </ion-chip>
+    </div>
+
+    <ion-grid class="size-grid">
+      <ion-row>
+        <ion-col size="auto" *ngFor="let size of availableSizes">
+          <ion-button
+            [color]="selectedSize === size ? 'primary' : 'medium'"
+            [disabled]="!isSizeAvailable(size)"
+            (click)="selectSize(size)"
+            class="size-button"
+            [class.out-of-stock]="!isSizeAvailable(size)">
+            {{ size }}
+            <span class="stock-indicator" *ngIf="getStockForSize(size) <= 5 && getStockForSize(size) > 0">
+              ({{ getStockForSize(size) }})
+            </span>
+          </ion-button>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+  </div>
+
+  <!-- Color Selection -->
+  <div class="color-section" *ngIf="hasColors()">
+    <div class="section-header">
+      <ion-label class="section-title">Elegir color</ion-label>
+    </div>
+
+    <ion-grid class="color-grid">
+      <ion-row>
+        <ion-col size="auto" *ngFor="let color of availableColors">
+          <ion-button
+            [color]="selectedColor === color ? 'primary' : 'medium'"
+            [disabled]="!isColorAvailable(color)"
+            (click)="selectColor(color)"
+            class="color-button"
+            [class.out-of-stock]="!isColorAvailable(color)">
+            <div class="color-preview"
+                 [style.background-color]="getColorHex(color)"
+                 [class.selected]="selectedColor === color">
+            </div>
+            <span class="color-name">{{ color }}</span>
+            <span class="stock-indicator" *ngIf="getStockForColor(color) <= 5 && getStockForColor(color) > 0">
+              ({{ getStockForColor(color) }})
+            </span>
+          </ion-button>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+  </div>
+
+  <!-- Variant Info -->
+  <div class="variant-info" *ngIf="currentVariant">
+    <div class="variant-details">
+      <ion-label class="variant-name">
+        {{ currentVariant.name }}
+      </ion-label>
+      <div class="variant-specs">
+        <ion-chip color="light" *ngIf="currentVariant.attributes">
+          <ion-icon name="information-circle-outline"></ion-icon>
+          <ion-label>
+            {{ getVariantSpecs(currentVariant) }}
+          </ion-label>
+        </ion-chip>
+      </div>
+    </div>
+  </div>
+
+  <!-- Price Display -->
+  <div class="price-section" *ngIf="currentPrice !== basePrice">
+    <ion-label class="price-label">Precio de la variante:</ion-label>
+    <ion-label class="variant-price">${{ currentPrice }}</ion-label>
+  </div>
+
+</div>
+
+<!-- Fallback for products without variants -->
+<div class="no-variants" *ngIf="!hasVariants()">
+  <ion-chip color="light">
+    <ion-icon name="checkmark-circle-outline"></ion-icon>
+    <ion-label>Producto de talla única</ion-label>
+  </ion-chip>
+</div>
