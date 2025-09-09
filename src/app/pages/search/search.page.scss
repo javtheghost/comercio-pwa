@@ -1,3 +1,71 @@
+// Skeleton loader igual que en home
+.loading-container {
+  .skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 32px;
+    padding: 0 8px;
+
+    .skeleton-card {
+      background: white;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+      min-height: 410px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      width: 100%;
+
+      .skeleton-image {
+        width: 100%;
+        height: 240px;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+      }
+
+      .skeleton-content {
+        padding: 24px 20px 16px 20px;
+
+        .skeleton-title {
+          height: 24px;
+          width: 85%;
+          background: #f0f0f0;
+          border-radius: 7px;
+          margin-bottom: 16px;
+          animation: shimmer 1.5s infinite;
+        }
+
+        .skeleton-price {
+          height: 20px;
+          width: 55%;
+          background: #f0f0f0;
+          border-radius: 7px;
+          margin-bottom: 14px;
+          animation: shimmer 1.5s infinite;
+        }
+
+        .skeleton-description {
+          height: 18px;
+          width: 95%;
+          background: #f0f0f0;
+          border-radius: 7px;
+          animation: shimmer 1.5s infinite;
+        }
+      }
+    }
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
 .qr-info-btn {
   background: none;
   border: none;
