@@ -82,70 +82,135 @@
           <ion-card-title>Dirección de Envío</ion-card-title>
         </ion-card-header>
         <ion-card-content>
-          <ion-item>
-            <ion-label position="stacked">Nombre *</ion-label>
-            <ion-input
-              [(ngModel)]="shippingAddress.firstName"
-              placeholder="Ingresa tu nombre"
-              required>
-            </ion-input>
-          </ion-item>
+          <!-- Opción para usar direcciones existentes -->
+          <div *ngIf="userAddresses.length > 0" class="address-options">
+            <ion-item>
+              <ion-radio-group [(ngModel)]="useExistingAddress" (ionChange)="onAddressSelectionChange()">
+                <ion-radio slot="start" [value]="true"></ion-radio>
+                <ion-label>Usar dirección guardada</ion-label>
+              </ion-radio-group>
+            </ion-item>
 
-          <ion-item>
-            <ion-label position="stacked">Apellido *</ion-label>
-            <ion-input
-              [(ngModel)]="shippingAddress.lastName"
-              placeholder="Ingresa tu apellido"
-              required>
-            </ion-input>
-          </ion-item>
+            <ion-item>
+              <ion-radio-group [(ngModel)]="useExistingAddress" (ionChange)="onAddressSelectionChange()">
+                <ion-radio slot="start" [value]="false"></ion-radio>
+                <ion-label>Usar nueva dirección</ion-label>
+              </ion-radio-group>
+            </ion-item>
 
-          <ion-item>
-            <ion-label position="stacked">Dirección *</ion-label>
-            <ion-textarea
-              [(ngModel)]="shippingAddress.address"
-              placeholder="Calle, número, colonia"
-              required>
-            </ion-textarea>
-          </ion-item>
+            <!-- Selector de direcciones existentes -->
+            <div *ngIf="useExistingAddress" class="existing-addresses">
+              <ion-item>
+                <ion-label position="stacked">Seleccionar dirección *</ion-label>
+                <ion-select
+                  [(ngModel)]="selectedAddressId"
+                  (ionChange)="onAddressSelectionChange()"
+                  placeholder="Elige una dirección"
+                  interface="popover">
+                  <ion-select-option *ngFor="let address of userAddresses" [value]="address.id">
+                    {{ address.first_name }} {{ address.last_name }} - {{ formatAddress(address) }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
 
-          <ion-item>
-            <ion-label position="stacked">Ciudad *</ion-label>
-            <ion-input
-              [(ngModel)]="shippingAddress.city"
-              placeholder="Ciudad"
-              required>
-            </ion-input>
-          </ion-item>
+              <!-- Mostrar dirección seleccionada -->
+              <div *ngIf="selectedAddressId" class="selected-address-preview">
+                <ion-item>
+                  <ion-label>
+                    <h3>Dirección seleccionada:</h3>
+                    <p>{{ getSelectedAddressText() }}</p>
+                  </ion-label>
+                </ion-item>
+              </div>
+            </div>
+          </div>
 
-          <ion-item>
-            <ion-label position="stacked">Estado *</ion-label>
-            <ion-input
-              [(ngModel)]="shippingAddress.state"
-              placeholder="Estado"
-              required>
-            </ion-input>
-          </ion-item>
+          <!-- Formulario de nueva dirección -->
+          <div *ngIf="!useExistingAddress || userAddresses.length === 0" class="new-address-form">
+            <ion-item>
+              <ion-label position="stacked">Nombre *</ion-label>
+              <ion-input
+                [(ngModel)]="shippingAddress.firstName"
+                placeholder="Ingresa tu nombre"
+                required>
+              </ion-input>
+            </ion-item>
 
-          <ion-item>
-            <ion-label position="stacked">Código Postal *</ion-label>
-            <ion-input
-              [(ngModel)]="shippingAddress.zipCode"
-              placeholder="Código postal"
-              type="number"
-              required>
-            </ion-input>
-          </ion-item>
+            <ion-item>
+              <ion-label position="stacked">Apellido *</ion-label>
+              <ion-input
+                [(ngModel)]="shippingAddress.lastName"
+                placeholder="Ingresa tu apellido"
+                required>
+              </ion-input>
+            </ion-item>
 
-          <ion-item>
-            <ion-label position="stacked">Teléfono *</ion-label>
-            <ion-input
-              [(ngModel)]="shippingAddress.phone"
-              placeholder="Número de teléfono"
-              type="tel"
-              required>
-            </ion-input>
-          </ion-item>
+            <ion-item>
+              <ion-label position="stacked">Dirección *</ion-label>
+              <ion-textarea
+                [(ngModel)]="shippingAddress.address"
+                placeholder="Calle, número, colonia"
+                required>
+              </ion-textarea>
+            </ion-item>
+
+            <ion-item>
+              <ion-label position="stacked">Ciudad *</ion-label>
+              <ion-input
+                [(ngModel)]="shippingAddress.city"
+                placeholder="Ciudad"
+                required>
+              </ion-input>
+            </ion-item>
+
+            <ion-item>
+              <ion-label position="stacked">Estado *</ion-label>
+              <ion-input
+                [(ngModel)]="shippingAddress.state"
+                placeholder="Estado"
+                required>
+              </ion-input>
+            </ion-item>
+
+            <ion-item>
+              <ion-label position="stacked">Código Postal *</ion-label>
+              <ion-input
+                [(ngModel)]="shippingAddress.zipCode"
+                placeholder="Código postal"
+                type="number"
+                required>
+              </ion-input>
+            </ion-item>
+
+            <ion-item>
+              <ion-label position="stacked">Teléfono *</ion-label>
+              <ion-input
+                [(ngModel)]="shippingAddress.phone"
+                placeholder="Número de teléfono"
+                type="tel"
+                required>
+              </ion-input>
+            </ion-item>
+          </div>
+
+          <!-- Estado vacío si no hay direcciones -->
+          <div *ngIf="userAddresses.length === 0 && !addressesLoading" class="no-addresses">
+            <ion-item>
+              <ion-label>
+                <div class="empty-content">
+                  <ion-icon name="location-outline" size="large" color="medium"></ion-icon>
+                  <h3>No tienes direcciones guardadas</h3>
+                  <p>Completa el formulario para agregar una nueva dirección</p>
+                </div>
+              </ion-label>
+            </ion-item>
+          </div>
+
+          <!-- Loading de direcciones -->
+          <div *ngIf="addressesLoading" class="loading-container">
+            <ion-spinner name="crescent"></ion-spinner>
+            <p>Cargando direcciones...</p>
+          </div>
         </ion-card-content>
       </ion-card>
 
@@ -155,7 +220,7 @@
           <ion-card-title>Método de Pago</ion-card-title>
         </ion-card-header>
         <ion-card-content>
-          <ion-radio-group [(ngModel)]="paymentMethod">
+          <ion-radio-group [(ngModel)]="paymentMethod" (ionChange)="onPaymentMethodChange()">
             <ion-item>
               <ion-radio slot="start" value="card"></ion-radio>
               <ion-label>Tarjeta de Crédito/Débito</ion-label>
@@ -165,6 +230,14 @@
               <ion-label>Pago en Efectivo (Contra Entrega)</ion-label>
             </ion-item>
           </ion-radio-group>
+
+          <!-- Debug temporal -->
+          <div style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px;">
+            <p><strong>Debug:</strong> Método seleccionado: {{ paymentMethod }}</p>
+            <ion-button size="small" fill="outline" (click)="debugPaymentMethod()">
+              Debug Método de Pago
+            </ion-button>
+          </div>
 
           <!-- Detalles de Tarjeta -->
           <div *ngIf="paymentMethod === 'card'" class="card-details">

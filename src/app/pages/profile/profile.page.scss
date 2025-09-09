@@ -71,3 +71,118 @@
   margin-top: 2px;
   flex-shrink: 0;
 }
+
+// Estilos para direcciones
+.addresses-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.addresses-header h2 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.loading-container, .error-container {
+  text-align: center;
+  padding: 20px;
+}
+
+.loading-container p, .error-container p {
+  margin: 8px 0 0 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.error-container ion-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.address-item {
+  --padding-start: 0;
+  --inner-padding-end: 0;
+  margin-bottom: 8px;
+}
+
+.address-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.address-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.empty-state {
+  --padding-start: 0;
+  --inner-padding-end: 0;
+}
+
+.empty-content {
+  text-align: center;
+  padding: 20px;
+}
+
+.empty-content ion-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.empty-content h3 {
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.empty-content p {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 0 0 16px 0;
+  line-height: 1.4;
+}
+
+// Estilos para pedidos
+.orders-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.orders-header h2 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.order-item {
+  --padding-start: 0;
+  --inner-padding-end: 0;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  --background: #ffffff;
+  --border-color: #e5e7eb;
+  --border-width: 1px;
+  --border-style: solid;
+}
+
+.order-item:hover {
+  --background: #f9fafb;
+}
+
+.order-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}

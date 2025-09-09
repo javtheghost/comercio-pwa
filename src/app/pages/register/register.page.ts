@@ -153,7 +153,7 @@ export class RegisterPage implements OnInit {
 
   onLoginClick(event: Event) {
     event.preventDefault();
-    this.router.navigate(['/login']);
+    this.router.navigate(['/tabs/login']);
   }
 
 

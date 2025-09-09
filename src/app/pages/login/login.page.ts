@@ -149,7 +149,7 @@ export class LoginPage implements OnInit {
 
   onSignUp(event: Event) {
     event.preventDefault();
-    this.router.navigate(['/register']);
+    this.router.navigate(['/tabs/register']);
   }
 
   togglePassword() {

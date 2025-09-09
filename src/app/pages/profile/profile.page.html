@@ -45,6 +45,149 @@
     </ion-card-content>
   </ion-card>
 
+  <!-- Sección de Direcciones -->
+  <ion-card *ngIf="isAuthenticated">
+    <ion-card-content>
+      <div class="addresses-header">
+        <h2>Mis Direcciones</h2>
+        <ion-button fill="outline" size="small" (click)="addNewAddress()">
+          <ion-icon name="add-outline" slot="start"></ion-icon>
+          Agregar
+        </ion-button>
+      </div>
+
+      <!-- Loading -->
+      <div *ngIf="addressesLoading" class="loading-container">
+        <ion-spinner name="crescent"></ion-spinner>
+        <p>Cargando direcciones...</p>
+      </div>
+
+      <!-- Error -->
+      <div *ngIf="addressesError && !addressesLoading" class="error-container">
+        <ion-icon name="alert-circle-outline" color="danger"></ion-icon>
+        <p>{{ addressesError }}</p>
+        <ion-button fill="outline" size="small" (click)="loadAddresses()">
+          Reintentar
+        </ion-button>
+      </div>
+
+      <!-- Lista de direcciones -->
+      <ion-list *ngIf="!addressesLoading && !addressesError">
+        <ion-item *ngFor="let address of addresses" class="address-item">
+          <ion-label>
+            <h3>{{ address.first_name }} {{ address.last_name }}</h3>
+            <p>{{ formatAddress(address) }}</p>
+            <p>{{ address.phone }}</p>
+            <div class="address-meta">
+              <ion-chip [color]="getAddressTypeColor(address.type)" size="small">
+                {{ getAddressTypeText(address.type) }}
+              </ion-chip>
+              <ion-chip *ngIf="address.is_default" color="success" size="small">
+                <ion-icon name="star" slot="start"></ion-icon>
+                Predeterminada
+              </ion-chip>
+            </div>
+          </ion-label>
+          <div slot="end" class="address-actions">
+            <ion-button fill="clear" size="small" (click)="editAddress(address)">
+              <ion-icon name="create-outline"></ion-icon>
+            </ion-button>
+            <ion-button fill="clear" size="small" color="danger" (click)="deleteAddress(address)">
+              <ion-icon name="trash-outline"></ion-icon>
+            </ion-button>
+            <ion-button
+              *ngIf="!address.is_default"
+              fill="clear"
+              size="small"
+              color="primary"
+              (click)="setDefaultAddress(address)">
+              <ion-icon name="star-outline"></ion-icon>
+            </ion-button>
+          </div>
+        </ion-item>
+
+        <!-- Estado vacío -->
+        <ion-item *ngIf="addresses.length === 0" class="empty-state">
+          <ion-label>
+            <div class="empty-content">
+              <ion-icon name="location-outline" size="large" color="medium"></ion-icon>
+              <h3>No tienes direcciones guardadas</h3>
+              <p>Agrega una dirección para facilitar tus compras</p>
+              <ion-button fill="outline" (click)="addNewAddress()">
+                <ion-icon name="add-outline" slot="start"></ion-icon>
+                Agregar Primera Dirección
+              </ion-button>
+            </div>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- Sección de Mis Pedidos -->
+  <ion-card *ngIf="isAuthenticated">
+    <ion-card-content>
+      <div class="orders-header">
+        <h2>Mis Pedidos</h2>
+        <ion-button fill="outline" size="small" (click)="viewAllOrders()">
+          <ion-icon name="list-outline" slot="start"></ion-icon>
+          Ver Todos
+        </ion-button>
+      </div>
+
+      <!-- Loading -->
+      <div *ngIf="ordersLoading" class="loading-container">
+        <ion-spinner name="crescent"></ion-spinner>
+        <p>Cargando pedidos...</p>
+      </div>
+
+      <!-- Error -->
+      <div *ngIf="ordersError && !ordersLoading" class="error-container">
+        <ion-icon name="alert-circle-outline" color="danger"></ion-icon>
+        <p>{{ ordersError }}</p>
+        <ion-button fill="outline" size="small" (click)="loadOrders()">
+          Reintentar
+        </ion-button>
+      </div>
+
+      <!-- Lista de pedidos -->
+      <ion-list *ngIf="!ordersLoading && !ordersError">
+        <ion-item *ngFor="let order of orders" class="order-item" button (click)="viewOrderDetails(order)">
+          <ion-label>
+            <h3>Pedido #{{ order.order_number }}</h3>
+            <p>{{ formatOrderDate(order.created_at) }}</p>
+            <p>{{ order.items.length || 0 }} producto(s) - {{ formatCurrency(order.total_amount || 0) }}</p>
+            <div class="order-meta">
+              <ion-chip [color]="getOrderStatusColor(order.status)" size="small">
+                {{ getOrderStatusText(order.status) }}
+              </ion-chip>
+              <ion-chip *ngIf="order.payment_status === 'paid'" color="success" size="small">
+                <ion-icon name="checkmark-circle" slot="start"></ion-icon>
+                Pagado
+              </ion-chip>
+            </div>
+          </ion-label>
+          <ion-icon name="chevron-forward-outline" slot="end" color="medium"></ion-icon>
+        </ion-item>
+
+        <!-- Estado vacío -->
+        <ion-item *ngIf="orders.length === 0" class="empty-state">
+          <ion-label>
+            <div class="empty-content">
+              <ion-icon name="receipt-outline" size="large" color="medium"></ion-icon>
+              <h3>No tienes pedidos aún</h3>
+              <p>Realiza tu primera compra para ver tus pedidos aquí</p>
+              <ion-button fill="outline" (click)="router.navigate(['/tabs/home'])">
+                <ion-icon name="storefront-outline" slot="start"></ion-icon>
+                Ir a Comprar
+              </ion-button>
+            </div>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+    </ion-card-content>
+  </ion-card>
+
   <!-- Usuario no autenticado -->
   <ion-card *ngIf="!isAuthenticated">
     <ion-card-content>
@@ -72,4 +215,5 @@
       </div>
     </ion-card-content>
   </ion-card>
+
 </ion-content>

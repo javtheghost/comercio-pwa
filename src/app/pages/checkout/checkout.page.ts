@@ -2,10 +2,14 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonicModule } from '@ionic/angular';
+import { IonicModule, ToastController, LoadingController } from '@ionic/angular';
 import { CartService, Cart, CartItem } from '../../services/cart.service';
 import { AuthService } from '../../services/auth.service';
+import { OrderService, CreateOrderRequest, Address } from '../../services/order.service';
+import { AddressService } from '../../services/address.service';
+import { NotificationService } from '../../services/notification.service';
 import { User } from '../../interfaces/auth.interfaces';
+import { Address as UserAddress } from '../../interfaces/address.interfaces';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -41,13 +45,24 @@ export class CheckoutPage implements OnInit, OnDestroy {
     name: ''
   };
 
+  // Direcciones del usuario
+  userAddresses: UserAddress[] = [];
+  selectedAddressId: number | null = null;
+  useExistingAddress = false;
+  addressesLoading = false;
+
   private cartSubscription: Subscription = new Subscription();
   private authSubscription: Subscription = new Subscription();
 
   constructor(
     private cartService: CartService,
     private authService: AuthService,
-    private router: Router
+    private orderService: OrderService,
+    private addressService: AddressService,
+    private notificationService: NotificationService,
+    private router: Router,
+    private toastController: ToastController,
+    private loadingController: LoadingController
   ) {}
 
   ngOnInit() {
@@ -56,7 +71,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
     // Verificar autenticación
     if (!this.authService.isAuthenticated()) {
       console.log('❌ [CHECKOUT] Usuario no autenticado, redirigiendo al login...');
-      this.router.navigate(['/login'], {
+      this.router.navigate(['/tabs/login'], {
         queryParams: { returnUrl: '/checkout' }
       });
       return;
@@ -107,6 +122,9 @@ export class CheckoutPage implements OnInit, OnDestroy {
           // Pre-llenar datos del usuario
           this.shippingAddress.firstName = authState.user.first_name || '';
           this.shippingAddress.lastName = authState.user.last_name || '';
+
+          // Cargar direcciones del usuario
+          this.loadUserAddresses();
         }
       },
       error: (error) => {
@@ -153,7 +171,34 @@ export class CheckoutPage implements OnInit, OnDestroy {
     );
   }
 
+  onPaymentMethodChange(): void {
+    console.log('🔄 [CHECKOUT] Método de pago cambiado a:', this.paymentMethod);
+    console.log('🔄 [CHECKOUT] Valor actual de paymentMethod:', this.paymentMethod);
+
+    // Si se selecciona pago en efectivo, limpiar detalles de tarjeta
+    if (this.paymentMethod === 'cash') {
+      console.log('💰 [CHECKOUT] Limpiando detalles de tarjeta para pago en efectivo');
+      this.cardDetails = {
+        number: '',
+        expiry: '',
+        cvv: '',
+        name: ''
+      };
+    }
+  }
+
+  // Método de debug temporal
+  debugPaymentMethod(): void {
+    console.log('🐛 [DEBUG] Estado actual del método de pago:');
+    console.log('- paymentMethod:', this.paymentMethod);
+    console.log('- Tipo:', typeof this.paymentMethod);
+    console.log('- Es igual a "cash":', this.paymentMethod === 'cash');
+    console.log('- Es igual a "card":', this.paymentMethod === 'card');
+  }
+
   async processOrder(): Promise<void> {
+    console.log('💳 [CHECKOUT] Método de pago seleccionado:', this.paymentMethod);
+
     if (!this.isFormValid()) {
       this.error = 'Por favor completa todos los campos requeridos';
       return;
@@ -164,41 +209,203 @@ export class CheckoutPage implements OnInit, OnDestroy {
       return;
     }
 
-    this.loading = true;
+    if (!this.user) {
+      this.error = 'Usuario no autenticado';
+      return;
+    }
+
+    // Validar método de pago
+    if (!this.paymentMethod) {
+      this.error = 'Por favor selecciona un método de pago';
+      return;
+    }
+
+    const loading = await this.loadingController.create({
+      message: 'Procesando orden...',
+      spinner: 'crescent'
+    });
+    await loading.present();
+
     this.error = null;
 
     try {
       console.log('💳 [CHECKOUT] Procesando orden...');
 
-      // TODO: Implementar lógica de procesamiento de orden
-      // Por ahora, simular procesamiento exitoso
-      await this.simulateOrderProcessing();
+      // Preparar datos de la orden
+      const orderData: CreateOrderRequest = {
+        customer_id: this.user.id,
+        items: this.cart!.items.map(item => ({
+          product_id: item.product_id,
+          product_variant_id: item.product_variant_id,
+          quantity: item.quantity
+        })),
+        shipping_address: {
+          street: this.shippingAddress.address,
+          city: this.shippingAddress.city,
+          state: this.shippingAddress.state,
+          postal_code: this.shippingAddress.zipCode,
+          country: this.shippingAddress.country,
+          phone: this.shippingAddress.phone
+        },
+        billing_address: {
+          street: this.shippingAddress.address,
+          city: this.shippingAddress.city,
+          state: this.shippingAddress.state,
+          postal_code: this.shippingAddress.zipCode,
+          country: this.shippingAddress.country,
+          phone: this.shippingAddress.phone
+        },
+        notes: `Orden creada desde PWA - ${new Date().toLocaleString()}`,
+        payment_method: this.paymentMethod
+      };
 
-      console.log('✅ [CHECKOUT] Orden procesada exitosamente');
+      // Validar datos antes de enviar
+      const validation = this.orderService.validateOrderData(orderData);
+      if (!validation.isValid) {
+        throw new Error(validation.errors.join(', '));
+      }
 
-      // Redirigir a página de confirmación
-      this.router.navigate(['/order-confirmation'], {
-        queryParams: { orderId: '12345' } // TODO: Usar ID real de la orden
-      });
+      // Crear la orden
+      const response = await this.orderService.createOrder(orderData).toPromise();
 
-    } catch (error) {
+      if (response && response.success) {
+        console.log('✅ [CHECKOUT] Orden creada exitosamente:', response.data);
+
+        // Limpiar el carrito
+        await this.cartService.clearCart();
+
+        // Enviar notificación de nueva orden
+        try {
+          await this.notificationService.sendTestNotification();
+          console.log('✅ [CHECKOUT] Notificación enviada');
+        } catch (notificationError) {
+          console.warn('⚠️ [CHECKOUT] Error enviando notificación:', notificationError);
+        }
+
+        // Mostrar mensaje de éxito
+        const toast = await this.toastController.create({
+          message: '¡Orden creada exitosamente!',
+          duration: 3000,
+          color: 'success',
+          position: 'top'
+        });
+        await toast.present();
+
+        // Redirigir a página de confirmación
+        this.router.navigate(['/order-confirmation'], {
+          queryParams: {
+            orderId: response.data.id,
+            orderNumber: response.data.order_number
+          }
+        });
+
+      } else {
+        throw new Error(response?.message || 'Error desconocido al crear la orden');
+      }
+
+    } catch (error: any) {
       console.error('❌ [CHECKOUT] Error procesando orden:', error);
-      this.error = 'Error procesando la orden. Por favor intenta nuevamente.';
+
+      let errorMessage = 'Error procesando la orden. Por favor intenta nuevamente.';
+
+      if (error.error && error.error.message) {
+        errorMessage = error.error.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      this.error = errorMessage;
+
+      // Mostrar error en toast
+      const toast = await this.toastController.create({
+        message: errorMessage,
+        duration: 5000,
+        color: 'danger',
+        position: 'top'
+      });
+      await toast.present();
+
     } finally {
-      this.loading = false;
+      await loading.dismiss();
     }
   }
 
-  private async simulateOrderProcessing(): Promise<void> {
-    // Simular tiempo de procesamiento
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve();
-      }, 2000);
-    });
-  }
 
   goBack(): void {
     this.router.navigate(['/tabs/cart']);
+  }
+
+  // Métodos para manejar direcciones
+  async loadUserAddresses(): Promise<void> {
+    if (!this.user) return;
+
+    this.addressesLoading = true;
+
+    try {
+      const response = await this.addressService.getUserAddresses().toPromise();
+      if (response && response.success) {
+        this.userAddresses = response.data as UserAddress[];
+
+        // Si hay direcciones, seleccionar la predeterminada
+        const defaultAddress = this.addressService.getDefaultAddress(this.userAddresses);
+        if (defaultAddress) {
+          this.selectedAddressId = defaultAddress.id || null;
+          this.useExistingAddress = true;
+          this.fillAddressFromSelected(defaultAddress);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error cargando direcciones:', error);
+    } finally {
+      this.addressesLoading = false;
+    }
+  }
+
+  onAddressSelectionChange(): void {
+    if (this.useExistingAddress && this.selectedAddressId) {
+      const selectedAddress = this.userAddresses.find(addr => addr.id === this.selectedAddressId);
+      if (selectedAddress) {
+        this.fillAddressFromSelected(selectedAddress);
+      }
+    }
+  }
+
+  private fillAddressFromSelected(address: UserAddress): void {
+    this.shippingAddress.firstName = address.first_name;
+    this.shippingAddress.lastName = address.last_name;
+    this.shippingAddress.address = address.address_line_1;
+    this.shippingAddress.city = address.city;
+    this.shippingAddress.state = address.state;
+    this.shippingAddress.zipCode = address.postal_code;
+    this.shippingAddress.country = address.country;
+    this.shippingAddress.phone = address.phone;
+  }
+
+  formatAddress(address: UserAddress): string {
+    return this.addressService.formatAddress(address);
+  }
+
+  getAddressTypeText(type: string): string {
+    const typeMap: { [key: string]: string } = {
+      'shipping': 'Envío',
+      'billing': 'Facturación',
+      'both': 'Envío y Facturación'
+    };
+    return typeMap[type] || type;
+  }
+
+  getAddressTypeColor(type: string): string {
+    const colorMap: { [key: string]: string } = {
+      'shipping': 'primary',
+      'billing': 'secondary',
+      'both': 'tertiary'
+    };
+    return colorMap[type] || 'medium';
+  }
+
+  getSelectedAddressText(): string {
+    if (!this.selectedAddressId) return '';
+    const selectedAddress = this.userAddresses.find(addr => addr.id === this.selectedAddressId);
+    return selectedAddress ? this.formatAddress(selectedAddress) : '';
   }
 }

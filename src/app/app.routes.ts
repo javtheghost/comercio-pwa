@@ -8,6 +8,7 @@ import { LoginPage } from './pages/login/login.page';
 import { RegisterPage } from './pages/register/register.page';
 import { CheckoutPage } from './pages/checkout/checkout.page';
 import { OrderConfirmationPage } from './pages/order-confirmation/order-confirmation.page';
+import { AddressPage } from './pages/address/address.page';
 import { AuthGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
@@ -15,14 +16,6 @@ export const routes: Routes = [
     path: '',
     redirectTo: '/tabs/home',
     pathMatch: 'full'
-  },
-  {
-    path: 'login',
-    component: LoginPage
-  },
-  {
-    path: 'register',
-    component: RegisterPage
   },
   {
     path: 'checkout',
@@ -63,6 +56,24 @@ export const routes: Routes = [
       {
         path: 'product/:id',
         component: ProductDetailPage
+      },
+      {
+        path: 'login',
+        component: LoginPage
+      },
+      {
+        path: 'register',
+        component: RegisterPage
+      },
+      {
+        path: 'address',
+        component: AddressPage,
+        canActivate: [AuthGuard]
+      },
+      {
+        path: 'address/:id',
+        component: AddressPage,
+        canActivate: [AuthGuard]
       }
     ]
   }

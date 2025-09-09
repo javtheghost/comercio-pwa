@@ -232,7 +232,7 @@ export class CartPage implements OnInit, OnDestroy {
     } else {
       // Usuario no autenticado, redirigir al login
       console.log('Usuario no autenticado, redirigiendo al login...');
-      this.router.navigate(['/login'], {
+      this.router.navigate(['/tabs/login'], {
         queryParams: {
           returnUrl: '/checkout'
         }

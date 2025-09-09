@@ -7,9 +7,9 @@
 }
 
 .register-container {
-  min-height: 100vh;
+  min-height: calc(100vh - 56px); // Restar altura de las tabs
   background: #ffffff;
-  padding: 40px 24px 24px;
+  padding: 40px 24px 80px; // Aumentar padding inferior para las tabs
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -350,7 +350,8 @@ ion-content {
 // Responsive adjustments
 @media (max-width: 480px) {
   .register-container {
-    padding: 24px 16px;
+    padding: 24px 16px 80px; // Mantener padding inferior para las tabs
+    min-height: calc(100vh - 44px); // Altura de tabs en móvil
   }
 
   .register-title {
