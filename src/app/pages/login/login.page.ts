@@ -164,4 +164,27 @@ export class LoginPage implements OnInit {
       this.showToast = false;
     }, 3000);
   }
+
+  isFieldValid(field: string): boolean {
+    const control = this.loginForm.get(field);
+    return !!(control && control.valid && (control.dirty || control.touched));
   }
+
+  hasFieldError(field: string): boolean {
+    const control = this.loginForm.get(field);
+    return !!(control && control.invalid && (control.dirty || control.touched));
+  }
+
+  getFieldError(field: string): string | null {
+    const control = this.loginForm.get(field);
+    if (!control || !control.errors) return null;
+    if (control.errors['required']) return 'Este campo es obligatorio.';
+    if (control.errors['email']) return 'Correo inválido.';
+    if (control.errors['minlength']) return `Mínimo ${control.errors['minlength'].requiredLength} caracteres.`;
+    return null;
+  }
+
+  togglePassword() {
+    this.showPassword = !this.showPassword;
+  }
+}
