@@ -41,13 +41,8 @@ import { CartService, Cart } from '../services/cart.service';
   `,
   styleUrls: ['./tabs.page.scss']
 })
-<<<<<<< HEAD
 export class TabsPage implements OnInit, OnDestroy {
   tabOrder = ['/tabs/home', '/tabs/products', '/tabs/orders', '/tabs/cart', '/tabs/profile'];
-=======
-export class TabsPage {
-  tabOrder = ['/tabs/home', '/tabs/search', '/tabs/orders', '/tabs/cart', '/tabs/profile'];
->>>>>>> origin/Guillermo
   currentTabIndex = 0;
   cartItemsCount = 0;
   private cartSubscription: Subscription = new Subscription();

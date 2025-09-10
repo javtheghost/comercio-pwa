@@ -30,14 +30,9 @@ import { AddToCartToastComponent } from '../../components/add-to-cart-toast/add-
     IonButton,
     IonIcon,
     IonBadge,
-<<<<<<< HEAD
     IonSpinner,
     ProductVariantSelectorComponent,
     AddToCartToastComponent
-=======
-  IonSpinner,
-  JsonPipe
->>>>>>> origin/Guillermo
   ],
   templateUrl: './product-detail.page.html',
   styleUrls: ['./product-detail.page.scss']
@@ -48,7 +43,7 @@ export class ProductDetailPage implements OnInit {
   product: ProductUI | null = null;
   productId: string | null = null;
   loading = true;
-<<<<<<< HEAD
+  error: string | null = null;
   currentVariant: ProductVariant | null = null;
   currentPrice: string = '';
   currentStock: number = 0;
@@ -65,22 +60,14 @@ export class ProductDetailPage implements OnInit {
 
   // Loading state
   addingToCart = false;
-=======
-  error: string | null = null;
->>>>>>> origin/Guillermo
 
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private productService: ProductService,
-<<<<<<< HEAD
     private cartService: CartService,
     private cdr: ChangeDetectorRef
-=======
-    private cdr: ChangeDetectorRef,
-    private location: Location
->>>>>>> origin/Guillermo
   ) {
     console.log('🏗️ ProductDetailPage constructor ejecutado');
   }
@@ -106,7 +93,6 @@ export class ProductDetailPage implements OnInit {
           return;
         }
         console.log('🔍 Producto encontrado en API:', product);
-<<<<<<< HEAD
         console.log('🔍 Tipo de producto:', typeof product);
         console.log('🔍 Producto tiene images?', product.images);
         console.log('🔍 Cantidad de imágenes:', product.images?.length);
@@ -128,14 +114,11 @@ export class ProductDetailPage implements OnInit {
 
         console.log('🔍 URL de imagen final:', imageUrl);
 
-=======
->>>>>>> origin/Guillermo
         this.product = {
           ...product,
           isFavorite: false, // Por defecto no favorito
           originalPrice: product.compare_price,
           discount: this.calculateDiscount(product.price, product.compare_price),
-<<<<<<< HEAD
           image: imageUrl,
           availableSizes: [],
           availableColors: []
@@ -146,12 +129,6 @@ export class ProductDetailPage implements OnInit {
         // Cargar información de variantes usando la nueva API
         this.loadVariantInfo();
 
-=======
-          image: product.images && product.images.length > 0
-            ? (product.images[0].full_image_url || product.images[0].image_url)
-            : 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop&crop=center'
-        } as ProductUI;
->>>>>>> origin/Guillermo
         this.loading = false;
         this.cdr.detectChanges();
         console.log('✅ Producto cargado exitosamente:', this.product.name);
@@ -166,7 +143,6 @@ export class ProductDetailPage implements OnInit {
     });
   }
 
-<<<<<<< HEAD
   loadVariantInfo() {
     if (!this.productId) return;
 
@@ -212,11 +188,6 @@ export class ProductDetailPage implements OnInit {
       }
     });
   }
-=======
-
-
-// ...existing code...
->>>>>>> origin/Guillermo
 
     calculateDiscount(price: string, comparePrice: string): number | undefined {
     if (!comparePrice || parseFloat(comparePrice) <= parseFloat(price)) {
