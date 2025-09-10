@@ -1,0 +1,222 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Búsqueda</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" scrollEvents="true" (ionScroll)="onContentScroll($event)">
+  <div class="search-container">
+    <div class="searchbar-qr-row">
+      <ion-searchbar
+        placeholder="Buscar producto por nombre o código..."
+  (ionInput)="onSearchChange($event)"
+  (ionChange)="onSearchbarEnter($event)"
+        [debounce]="300"
+        style="flex: 1;">
+      </ion-searchbar>
+      <button class="qr-icon-btn" type="button" (click)="showQr = true">
+        <ion-icon name="qr-code-outline" style="font-size: 28px; color: #3880ff;"></ion-icon>
+      </button>
+    </div>
+
+    <div *ngIf="showQr" class="qr-modal-backdrop" (click)="showQr = false">
+      <div class="qr-modal" (click)="$event.stopPropagation()">
+        <zxing-scanner
+          [torch]="false"
+          (scanSuccess)="onCodeResult($event); showQr = false"
+          [formats]="allowedFormats"
+          [tryHarder]="true"
+          style="display: block; width: 100%; max-width: 320px; margin: 0 auto; border-radius: 12px; overflow: hidden; background: #222;">
+        </zxing-scanner>
+        <div style="text-align: center; margin-top: 8px; color: #666;">
+          <ion-icon name="qr-code-outline" style="font-size: 32px; color: #3880ff;"></ion-icon>
+          <p>Escanea el código QR de un producto</p>
+        </div>
+        <button type="button" class="close-qr-btn" (click)="showQr = false">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Estado inicial amigable cuando no hay búsqueda activa -->
+  <div *ngIf="!loading && !error && products.length === 0 && !searchQuery.trim()" class="empty-state">
+    <ion-icon name="search-outline" class="empty-icon"></ion-icon>
+    <h3>Busca productos</h3>
+    <p>Escribe el nombre o código de un producto para comenzar tu búsqueda.</p>
+    <div class="qr-alert">
+      <ion-icon name="qr-code-outline" class="qr-alert-icon"></ion-icon>
+      <div class="qr-alert-content">
+        <strong>¡Nuevo!</strong> También puedes <span class="qr-alert-link" (click)="showQr = true">escanear el código QR</span> de un producto para encontrarlo más rápido.
+      </div>
+      <button class="qr-info-btn" type="button" (click)="showQrInfo()" title="¿Cómo funciona?">
+        <ion-icon name="help-circle-outline"></ion-icon>
+      </button>
+  <!-- Modal/alert de información sobre escanear productos -->
+  <ion-alert
+    header="¿Cómo escanear productos?"
+    subHeader="Escaneo de código QR"
+    message="Pulsa el ícono de QR junto al buscador y apunta la cámara al código QR del producto. Así podrás encontrarlo rápidamente sin escribir. ¡Ideal para tiendas físicas o catálogos impresos!"
+    [isOpen]="showQrInfoAlert"
+    (didDismiss)="showQrInfoAlert = false"
+  [backdropDismiss]="false"
+  [buttons]="qrInfoButtons">
+  </ion-alert>
+    </div>
+  </div>
+
+  <!-- Estado vacío cuando no hay resultados -->
+  <div *ngIf="!loading && !error && products.length === 0 && searchQuery.trim()" class="empty-state">
+    <ion-icon name="search-outline" class="empty-icon"></ion-icon>
+    <h3>No se encontraron productos</h3>
+    <p>Intenta con otros términos de búsqueda</p>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="error" class="empty-state">
+    <ion-icon name="alert-circle-outline" class="empty-icon"></ion-icon>
+    <h3>{{ errorMessage }}</h3>
+  </div>
+
+  <!-- Filtros de ordenamiento -->
+  <div *ngIf="products.length > 0 && !loading && !error" class="sort-bar">
+    <ion-label class="sort-label">Ordenar:</ion-label>
+    <ion-select interface="popover" [value]="sortOption" (ionChange)="onSortChange($event)" class="sort-select">
+      <ion-select-option value="relevance">Relevancia</ion-select-option>
+      <ion-select-option value="name_asc">Nombre: A-Z</ion-select-option>
+      <ion-select-option value="name_desc">Nombre: Z-A</ion-select-option>
+      <ion-select-option value="newest">Más nuevos</ion-select-option>
+    </ion-select>
+    <ion-label class="sort-label">Precio:</ion-label>
+    <ion-select interface="popover" [value]="priceFilter" (ionChange)="onPriceFilterChange($event)" class="sort-select">
+  <ion-select-option value="all">Todos</ion-select-option>
+  <ion-select-option value="lt100">Menor a $100</ion-select-option>
+  <ion-select-option value="100to500">$100 a $500</ion-select-option>
+  <ion-select-option value="500to1000">$500 a $1000</ion-select-option>
+  <ion-select-option value="gt1000">Mayor a $1000</ion-select-option>
+  <!-- opción menor a $1000 eliminada -->
+    </ion-select>
+    <ion-label class="sort-label">Ofertas:</ion-label>
+    <ion-toggle [checked]="offerOnly" (ionChange)="onOfferChange($event)"></ion-toggle>
+    <ng-container *ngIf="offerOnly">
+      <ion-label class="sort-label">Descuento mínimo:</ion-label>
+  <ion-select interface="popover" [value]="minDiscount" (ionChange)="onMinDiscountChange($event)" class="sort-select" [compareWith]="compareDiscount">
+        <ion-select-option value="0">Todos</ion-select-option>
+        <ion-select-option value="10">10%</ion-select-option>
+        <ion-select-option value="20">20%</ion-select-option>
+        <ion-select-option value="30">30%</ion-select-option>
+        <ion-select-option value="50">50%</ion-select-option>
+      </ion-select>
+    </ng-container>
+    <ion-label *ngIf="availableColors.length" class="sort-label">Color:</ion-label>
+    <ion-select *ngIf="availableColors.length" interface="popover" [value]="colorFilter" (ionChange)="onColorChange($event)" class="sort-select">
+      <ion-select-option value="">Todos</ion-select-option>
+      <ion-select-option *ngFor="let color of availableColors" [value]="color">{{ color }}</ion-select-option>
+    </ion-select>
+    <ion-label *ngIf="availableSizes.length" class="sort-label">Talla:</ion-label>
+    <ion-select *ngIf="availableSizes.length" interface="popover" [value]="sizeFilter" (ionChange)="onSizeChange($event)" class="sort-select">
+      <ion-select-option value="">Todas</ion-select-option>
+      <ion-select-option *ngFor="let size of availableSizes" [value]="size">{{ size }}</ion-select-option>
+    </ion-select>
+  </div>
+
+  <!-- Estado vacío por filtros -->
+  <div *ngIf="!loading && !error && products.length > 0 && productsFiltered.length === 0" class="empty-state">
+    <ion-icon name="funnel-outline" class="empty-icon"></ion-icon>
+    <h3>No se encontraron productos con los filtros seleccionados</h3>
+    <p>Prueba quitando o cambiando algún filtro para ver más resultados.</p>
+  </div>
+
+  <!-- Grid de productos -->
+  <div *ngIf="!loading && !error && productsFiltered.length > 0" class="products-grid">
+    <ion-card
+      *ngFor="let product of productsFiltered"
+      class="product-card"
+      (click)="goToProductDetail(product, 'search')">
+      <div class="product-image-container">
+        <img
+          [src]="getProductImageUrl(product)"
+          [alt]="product.name"
+          class="product-image"
+          loading="lazy">
+        <!-- Botón de favorito -->
+        <ion-button
+          fill="clear"
+          size="small"
+          class="favorite-btn"
+          (click)="toggleFavorite(product); $event.stopPropagation()">
+          <ion-icon
+            [name]="product.isFavorite ? 'heart' : 'heart-outline'"
+            [color]="product.isFavorite ? 'danger' : 'medium'">
+          </ion-icon>
+        </ion-button>
+      </div>
+      <ion-card-content class="product-content">
+        <ion-card-title class="product-title">
+          {{ product.name }}
+        </ion-card-title>
+        <div class="product-price-container">
+          <span class="current-price">
+            ${{ product.price }}
+          </span>
+        </div>
+        <ion-card-subtitle class="product-description">
+          {{ product.description }}
+        </ion-card-subtitle>
+        <div class="product-category">
+          <ion-chip size="small" color="light">
+            {{ product.category.name }}
+          </ion-chip>
+        </div>
+      </ion-card-content>
+    </ion-card>
+  </div>
+
+  <!-- Recomendaciones -->
+  <div *ngIf="!searchQuery.trim() && !loading && !error && recommended.length > 0" class="recommended-section">
+    <h3>Recomendados para ti</h3>
+    <div class="products-grid">
+      <ion-card *ngFor="let product of recommended" class="product-card" (click)="goToProductDetail(product)">
+        <div class="product-image-container">
+          <img [src]="getProductImageUrl(product)" [alt]="product.name" class="product-image" loading="lazy">
+        </div>
+        <ion-card-content class="product-content">
+          <ion-card-title class="product-title">{{ product.name }}</ion-card-title>
+          <div class="product-price-container">
+            <span class="current-price">${{ product.price }}</span>
+          </div>
+          <ion-card-subtitle class="product-description">{{ product.description }}</ion-card-subtitle>
+          <div class="product-category">
+            <ion-chip size="small" color="light">{{ product.category.name }}</ion-chip>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </div>
+  </div>
+
+  <!-- Skeleton loader igual que en home -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="skeleton-grid">
+      <div class="skeleton-card" *ngFor="let item of [1,2,3,4,5,6]">
+        <div class="skeleton-image"></div>
+        <div class="skeleton-content">
+          <div class="skeleton-title"></div>
+          <div class="skeleton-price"></div>
+          <div class="skeleton-description"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mensaje cuando no hay más productos -->
+  <div *ngIf="!loading && !error && !hasMoreProducts && productsFiltered.length > 0" class="no-more-products">
+    <ion-icon name="checkmark-circle-outline" color="success"></ion-icon>
+    <p>Has visto todos los productos disponibles</p>
+  </div>
+
+  <!-- Botón flotante para volver arriba -->
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed" *ngIf="showScrollTop">
+    <ion-fab-button class="custom-scrolltop-btn" (click)="scrollToTop()">
+      <ion-icon name="arrow-up-outline"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+</ion-content>

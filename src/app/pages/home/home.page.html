@@ -4,7 +4,13 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
+<ion-content [fullscreen]="true" scrollEvents="true" (ionScroll)="onContentScroll($event)">
+  <!-- Botón flotante para volver arriba -->
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed" *ngIf="showScrollTop">
+    <ion-fab-button class="custom-scrolltop-btn" (click)="scrollToTop()">
+      <ion-icon name="arrow-up-outline"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
   <!-- Barra de búsqueda -->
   <div class="search-container">
     <ion-searchbar

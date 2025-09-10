@@ -15,7 +15,7 @@ import { CartService, Cart } from '../services/cart.service';
         <ion-icon name="home-outline"></ion-icon>
         <span>Inicio</span>
       </button>
-      <button (click)="navigate('/tabs/products')" [class.active]="isActive('/tabs/products')">
+      <button (click)="navigate('/tabs/search')" [class.active]="isActive('/tabs/search')">
         <ion-icon name="search-outline"></ion-icon>
         <span>Buscar</span>
       </button>
@@ -41,8 +41,13 @@ import { CartService, Cart } from '../services/cart.service';
   `,
   styleUrls: ['./tabs.page.scss']
 })
+<<<<<<< HEAD
 export class TabsPage implements OnInit, OnDestroy {
   tabOrder = ['/tabs/home', '/tabs/products', '/tabs/orders', '/tabs/cart', '/tabs/profile'];
+=======
+export class TabsPage {
+  tabOrder = ['/tabs/home', '/tabs/search', '/tabs/orders', '/tabs/cart', '/tabs/profile'];
+>>>>>>> origin/Guillermo
   currentTabIndex = 0;
   cartItemsCount = 0;
   private cartSubscription: Subscription = new Subscription();

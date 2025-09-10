@@ -41,6 +41,10 @@ export const routes: Routes = [
         component: HomePage
       },
       {
+        path: 'search',
+        loadComponent: () => import('./pages/search/search.page').then(m => m.SearchPage)
+      },
+      {
         path: 'cart',
         component: CartPage
       },
@@ -78,3 +82,4 @@ export const routes: Routes = [
     ]
   }
 ];
+// ...existing code...

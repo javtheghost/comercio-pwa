@@ -1,6 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { NgIf } from '@angular/common';
+import { Location } from '@angular/common';
+import { NgIf, JsonPipe } from '@angular/common';
 import {
   IonHeader,
   IonToolbar,
@@ -29,9 +30,14 @@ import { AddToCartToastComponent } from '../../components/add-to-cart-toast/add-
     IonButton,
     IonIcon,
     IonBadge,
+<<<<<<< HEAD
     IonSpinner,
     ProductVariantSelectorComponent,
     AddToCartToastComponent
+=======
+  IonSpinner,
+  JsonPipe
+>>>>>>> origin/Guillermo
   ],
   templateUrl: './product-detail.page.html',
   styleUrls: ['./product-detail.page.scss']
@@ -42,6 +48,7 @@ export class ProductDetailPage implements OnInit {
   product: ProductUI | null = null;
   productId: string | null = null;
   loading = true;
+<<<<<<< HEAD
   currentVariant: ProductVariant | null = null;
   currentPrice: string = '';
   currentStock: number = 0;
@@ -58,26 +65,29 @@ export class ProductDetailPage implements OnInit {
 
   // Loading state
   addingToCart = false;
+=======
+  error: string | null = null;
+>>>>>>> origin/Guillermo
 
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private productService: ProductService,
+<<<<<<< HEAD
     private cartService: CartService,
     private cdr: ChangeDetectorRef
+=======
+    private cdr: ChangeDetectorRef,
+    private location: Location
+>>>>>>> origin/Guillermo
   ) {
     console.log('🏗️ ProductDetailPage constructor ejecutado');
   }
 
-  ngOnInit() {
-    console.log('🚀 ProductDetailPage ngOnInit iniciado');
-    this.productId = this.route.snapshot.paramMap.get('id');
-    console.log('🆔 ID del producto recibido:', this.productId);
-    this.loadProduct();
-  }
 
-    loadProduct() {
+
+  loadProduct() {
     if (!this.productId) {
       console.error('❌ No se recibió ID del producto');
       this.router.navigate(['/tabs/home']);
@@ -89,7 +99,14 @@ export class ProductDetailPage implements OnInit {
 
     this.productService.getProduct(Number(this.productId)).subscribe({
       next: (product) => {
+        if (!product || !product.id) {
+          this.error = 'Producto no encontrado.';
+          this.loading = false;
+          this.cdr.detectChanges();
+          return;
+        }
         console.log('🔍 Producto encontrado en API:', product);
+<<<<<<< HEAD
         console.log('🔍 Tipo de producto:', typeof product);
         console.log('🔍 Producto tiene images?', product.images);
         console.log('🔍 Cantidad de imágenes:', product.images?.length);
@@ -111,12 +128,14 @@ export class ProductDetailPage implements OnInit {
 
         console.log('🔍 URL de imagen final:', imageUrl);
 
+=======
+>>>>>>> origin/Guillermo
         this.product = {
           ...product,
           isFavorite: false, // Por defecto no favorito
-          // Mapear propiedades para compatibilidad con la UI
           originalPrice: product.compare_price,
           discount: this.calculateDiscount(product.price, product.compare_price),
+<<<<<<< HEAD
           image: imageUrl,
           availableSizes: [],
           availableColors: []
@@ -127,24 +146,27 @@ export class ProductDetailPage implements OnInit {
         // Cargar información de variantes usando la nueva API
         this.loadVariantInfo();
 
+=======
+          image: product.images && product.images.length > 0
+            ? (product.images[0].full_image_url || product.images[0].image_url)
+            : 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop&crop=center'
+        } as ProductUI;
+>>>>>>> origin/Guillermo
         this.loading = false;
-        console.log('✅ Producto cargado exitosamente:', this.product.name);
-        console.log('✅ Loading cambiado a false');
-
-        // Forzar detección de cambios
         this.cdr.detectChanges();
-        console.log('✅ Detección de cambios forzada');
+        console.log('✅ Producto cargado exitosamente:', this.product.name);
       },
       error: (error) => {
         console.error('❌ Error cargando producto desde API:', error);
+        this.error = 'No se pudo cargar el producto. Intenta más tarde.';
         this.loading = false;
         this.cdr.detectChanges();
-        // Redirigir a home si hay error
         this.router.navigate(['/tabs/home']);
       }
     });
   }
 
+<<<<<<< HEAD
   loadVariantInfo() {
     if (!this.productId) return;
 
@@ -190,6 +212,11 @@ export class ProductDetailPage implements OnInit {
       }
     });
   }
+=======
+
+
+// ...existing code...
+>>>>>>> origin/Guillermo
 
     calculateDiscount(price: string, comparePrice: string): number | undefined {
     if (!comparePrice || parseFloat(comparePrice) <= parseFloat(price)) {
@@ -397,8 +424,22 @@ export class ProductDetailPage implements OnInit {
     return variant?.id || undefined;
   }
 
+  fromSearch = false;
+
+  ngOnInit() {
+    this.productId = this.route.snapshot.paramMap.get('id');
+    this.route.queryParams.subscribe(params => {
+      this.fromSearch = params['from'] === 'search';
+    });
+    this.loadProduct();
+  }
+
   goBack() {
-    this.router.navigate(['/tabs/home']);
+    if (this.fromSearch) {
+      this.router.navigate(['/tabs/search']);
+    } else {
+      this.router.navigate(['/tabs/home']);
+    }
   }
 
   /**
