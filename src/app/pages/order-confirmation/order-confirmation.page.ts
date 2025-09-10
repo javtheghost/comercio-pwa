@@ -2,13 +2,14 @@ import { Component, OnInit } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { IonicModule } from '@ionic/angular';
+import { TabsPage } from '../../tabs/tabs.page';
 
 @Component({
   selector: 'app-order-confirmation',
   templateUrl: './order-confirmation.page.html',
   styleUrls: ['./order-confirmation.page.scss'],
   standalone: true,
-  imports: [IonicModule, CommonModule]
+  imports: [IonicModule, CommonModule, TabsPage]
 })
 export class OrderConfirmationPage implements OnInit {
   orderId: string | null = null;

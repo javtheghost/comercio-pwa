@@ -1,5 +1,6 @@
 // Service Worker para Web Push Notifications
-// Este archivo debe estar en la raíz del proyecto (src/sw.js)
+// Este archivo debe estar en la raíz del proyecto (public/sw.js)
+
 
 const CACHE_NAME = 'comercio-pwa-v1';
 const urlsToCache = [
@@ -8,6 +9,9 @@ const urlsToCache = [
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png'
 ];
+
+// Verificar si estamos en un entorno de desarrollo
+const isDevelopment = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 
 // Instalación del Service Worker
 self.addEventListener('install', (event) => {
@@ -49,6 +53,25 @@ self.addEventListener('activate', (event) => {
 
 // Interceptar requests para cache
 self.addEventListener('fetch', (event) => {
+  // Solo interceptar requests GET
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // No interceptar requests a dominios externos problemáticos
+  const url = new URL(event.request.url);
+  const externalDomains = [
+    'via.placeholder.com',
+    'placeholder.com',
+    'loremflickr.com',
+    'picsum.photos'
+  ];
+
+  if (externalDomains.some(domain => url.hostname.includes(domain))) {
+    // Para dominios externos problemáticos, no interceptar
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -57,8 +80,29 @@ self.addEventListener('fetch', (event) => {
           return response;
         }
         
-        // Si no está en cache, hacer fetch
-        return fetch(event.request);
+        // Si no está en cache, hacer fetch con manejo de errores
+        return fetch(event.request)
+          .catch((error) => {
+            console.warn('⚠️ Fetch failed for:', event.request.url, error);
+            
+            // Para imágenes, devolver una imagen placeholder local si falla
+            if (event.request.destination === 'image') {
+              return caches.match('/icons/icon-192x192.png')
+                .then((fallbackResponse) => {
+                  if (fallbackResponse) {
+                    return fallbackResponse;
+                  }
+                  // Si no hay fallback, devolver una respuesta vacía
+                  return new Response('', { status: 404, statusText: 'Not Found' });
+                });
+            }
+            
+            // Para otros recursos, devolver error
+            return new Response('Network error', { 
+              status: 503, 
+              statusText: 'Service Unavailable' 
+            });
+          });
       })
   );
 });
@@ -66,6 +110,11 @@ self.addEventListener('fetch', (event) => {
 // Manejar mensajes push
 self.addEventListener('push', (event) => {
   console.log('📱 Push message received:', event);
+  
+  // Verificar si estamos en desarrollo
+  if (isDevelopment) {
+    console.log('🔧 Modo desarrollo detectado');
+  }
   
   let notificationData = {
     title: 'Nueva Notificación',
@@ -225,10 +274,14 @@ self.addEventListener('message', (event) => {
 // Manejar errores
 self.addEventListener('error', (event) => {
   console.error('❌ Service Worker error:', event.error);
+  // No propagar el error para evitar crashes
+  event.preventDefault();
 });
 
 self.addEventListener('unhandledrejection', (event) => {
   console.error('❌ Service Worker unhandled rejection:', event.reason);
+  // Prevenir que el error no manejado cause problemas
+  event.preventDefault();
 });
 
 console.log('🔔 Service Worker cargado y listo para notificaciones push');

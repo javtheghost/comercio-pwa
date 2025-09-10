@@ -8,11 +8,13 @@ import { OrderService, Order } from '../../services/order.service';
 import { User } from '../../interfaces/auth.interfaces';
 import { Address } from '../../interfaces/address.interfaces';
 import { Subscription, firstValueFrom } from 'rxjs';
+import { NotificationToggleComponent } from '../../components/notification-toggle/notification-toggle.component';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonAvatar, IonSpinner, IonIcon, IonList, IonChip],
+  imports: [CommonModule, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonAvatar, IonSpinner, IonIcon, IonList, IonChip, NotificationToggleComponent],
   templateUrl: './profile.page.html',
   styleUrls: ['./profile.page.scss']
 })
@@ -38,6 +40,7 @@ export class ProfilePage implements OnInit, OnDestroy {
     private authService: AuthService,
     private addressService: AddressService,
     private orderService: OrderService,
+    private notificationService: NotificationService,
     public router: Router
   ) {}
 
@@ -262,6 +265,16 @@ export class ProfilePage implements OnInit, OnDestroy {
       style: 'currency',
       currency: 'MXN'
     }).format(amount);
+  }
+
+  // Método para probar notificaciones
+  async testNotification(): Promise<void> {
+    try {
+      await this.notificationService.sendTestNotification();
+      console.log('✅ Notificación de prueba enviada');
+    } catch (error) {
+      console.error('❌ Error enviando notificación de prueba:', error);
+    }
   }
 
 }

@@ -2,6 +2,18 @@
   padding: 16px;
   max-width: 800px;
   margin: 0 auto;
+  padding-bottom: 80px; // Espacio para las tabs
+}
+
+// Estilos para las tabs en checkout
+app-tabs {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--ion-background-color);
+  border-top: 1px solid var(--ion-color-light);
 }
 
 .loading-container {

@@ -1,7 +1,7 @@
 // environment.ts - Desarrollo
 export const environment = {
   production: false,
-  apiUrl: 'http://127.0.0.1:8000/api', // URL del backend Laravel
+  apiUrl: 'http://localhost:8000/api', // URL del backend Laravel
   appName: 'STORE',
   version: '1.0.0',
   // Clave secreta para encriptación (en producción usar variable de entorno)

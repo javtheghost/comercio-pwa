@@ -4,6 +4,7 @@ import { NavController } from '@ionic/angular';
 import { IonIcon, IonRouterOutlet, IonBadge } from '@ionic/angular/standalone';
 import { Subscription } from 'rxjs';
 import { CartService, Cart } from '../services/cart.service';
+import { NotificationService } from '../services/notification.service';
 
 @Component({
   selector: 'app-tabs',
@@ -19,9 +20,14 @@ import { CartService, Cart } from '../services/cart.service';
         <ion-icon name="search-outline"></ion-icon>
         <span>Buscar</span>
       </button>
-      <button (click)="navigate('/tabs/orders')" [class.active]="isActive('/tabs/orders')">
-        <ion-icon name="heart-outline"></ion-icon>
-        <span>Guardados</span>
+      <button (click)="navigate('/tabs/notifications')" [class.active]="isActive('/tabs/notifications')" class="notifications-button">
+        <div class="notifications-icon-container">
+          <ion-icon name="notifications-outline"></ion-icon>
+          @if (unreadNotificationsCount > 0) {
+            <ion-badge color="danger" class="notifications-badge">{{ unreadNotificationsCount }}</ion-badge>
+          }
+        </div>
+        <span>Notificaciones</span>
       </button>
       <button (click)="navigate('/tabs/cart')" [class.active]="isActive('/tabs/cart')" class="cart-button">
         <div class="cart-icon-container">
@@ -42,15 +48,18 @@ import { CartService, Cart } from '../services/cart.service';
   styleUrls: ['./tabs.page.scss']
 })
 export class TabsPage implements OnInit, OnDestroy {
-  tabOrder = ['/tabs/home', '/tabs/products', '/tabs/orders', '/tabs/cart', '/tabs/profile'];
+  tabOrder = ['/tabs/home', '/tabs/search', '/tabs/notifications', '/tabs/cart', '/tabs/profile'];
   currentTabIndex = 0;
   cartItemsCount = 0;
+  unreadNotificationsCount = 0;
   private cartSubscription: Subscription = new Subscription();
+  private notificationsSubscription: Subscription = new Subscription();
 
   constructor(
     private router: Router,
     private navCtrl: NavController,
     private cartService: CartService,
+    private notificationService: NotificationService,
     private cdr: ChangeDetectorRef
   ) {
     this.currentTabIndex = this.tabOrder.indexOf(this.router.url);
@@ -58,10 +67,12 @@ export class TabsPage implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.subscribeToCart();
+    this.subscribeToNotifications();
   }
 
   ngOnDestroy() {
     this.cartSubscription.unsubscribe();
+    this.notificationsSubscription.unsubscribe();
   }
 
   private subscribeToCart(): void {
@@ -69,6 +80,18 @@ export class TabsPage implements OnInit, OnDestroy {
       this.cartItemsCount = count;
       this.cdr.detectChanges(); // Forzar detección de cambios
       console.log('🛒 [TABS] Contador actualizado:', count);
+    });
+  }
+
+  private subscribeToNotifications(): void {
+    // Por ahora, simular notificaciones no leídas
+    // En el futuro, esto vendrá del servicio de notificaciones
+    this.notificationsSubscription = this.notificationService.token$.subscribe(token => {
+      // Simular contador de notificaciones no leídas
+      // En producción, esto vendría de una API
+      this.unreadNotificationsCount = Math.floor(Math.random() * 5); // Simular 0-4 notificaciones
+      this.cdr.detectChanges();
+      console.log('🔔 [TABS] Contador de notificaciones actualizado:', this.unreadNotificationsCount);
     });
   }
 

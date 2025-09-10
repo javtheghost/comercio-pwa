@@ -9,6 +9,7 @@ import { RegisterPage } from './pages/register/register.page';
 import { CheckoutPage } from './pages/checkout/checkout.page';
 import { OrderConfirmationPage } from './pages/order-confirmation/order-confirmation.page';
 import { AddressPage } from './pages/address/address.page';
+import { NotificationsPage } from './pages/notifications/notifications.page';
 import { AuthGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
@@ -52,6 +53,10 @@ export const routes: Routes = [
         path: 'orders',
         component: OrdersPage,
         canActivate: [AuthGuard]
+      },
+      {
+        path: 'notifications',
+        component: NotificationsPage
       },
       {
         path: 'profile',

@@ -4,6 +4,7 @@ import { catchError, tap } from 'rxjs/operators';
 import { LoginRequest, LoginResponse, User, AuthState, RegisterRequest, ForgotPasswordRequest, ResetPasswordRequest } from '../interfaces/auth.interfaces';
 import { AuthApiService } from './auth-api.service';
 import { SecurityService } from './security.service';
+import { NotificationService } from './notification.service';
 
 @Injectable({
   providedIn: 'root'
@@ -21,7 +22,8 @@ export class AuthService {
 
   constructor(
     private authApiService: AuthApiService,
-    private securityService: SecurityService
+    private securityService: SecurityService,
+    private notificationService: NotificationService
   ) {
     this.initializeAuth();
   }
@@ -40,6 +42,9 @@ export class AuthService {
           error: null
         });
         console.log('✅ [AUTH SERVICE] Datos de autenticación restaurados desde localStorage');
+
+        // Activar notificaciones push para usuario autenticado
+        this.activateNotificationsForUser();
       }
     } catch (error) {
       console.error('❌ [AUTH SERVICE] Error inicializando autenticación:', error);
@@ -134,6 +139,9 @@ export class AuthService {
         });
         window.dispatchEvent(event);
         console.log('✅ Evento userLoggedIn emitido correctamente');
+
+        // Activar notificaciones push para usuario autenticado
+        this.activateNotificationsForUser();
 
       } else {
         // Fallback: usar datos básicos si no se puede obtener la info completa
@@ -449,6 +457,39 @@ export class AuthService {
       ...currentState,
       error: null
     });
+  }
+
+  /**
+   * Activa las notificaciones push para el usuario autenticado
+   */
+  private async activateNotificationsForUser(): Promise<void> {
+    try {
+      console.log('🔔 Activando notificaciones push para usuario autenticado...');
+
+      // Esperar un poco para que el servicio de notificaciones esté listo
+      setTimeout(async () => {
+        const success = await this.notificationService.subscribeForAuthenticatedUser();
+        if (success) {
+          console.log('✅ Notificaciones push activadas para usuario autenticado');
+        } else {
+          console.log('⚠️ No se pudieron activar las notificaciones push');
+        }
+      }, 1000);
+    } catch (error) {
+      console.error('❌ Error activando notificaciones push:', error);
+    }
+  }
+
+  /**
+   * Método público para activar notificaciones manualmente
+   */
+  async enableNotifications(): Promise<boolean> {
+    try {
+      return await this.notificationService.requestPermissionsManually();
+    } catch (error) {
+      console.error('❌ Error habilitando notificaciones:', error);
+      return false;
+    }
   }
 
   /**

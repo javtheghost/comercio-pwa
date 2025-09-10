@@ -8,6 +8,7 @@ import { AuthService } from '../../services/auth.service';
 import { OrderService, CreateOrderRequest, Address } from '../../services/order.service';
 import { AddressService } from '../../services/address.service';
 import { NotificationService } from '../../services/notification.service';
+import { TabsPage } from '../../tabs/tabs.page';
 import { User } from '../../interfaces/auth.interfaces';
 import { Address as UserAddress } from '../../interfaces/address.interfaces';
 import { Subscription, firstValueFrom } from 'rxjs';
@@ -17,7 +18,7 @@ import { Subscription, firstValueFrom } from 'rxjs';
   templateUrl: './checkout.page.html',
   styleUrls: ['./checkout.page.scss'],
   standalone: true,
-  imports: [IonicModule, CommonModule, FormsModule]
+  imports: [IonicModule, CommonModule, FormsModule, TabsPage]
 })
 export class CheckoutPage implements OnInit, OnDestroy {
   cart: Cart | null = null;
@@ -266,10 +267,15 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
         // Enviar notificación de nueva orden
         try {
-          await this.notificationService.sendTestNotification();
-          console.log('✅ [CHECKOUT] Notificación enviada');
+          await this.notificationService.sendOrderNotification({
+            orderId: response.data.id,
+            orderNumber: response.data.order_number,
+            total: response.data.total_amount,
+            customerName: this.user?.first_name || 'Cliente'
+          });
+          console.log('✅ [CHECKOUT] Notificación de orden enviada');
         } catch (notificationError) {
-          console.warn('⚠️ [CHECKOUT] Error enviando notificación:', notificationError);
+          console.warn('⚠️ [CHECKOUT] Error enviando notificación de orden:', notificationError);
         }
 
         // Mostrar mensaje de éxito

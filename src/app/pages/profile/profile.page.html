@@ -10,7 +10,7 @@
     <ion-card-content>
       <ion-item>
         <ion-avatar slot="start">
-          <img [src]="user?.avatar || 'https://via.placeholder.com/100x100'" alt="Avatar" />
+          <img [src]="user?.avatar || '/icons/icon-192x192.png'" alt="Avatar" />
         </ion-avatar>
         <ion-label>
           <h2>{{ user?.name || 'Usuario' }}</h2>
@@ -37,6 +37,14 @@
         <ion-label position="stacked">Tipo de Cuenta</ion-label>
         <ion-input value="Cliente" readonly></ion-input>
       </ion-item>
+
+      <!-- Componente de Notificaciones -->
+      <app-notification-toggle></app-notification-toggle>
+
+      <!-- Botón de prueba de notificaciones -->
+      <ion-button expand="block" fill="outline" color="secondary" (click)="testNotification()" *ngIf="isAuthenticated">
+        🔔 Probar Notificación
+      </ion-button>
 
       <ion-button expand="block" class="ion-margin-top" (click)="onLogout()" [disabled]="authLoading">
         <ion-spinner *ngIf="authLoading" name="crescent" class="button-spinner"></ion-spinner>
