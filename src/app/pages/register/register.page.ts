@@ -33,6 +33,7 @@ export class RegisterPage implements OnInit {
   showConfirmPassword = false;
   showToast = false;
   toastMessage = '';
+  showSuccessModal = false;
 
   // reCAPTCHA
   recaptchaToken = '';
@@ -107,8 +108,12 @@ export class RegisterPage implements OnInit {
       this.authService.register(dataWithRecaptcha).subscribe({
         next: (response) => {
           this.loading = false;
-          this.showToastMessage('¡Cuenta creada exitosamente!');
-          this.router.navigate(['/tabs/home']);
+          this.showSuccessModal = true;
+          // Cerrar el modal y redirigir después de 3 segundos
+          setTimeout(() => {
+            this.closeSuccessModal();
+            this.router.navigate(['/tabs/home']);
+          }, 3000);
         },
         error: (error) => {
           this.loading = false;
@@ -270,5 +275,9 @@ export class RegisterPage implements OnInit {
   private showToastMessage(message: string) {
     this.toastMessage = message;
     this.showToast = true;
+  }
+
+  closeSuccessModal() {
+    this.showSuccessModal = false;
   }
 }

@@ -167,6 +167,22 @@
   </div>
 </ion-content>
 
+<!-- Modal de éxito de registro -->
+<div class="success-modal-overlay" *ngIf="showSuccessModal" (click)="closeSuccessModal()">
+  <div class="success-modal" (click)="$event.stopPropagation()">
+    <div class="success-modal-content">
+      <div class="success-icon">
+        <ion-icon name="checkmark-circle" class="check-icon"></ion-icon>
+      </div>
+      <h2 class="success-title">¡Registro Exitoso!</h2>
+      <p class="success-message">Tu cuenta ha sido creada correctamente. Serás redirigido automáticamente.</p>
+      <div class="success-spinner">
+        <ion-spinner name="crescent" class="modal-spinner"></ion-spinner>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Toast for notifications -->
 <ion-toast
   [isOpen]="showToast"

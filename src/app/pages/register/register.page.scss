@@ -363,6 +363,133 @@ ion-content {
   }
 }
 
+// Modal de éxito de registro
+.success-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.success-modal {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 0;
+  max-width: 320px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: slideIn 0.3s ease-out;
+}
+
+.success-modal-content {
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.success-icon {
+  margin-bottom: 16px;
+}
+
+.check-icon {
+  font-size: 64px;
+  color: #10b981;
+  animation: checkmarkBounce 0.6s ease-out;
+}
+
+.success-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0 0 12px 0;
+  line-height: 1.2;
+}
+
+.success-message {
+  font-size: 16px;
+  color: #6b7280;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.success-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-spinner {
+  --color: #3b82f6;
+  width: 24px;
+  height: 24px;
+}
+
+// Animaciones
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes checkmarkBounce {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// Responsive para el modal
+@media (max-width: 480px) {
+  .success-modal {
+    max-width: 280px;
+    width: 95%;
+  }
+
+  .success-modal-content {
+    padding: 24px 20px;
+  }
+
+  .success-title {
+    font-size: 20px;
+  }
+
+  .success-message {
+    font-size: 14px;
+  }
+
+  .check-icon {
+    font-size: 56px;
+  }
+}
+
 // Dark mode support (if needed) - Deshabilitado para mantener fondo blanco
 // @media (prefers-color-scheme: dark) {
 //   .register-content {
