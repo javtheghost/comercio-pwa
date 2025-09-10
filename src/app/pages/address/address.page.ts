@@ -5,6 +5,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonSpinner, IonIcon, IonTextarea, IonSelect, IonSelectOption, IonRadioGroup, IonRadio, IonButtons, IonBackButton, ToastController } from '@ionic/angular/standalone';
 import { AddressService } from '../../services/address.service';
 import { Address } from '../../interfaces/address.interfaces';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-address',
@@ -55,7 +56,7 @@ export class AddressPage implements OnInit {
 
     this.loading = true;
     try {
-      const response = await this.addressService.getAddress(this.addressId).toPromise();
+      const response = await firstValueFrom(this.addressService.getAddress(this.addressId));
       if (response && response.success && !Array.isArray(response.data)) {
         this.address = response.data;
       }
@@ -84,7 +85,7 @@ export class AddressPage implements OnInit {
         };
         console.log('Actualizando dirección:', addressData);
 
-        const response = await this.addressService.updateAddress(addressData).toPromise();
+        const response = await firstValueFrom(this.addressService.updateAddress(addressData));
 
         if (response && response.success) {
           // Mostrar toast de éxito
@@ -101,7 +102,7 @@ export class AddressPage implements OnInit {
       } else {
         // Crear nueva dirección
         console.log('Creando nueva dirección:', this.address);
-        const response = await this.addressService.createAddress(this.address as any).toPromise();
+        const response = await firstValueFrom(this.addressService.createAddress(this.address as any));
 
         if (response && response.success) {
           // Mostrar toast de éxito

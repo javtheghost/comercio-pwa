@@ -219,67 +219,30 @@
         <ion-card-header>
           <ion-card-title>Método de Pago</ion-card-title>
         </ion-card-header>
+        <p class="payment-method-description">Selecciona el método de pago</p>
+
         <ion-card-content>
-          <ion-radio-group [(ngModel)]="paymentMethod" (ionChange)="onPaymentMethodChange()">
+          <ion-radio-group [(ngModel)]="paymentMethod">
             <ion-item>
-              <ion-radio slot="start" value="card"></ion-radio>
-              <ion-label>Tarjeta de Crédito/Débito</ion-label>
-            </ion-item>
-            <ion-item>
+              
               <ion-radio slot="start" value="cash"></ion-radio>
-              <ion-label>Pago en Efectivo (Contra Entrega)</ion-label>
+              <ion-label>
+                <div class="payment-method-item">
+                  <div class="payment-method-header">
+                    <span>Pago en Efectivo (Contra Entrega)</span>
+                    <ion-icon 
+                      *ngIf="paymentMethod === 'cash'" 
+                      name="checkmark-circle" 
+                      color="success" 
+                      class="payment-check">
+                    </ion-icon>
+                  </div>
+                  <p class="payment-description">Paga cuando recibas tu pedido</p>
+                </div>
+              </ion-label>
             </ion-item>
           </ion-radio-group>
-
-          <!-- Debug temporal -->
-          <div style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px;">
-            <p><strong>Debug:</strong> Método seleccionado: {{ paymentMethod }}</p>
-            <ion-button size="small" fill="outline" (click)="debugPaymentMethod()">
-              Debug Método de Pago
-            </ion-button>
-          </div>
-
-          <!-- Detalles de Tarjeta -->
-          <div *ngIf="paymentMethod === 'card'" class="card-details">
-            <ion-item>
-              <ion-label position="stacked">Número de Tarjeta *</ion-label>
-              <ion-input
-                [(ngModel)]="cardDetails.number"
-                placeholder="1234 5678 9012 3456"
-                type="number"
-                maxlength="16">
-              </ion-input>
-            </ion-item>
-
-            <ion-item>
-              <ion-label position="stacked">Nombre en la Tarjeta *</ion-label>
-              <ion-input
-                [(ngModel)]="cardDetails.name"
-                placeholder="Nombre como aparece en la tarjeta">
-              </ion-input>
-            </ion-item>
-
-            <div class="card-row">
-              <ion-item class="card-expiry">
-                <ion-label position="stacked">Vencimiento *</ion-label>
-                <ion-input
-                  [(ngModel)]="cardDetails.expiry"
-                  placeholder="MM/AA"
-                  maxlength="5">
-                </ion-input>
-              </ion-item>
-
-              <ion-item class="card-cvv">
-                <ion-label position="stacked">CVV *</ion-label>
-                <ion-input
-                  [(ngModel)]="cardDetails.cvv"
-                  placeholder="123"
-                  type="number"
-                  maxlength="4">
-                </ion-input>
-              </ion-item>
-            </div>
-          </div>
+      
         </ion-card-content>
       </ion-card>
 

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,7 +10,7 @@ import { AddressService } from '../../services/address.service';
 import { NotificationService } from '../../services/notification.service';
 import { User } from '../../interfaces/auth.interfaces';
 import { Address as UserAddress } from '../../interfaces/address.interfaces';
-import { Subscription } from 'rxjs';
+import { Subscription, firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-checkout',
@@ -62,7 +62,8 @@ export class CheckoutPage implements OnInit, OnDestroy {
     private notificationService: NotificationService,
     private router: Router,
     private toastController: ToastController,
-    private loadingController: LoadingController
+    private loadingController: LoadingController,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
@@ -172,19 +173,8 @@ export class CheckoutPage implements OnInit, OnDestroy {
   }
 
   onPaymentMethodChange(): void {
-    console.log('🔄 [CHECKOUT] Método de pago cambiado a:', this.paymentMethod);
-    console.log('🔄 [CHECKOUT] Valor actual de paymentMethod:', this.paymentMethod);
+    this.paymentMethod = 'cash'; // ✅ seleccionado por defecto
 
-    // Si se selecciona pago en efectivo, limpiar detalles de tarjeta
-    if (this.paymentMethod === 'cash') {
-      console.log('💰 [CHECKOUT] Limpiando detalles de tarjeta para pago en efectivo');
-      this.cardDetails = {
-        number: '',
-        expiry: '',
-        cvv: '',
-        name: ''
-      };
-    }
   }
 
   // Método de debug temporal
@@ -266,13 +256,13 @@ export class CheckoutPage implements OnInit, OnDestroy {
       }
 
       // Crear la orden
-      const response = await this.orderService.createOrder(orderData).toPromise();
+      const response = await firstValueFrom(this.orderService.createOrder(orderData));
 
       if (response && response.success) {
         console.log('✅ [CHECKOUT] Orden creada exitosamente:', response.data);
 
         // Limpiar el carrito
-        await this.cartService.clearCart();
+        await firstValueFrom(this.cartService.clearCart());
 
         // Enviar notificación de nueva orden
         try {
@@ -340,9 +330,10 @@ export class CheckoutPage implements OnInit, OnDestroy {
     if (!this.user) return;
 
     this.addressesLoading = true;
+    this.cdr.detectChanges(); // Forzar detección de cambios
 
     try {
-      const response = await this.addressService.getUserAddresses().toPromise();
+      const response = await firstValueFrom(this.addressService.getUserAddresses());
       if (response && response.success) {
         this.userAddresses = response.data as UserAddress[];
 
@@ -358,6 +349,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
       console.error('Error cargando direcciones:', error);
     } finally {
       this.addressesLoading = false;
+      this.cdr.detectChanges(); // Forzar detección de cambios al finalizar
     }
   }
 
@@ -368,6 +360,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
         this.fillAddressFromSelected(selectedAddress);
       }
     }
+    this.cdr.detectChanges(); // Forzar detección de cambios
   }
 
   private fillAddressFromSelected(address: UserAddress): void {
@@ -379,6 +372,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
     this.shippingAddress.zipCode = address.postal_code;
     this.shippingAddress.country = address.country;
     this.shippingAddress.phone = address.phone;
+    this.cdr.detectChanges(); // Forzar detección de cambios
   }
 
   formatAddress(address: UserAddress): string {

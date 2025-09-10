@@ -6,7 +6,7 @@ import { IonicModule, ToastController, LoadingController, AlertController } from
 import { OrderService, Order, OrderFilters } from '../../services/order.service';
 import { AuthService } from '../../services/auth.service';
 import { User } from '../../interfaces/auth.interfaces';
-import { Subscription } from 'rxjs';
+import { Subscription, firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-orders',
@@ -95,7 +95,6 @@ export class OrdersPage implements OnInit, OnDestroy {
 
   async loadOrders(): Promise<void> {
     if (!this.user) {
-      console.log('❌ [ORDERS] Usuario no disponible');
       return;
     }
 
@@ -103,12 +102,11 @@ export class OrdersPage implements OnInit, OnDestroy {
     this.error = null;
 
     try {
-      console.log('📦 [ORDERS] Cargando órdenes del usuario...');
 
-      const response = await this.orderService.getUserOrders(this.user.id, {
+      const response = await firstValueFrom(this.orderService.getUserOrders(this.user.id, {
         ...this.filters,
         page: this.currentPage
-      }).toPromise();
+      }));
 
       if (response && response.success) {
         console.log('✅ [ORDERS] Órdenes cargadas:', response.data);
@@ -207,10 +205,10 @@ export class OrdersPage implements OnInit, OnDestroy {
     this.currentPage++;
 
     try {
-      const response = await this.orderService.getCustomerOrders(this.user!.id, {
+      const response = await firstValueFrom(this.orderService.getCustomerOrders(this.user!.id, {
         ...this.filters,
         page: this.currentPage
-      }).toPromise();
+      }));
 
       if (response && response.success) {
         const newOrders = response.data.data || [];
@@ -270,7 +268,7 @@ export class OrdersPage implements OnInit, OnDestroy {
     await loading.present();
 
     try {
-      const response = await this.orderService.cancelOrder(order.id).toPromise();
+      const response = await firstValueFrom(this.orderService.cancelOrder(order.id));
 
       if (response && response.success) {
         // Actualizar orden en la lista local

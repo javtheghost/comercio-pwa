@@ -7,7 +7,7 @@ import { AddressService } from '../../services/address.service';
 import { OrderService, Order } from '../../services/order.service';
 import { User } from '../../interfaces/auth.interfaces';
 import { Address } from '../../interfaces/address.interfaces';
-import { Subscription } from 'rxjs';
+import { Subscription, firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-profile',
@@ -114,7 +114,7 @@ export class ProfilePage implements OnInit, OnDestroy {
     this.addressesError = null;
 
     try {
-      const response = await this.addressService.getUserAddresses().toPromise();
+      const response = await firstValueFrom(this.addressService.getUserAddresses());
       if (response && response.success) {
         this.addresses = response.data as Address[];
       } else {
@@ -132,7 +132,7 @@ export class ProfilePage implements OnInit, OnDestroy {
     if (!address.id) return;
 
     try {
-      const response = await this.addressService.deleteAddress(address.id).toPromise();
+      const response = await firstValueFrom(this.addressService.deleteAddress(address.id));
       if (response && response.success) {
         // Recargar la lista de direcciones
         await this.loadAddresses();
@@ -146,7 +146,7 @@ export class ProfilePage implements OnInit, OnDestroy {
     if (!address.id) return;
 
     try {
-      const response = await this.addressService.setDefaultAddress(address.id).toPromise();
+      const response = await firstValueFrom(this.addressService.setDefaultAddress(address.id));
       if (response && response.success) {
         // Recargar la lista de direcciones
         await this.loadAddresses();
@@ -194,11 +194,11 @@ export class ProfilePage implements OnInit, OnDestroy {
     this.ordersError = null;
 
     try {
-      const response = await this.orderService.getUserOrders(this.user.id, {
+      const response = await firstValueFrom(this.orderService.getUserOrders(this.user.id, {
         per_page: 10,
         sort_by: 'created_at',
         sort_order: 'desc'
-      }).toPromise();
+      }));
 
       if (response && response.success) {
         // La API devuelve { data: { customer: {...}, orders: {...} } }

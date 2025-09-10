@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { Subscription, Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonButton, IonIcon, IonList, IonThumbnail, IonSpinner, IonText } from '@ionic/angular/standalone';
 import { CartService, Cart, CartItem } from '../../services/cart.service';
 import { AuthService } from '../../services/auth.service';
@@ -18,6 +18,21 @@ export class CartPage implements OnInit, OnDestroy {
   loading = false;
   error: string | null = null;
   private cartSubscription: Subscription = new Subscription();
+  
+  // ✅ CACHE de totales para respuesta instantánea
+  private cachedTotals = {
+    subtotal: 0,
+    tax: 0,
+    total: 0
+  };
+  
+  // ✅ DEBOUNCE para evitar múltiples peticiones
+  private quantityUpdateSubject = new Subject<{item: CartItem, quantity: number}>();
+  private quantityUpdateSubscription: Subscription = new Subscription();
+  
+  // ✅ DEBOUNCE específico para input (más tiempo)
+  private inputUpdateSubject = new Subject<{item: CartItem, quantity: number}>();
+  private inputUpdateSubscription: Subscription = new Subscription();
 
   // Configuración - Los valores se obtienen del servidor
 
@@ -31,10 +46,46 @@ export class CartPage implements OnInit, OnDestroy {
   ngOnInit() {
     this.loadCart();
     this.subscribeToCart();
+    this.setupQuantityDebounce();
+    this.setupInputDebounce();
   }
 
   ngOnDestroy() {
     this.cartSubscription.unsubscribe();
+    this.quantityUpdateSubscription.unsubscribe();
+    this.inputUpdateSubscription.unsubscribe();
+  }
+
+  /**
+   * Configura el debounce para actualizaciones de cantidad (botones + y -)
+   */
+  private setupQuantityDebounce(): void {
+    this.quantityUpdateSubscription = this.quantityUpdateSubject
+      .pipe(
+        debounceTime(300), // Esperar 300ms después del último cambio
+        distinctUntilChanged((prev, curr) => 
+          prev.item.id === curr.item.id && prev.quantity === curr.quantity
+        )
+      )
+      .subscribe(({item, quantity}) => {
+        this.syncQuantityWithServer(item, quantity);
+      });
+  }
+
+  /**
+   * Configura el debounce para actualizaciones desde input (más tiempo)
+   */
+  private setupInputDebounce(): void {
+    this.inputUpdateSubscription = this.inputUpdateSubject
+      .pipe(
+        debounceTime(800), // Esperar 800ms después de escribir (más tiempo)
+        distinctUntilChanged((prev, curr) => 
+          prev.item.id === curr.item.id && prev.quantity === curr.quantity
+        )
+      )
+      .subscribe(({item, quantity}) => {
+        this.syncQuantityWithServer(item, quantity);
+      });
   }
 
   /**
@@ -47,10 +98,31 @@ export class CartPage implements OnInit, OnDestroy {
       if (cart !== null) {
         this.loading = false;
         this.error = null;
+        
+        // ✅ INICIALIZAR CACHE de totales
+        this.initializeTotalsCache();
+        
         // Forzar la detección de cambios
         this.cdr.detectChanges();
       }
     });
+  }
+
+  /**
+   * Inicializa el cache de totales desde el carrito
+   */
+  private initializeTotalsCache(): void {
+    if (!this.cart) {
+      this.cachedTotals = { subtotal: 0, tax: 0, total: 0 };
+      return;
+    }
+
+    // Usar valores del servidor o calcular si no existen
+    this.cachedTotals = {
+      subtotal: parseFloat(this.cart.subtotal || '0'),
+      tax: parseFloat(this.cart.tax_amount || '0'),
+      total: parseFloat(this.cart.total || '0')
+    };
   }
 
   /**
@@ -96,33 +168,132 @@ export class CartPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Actualiza la cantidad de un item
+   * Actualiza la cantidad de un item desde el input
    */
   updateQuantity(item: CartItem, event: any): void {
-    const newQuantity = parseInt(event.target.value);
+    const inputValue = event.target.value;
+    
+    // Si está vacío, no hacer nada (esperar a que termine de escribir)
+    if (!inputValue || inputValue === '') {
+      return;
+    }
+    
+    const newQuantity = parseInt(inputValue);
+    
+    // Validar rango
     if (newQuantity && newQuantity > 0 && newQuantity <= 99) {
-      this.updateItemQuantity(item, newQuantity);
+      this.updateItemQuantityFromInput(item, newQuantity);
     } else if (newQuantity <= 0) {
-      this.updateItemQuantity(item, 1);
+      // Si es 0 o negativo, corregir a 1
+      this.updateItemQuantityFromInput(item, 1);
+      event.target.value = 1; // Corregir el input visualmente
+    } else if (newQuantity > 99) {
+      // Si es mayor a 99, corregir a 99
+      this.updateItemQuantityFromInput(item, 99);
+      event.target.value = 99; // Corregir el input visualmente
     }
   }
 
   /**
-   * Actualiza la cantidad de un item en el servidor
+   * Actualiza la cantidad de un item desde el input (optimista + debounced largo)
+   */
+  private updateItemQuantityFromInput(item: CartItem, quantity: number): void {
+    // ✅ ACTUALIZACIÓN OPTIMISTA: Cambiar inmediatamente en el frontend
+    if (this.cart) {
+      const cartItem = this.cart.items.find(i => i.id === item.id);
+      if (cartItem) {
+        cartItem.quantity = quantity;
+        cartItem.total_price = (parseFloat(cartItem.unit_price || '0') * quantity).toFixed(2);
+        
+        // Recalcular totales del carrito
+        this.recalculateCartTotals();
+        this.cdr.detectChanges(); // Actualizar UI inmediatamente
+      }
+    }
+
+    // ✅ DEBOUNCED LARGO: Enviar al servidor después de 800ms de inactividad
+    this.inputUpdateSubject.next({item, quantity});
+  }
+
+  /**
+   * Actualiza la cantidad de un item (optimista + debounced)
    */
   private updateItemQuantity(item: CartItem, quantity: number): void {
+    // ✅ ACTUALIZACIÓN OPTIMISTA: Cambiar inmediatamente en el frontend
+    if (this.cart) {
+      const cartItem = this.cart.items.find(i => i.id === item.id);
+      if (cartItem) {
+        cartItem.quantity = quantity;
+        cartItem.total_price = (parseFloat(cartItem.unit_price || '0') * quantity).toFixed(2);
+        
+        // Recalcular totales del carrito
+        this.recalculateCartTotals();
+        this.cdr.detectChanges(); // Actualizar UI inmediatamente
+      }
+    }
+
+    // ✅ DEBOUNCED: Enviar al servidor después de 300ms de inactividad
+    this.quantityUpdateSubject.next({item, quantity});
+  }
+
+  /**
+   * Sincroniza la cantidad con el servidor (llamado por debounce)
+   */
+  private syncQuantityWithServer(item: CartItem, quantity: number): void {
     this.cartService.updateItemQuantity(item.id, { quantity }).subscribe({
       next: (cart) => {
-        console.log('Cantidad actualizada:', cart);
-        this.cdr.detectChanges(); // Forzar detección de cambios
+        // Actualizar con datos reales del servidor
+        this.cart = cart;
+        // ✅ ACTUALIZAR CACHE con datos del servidor
+        this.initializeTotalsCache();
+        this.cdr.detectChanges();
       },
       error: (error) => {
-        console.error('Error actualizando cantidad:', error);
         this.error = 'Error al actualizar la cantidad';
-        // Recargar el carrito para mantener consistencia
+        
+        // Revertir cambios optimistas
+        if (this.cart) {
+          const cartItem = this.cart.items.find(i => i.id === item.id);
+          if (cartItem) {
+            cartItem.quantity = item.quantity; // Volver a cantidad original
+            cartItem.total_price = (parseFloat(cartItem.unit_price || '0') * item.quantity).toFixed(2);
+            this.recalculateCartTotals();
+            this.cdr.detectChanges();
+          }
+        }
+        
+        // Recargar carrito para mantener consistencia
         this.loadCart();
       }
     });
+  }
+
+  /**
+   * Recalcula los totales del carrito y actualiza el cache
+   */
+  private recalculateCartTotals(): void {
+    if (!this.cart) return;
+
+    // ✅ CÁLCULO INSTANTÁNEO en memoria
+    const subtotal = this.cart.items.reduce((sum, item) => {
+      return sum + (parseFloat(item.unit_price || '0') * item.quantity);
+    }, 0);
+
+    const tax = subtotal * 0.16; // IVA 16%
+    const shipping = parseFloat(this.cart.shipping_amount || '0');
+    const total = subtotal + tax + shipping;
+
+    // ✅ ACTUALIZAR CACHE para respuesta instantánea
+    this.cachedTotals = {
+      subtotal: subtotal,
+      tax: tax,
+      total: total
+    };
+
+    // ✅ ACTUALIZAR CARRITO (para sincronización con servidor)
+    this.cart.subtotal = subtotal.toFixed(2);
+    this.cart.tax_amount = tax.toFixed(2);
+    this.cart.total = total.toFixed(2);
   }
 
   /**
@@ -166,24 +337,24 @@ export class CartPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Obtiene el subtotal del carrito
+   * Obtiene el subtotal del carrito (desde cache para respuesta instantánea)
    */
   getSubtotal(): number {
-    return this.cart ? parseFloat(this.cart.subtotal) : 0;
+    return this.cachedTotals.subtotal;
   }
 
   /**
-   * Obtiene el IVA del carrito
+   * Obtiene el IVA del carrito (desde cache para respuesta instantánea)
    */
   getVAT(): number {
-    return this.cart ? parseFloat(this.cart.tax_amount) : 0;
+    return this.cachedTotals.tax;
   }
 
   /**
-   * Obtiene el total del carrito
+   * Obtiene el total del carrito (desde cache para respuesta instantánea)
    */
   getTotal(): number {
-    return this.cart ? parseFloat(this.cart.total) : 0;
+    return this.cachedTotals.total;
   }
 
   /**

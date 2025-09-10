@@ -21,6 +21,13 @@
     margin: 0;
   }
 }
+.payment-method-description {
+  padding: 16px;
+  color: var(--ion-color-medium);
+  margin: 0;
+  font-size: 14px;
+  font-style: italic;
+}
 
 .order-summary {
   .summary-item {
@@ -162,6 +169,48 @@
 
   .card-details {
     border-top-color: var(--ion-color-dark);
+  }
+}
+
+// Estilos para el método de pago
+.payment-method-item {
+  width: 100%;
+  
+  .payment-method-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+    
+    span {
+      font-weight: 500;
+      font-size: 16px;
+      color: var(--ion-color-dark);
+    }
+    
+    .payment-check {
+      font-size: 20px;
+      margin-left: 8px;
+      animation: checkmark-appear 0.3s ease-in-out;
+    }
+  }
+  
+  .payment-description {
+    margin: 0;
+    font-size: 14px;
+    color: var(--ion-color-medium);
+    font-style: italic;
+  }
+}
+
+@keyframes checkmark-appear {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

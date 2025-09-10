@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
 import {
   PushNotifications,
   PushNotificationSchema,
@@ -81,7 +81,7 @@ export class NotificationService {
    */
   private async getVapidPublicKey(): Promise<void> {
     try {
-      const response = await this.http.get<VapidKeys>(`${this.API_URL}/webpush/vapid-public-key`).toPromise();
+      const response = await firstValueFrom(this.http.get<VapidKeys>(`${this.API_URL}/webpush/vapid-public-key`));
       if (response?.publicKey) {
         this.vapidPublicKey = response.publicKey;
         console.log('✅ Clave pública VAPID obtenida');
@@ -170,11 +170,11 @@ export class NotificationService {
         }
       };
 
-      await this.http.post(`${this.API_URL}/webpush/subscribe`, {
+      await firstValueFrom(this.http.post(`${this.API_URL}/webpush/subscribe`, {
         ...subscriptionData,
         user_agent: navigator.userAgent,
         platform: 'web'
-      }).toPromise();
+      }));
 
       console.log('✅ Suscripción enviada al servidor');
     } catch (error) {
@@ -300,7 +300,7 @@ export class NotificationService {
         platform: detectedPlatform as 'web' | 'android' | 'ios'
       };
 
-      await this.http.post(`${this.API_URL}/api/notification-tokens`, tokenData).toPromise();
+      await firstValueFrom(this.http.post(`${this.API_URL}/api/notification-tokens`, tokenData));
       console.log('✅ Token guardado en servidor');
     } catch (error) {
       console.error('❌ Error guardando token:', error);
@@ -374,7 +374,7 @@ export class NotificationService {
         }
       };
 
-      await this.http.post(`${this.API_URL}/webpush/test`, payload).toPromise();
+      await firstValueFrom(this.http.post(`${this.API_URL}/webpush/test`, payload));
       console.log('✅ Notificación de prueba enviada');
     } catch (error) {
       console.error('❌ Error enviando notificación de prueba:', error);
