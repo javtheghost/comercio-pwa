@@ -378,4 +378,26 @@ export class OrdersPage implements OnInit, OnDestroy {
   navigateToHome(): void {
     this.router.navigate(['/tabs/home']);
   }
+
+  /**
+   * Maneja el pull-to-refresh nativo
+   */
+  async doRefresh(event: any): Promise<void> {
+    console.log('🔄 [ORDERS] Pull-to-refresh activado');
+
+    try {
+      // Recargar datos del usuario y órdenes
+      await Promise.all([
+        this.loadUserData(),
+        this.loadOrders()
+      ]);
+
+      console.log('✅ [ORDERS] Pull-to-refresh completado');
+    } catch (error) {
+      console.error('❌ [ORDERS] Error en pull-to-refresh:', error);
+    } finally {
+      // Completar el refresh
+      event.target.complete();
+    }
+  }
 }

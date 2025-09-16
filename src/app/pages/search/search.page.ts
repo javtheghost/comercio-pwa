@@ -14,7 +14,7 @@ import { ProductUtils } from '../../utils/product.utils';
 @Component({
   selector: 'app-search',
   standalone: true,
-  imports: [IonicModule, ZXingScannerModule, CommonModule],
+  imports: [IonicModule, ZXingScannerModule, CommonModule, NgIf, NgFor],
   templateUrl: './search.page.html',
   styleUrls: ['./search.page.scss']
 })
@@ -300,8 +300,32 @@ export class SearchPage {
       (content as any).scrollToTop(400);
     }
   }
-  
+
   toggleFavorite(product: ProductUI) {
     product.isFavorite = !product.isFavorite;
+  }
+
+  /**
+   * Maneja el pull-to-refresh nativo
+   */
+  async doRefresh(event: any): Promise<void> {
+    console.log('🔄 [SEARCH] Pull-to-refresh activado');
+
+    try {
+      // Si hay una búsqueda activa, recargar los resultados
+      if (this.searchQuery && this.searchQuery.trim()) {
+        console.log('🔄 [SEARCH] Recargando resultados de búsqueda...');
+        await this.searchProducts();
+      } else {
+        console.log('ℹ️ [SEARCH] No hay búsqueda activa para recargar');
+      }
+
+      console.log('✅ [SEARCH] Pull-to-refresh completado');
+    } catch (error) {
+      console.error('❌ [SEARCH] Error en pull-to-refresh:', error);
+    } finally {
+      // Completar el refresh
+      event.target.complete();
+    }
   }
 }

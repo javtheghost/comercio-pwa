@@ -1,12 +1,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
-import {
-  PushNotifications,
-  PushNotificationSchema,
-  ActionPerformed,
-  Token
-} from '@capacitor/push-notifications';
+// import {
+//   PushNotifications,
+//   PushNotificationSchema,
+//   ActionPerformed,
+//   Token
+// } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { environment } from '../../environments/environment';
 
@@ -93,9 +93,9 @@ export class NotificationService {
   private async getVapidPublicKey(): Promise<void> {
     try {
       console.log('🔄 Obteniendo clave VAPID desde:', `${this.API_URL}/webpush/vapid-public-key`);
-      
+
       const response = await firstValueFrom(this.http.get<VapidKeys>(`${this.API_URL}/webpush/vapid-public-key`));
-      
+
       if (response?.publicKey) {
         this.vapidPublicKey = response.publicKey;
         console.log('✅ Clave pública VAPID obtenida:', this.vapidPublicKey.substring(0, 20) + '...');
@@ -105,7 +105,7 @@ export class NotificationService {
     } catch (error) {
       console.error('❌ Error obteniendo clave VAPID:', error);
       console.error('🔍 URL intentada:', `${this.API_URL}/webpush/vapid-public-key`);
-      
+
       // Intentar con URL alternativa si falla
       try {
         console.log('🔄 Intentando con URL alternativa...');
@@ -189,11 +189,11 @@ export class NotificationService {
           return true;
         } catch (subscriptionError) {
           console.error('❌ Error creando suscripción push:', subscriptionError);
-          
+
           // Si es un error de registro, intentar diferentes estrategias
           if ((subscriptionError as any).name === 'AbortError' || (subscriptionError as any).message?.includes('Registration failed')) {
             console.log('🔄 Error de registro detectado, intentando soluciones...');
-            
+
             // Estrategia 1: Limpiar y reintentar
             try {
               console.log('🔄 Estrategia 1: Limpiar suscripciones existentes...');
@@ -202,50 +202,50 @@ export class NotificationService {
                 await existingSubs.unsubscribe();
                 console.log('✅ Suscripción anterior eliminada');
               }
-              
+
               // Esperar un poco más
               await new Promise(resolve => setTimeout(resolve, 2000));
-              
+
               const newSubscription = await this.registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: this.urlBase64ToUint8Array(this.vapidPublicKey)
               });
-              
+
               console.log('✅ Nueva suscripción creada exitosamente');
               await this.sendSubscriptionToServer(newSubscription);
               return true;
             } catch (retryError) {
               console.error('❌ Estrategia 1 falló:', retryError);
-              
+
               // Estrategia 2: Intentar sin userVisibleOnly
               try {
                 console.log('🔄 Estrategia 2: Intentar sin userVisibleOnly...');
                 const altSubscription = await this.registration.pushManager.subscribe({
                   applicationServerKey: this.urlBase64ToUint8Array(this.vapidPublicKey)
                 });
-                
+
                 console.log('✅ Suscripción alternativa creada');
                 await this.sendSubscriptionToServer(altSubscription);
                 return true;
               } catch (altError) {
                 console.error('❌ Estrategia 2 también falló:', altError);
-                
+
                 // Estrategia 3: Modo de desarrollo - simular éxito
                 if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
                   console.log('🔄 Estrategia 3: Modo desarrollo - notificaciones locales habilitadas');
                   console.log('⚠️ Las notificaciones push no funcionarán, pero las locales sí');
                   console.log('💡 Para notificaciones push reales, despliega en HTTPS');
-                  
+
                   // En modo desarrollo, marcar como "activado" pero solo para notificaciones locales
                   this.isDevelopmentMode = true;
                   return true; // Permitir que continúe para notificaciones locales
                 }
-                
+
                 return false;
               }
             }
           }
-          
+
           return false;
         }
       } else {
@@ -366,28 +366,29 @@ export class NotificationService {
     // Solo configurar listeners de Capacitor si estamos en una plataforma nativa
     if (Capacitor.isNativePlatform()) {
       // Token de registro
-      PushNotifications.addListener('registration', (token: Token) => {
-        console.log('🔑 Token de registro:', token.value);
-        this.tokenSubject.next(token.value);
-        this.saveTokenToServer(token.value);
-      });
+      // PushNotifications.addListener('registration', (token: Token) => {
+      //   console.log('🔑 Token de registro:', token.value);
+      //   this.tokenSubject.next(token.value);
+      //   this.saveTokenToServer(token.value);
+      // });
+      console.log('🔔 [NOTIFICATIONS] Listeners de Capacitor temporalmente deshabilitados');
 
       // Error en el registro
-      PushNotifications.addListener('registrationError', (error: any) => {
-        console.error('❌ Error en registro de notificaciones:', error);
-      });
+      // PushNotifications.addListener('registrationError', (error: any) => {
+      //   console.error('❌ Error en registro de notificaciones:', error);
+      // });
 
       // Notificación recibida (app en primer plano)
-      PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
-        console.log('📱 Notificación recibida:', notification);
-        this.handleNotificationReceived(notification);
-      });
+      // PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
+      //   console.log('📱 Notificación recibida:', notification);
+      //   this.handleNotificationReceived(notification);
+      // });
 
       // Notificación tocada (app en segundo plano)
-      PushNotifications.addListener('pushNotificationActionPerformed', (notification: ActionPerformed) => {
-        console.log('👆 Notificación tocada:', notification);
-        this.handleNotificationTapped(notification);
-      });
+      // PushNotifications.addListener('pushNotificationActionPerformed', (notification: ActionPerformed) => {
+      //   console.log('👆 Notificación tocada:', notification);
+      //   this.handleNotificationTapped(notification);
+      // });
     }
 
     // Listener para mensajes del service worker (web)
@@ -496,7 +497,7 @@ export class NotificationService {
       console.log('✅ Notificación de prueba enviada');
     } catch (error) {
       console.error('❌ Error enviando notificación de prueba:', error);
-      
+
       // Fallback a notificación local si falla el envío
       if (Notification.permission === 'granted') {
         this.showLocalNotification({
@@ -526,7 +527,7 @@ export class NotificationService {
       notification.onclick = () => {
         console.log('👆 Notificación local clickeada');
         notification.close();
-        
+
         // Enfocar la ventana
         if (window.focus) {
           window.focus();
@@ -585,7 +586,7 @@ export class NotificationService {
       const existing = JSON.parse(localStorage.getItem('user_notifications') || '[]');
       existing.unshift(notification);
       localStorage.setItem('user_notifications', JSON.stringify(existing));
-      
+
       console.log('✅ Notificación real guardada en localStorage');
     } catch (error) {
       console.error('❌ Error guardando notificación en localStorage:', error);
@@ -634,7 +635,7 @@ export class NotificationService {
       console.log('✅ Notificación de orden enviada al servidor');
     } catch (error) {
       console.error('❌ Error enviando notificación de orden:', error);
-      
+
       // Fallback a notificación local
       if (Notification.permission === 'granted') {
         this.showLocalNotification({
@@ -684,7 +685,7 @@ export class NotificationService {
       console.log('✅ Notificación de estado de orden enviada al servidor');
     } catch (error) {
       console.error('❌ Error enviando notificación de estado de orden:', error);
-      
+
       // Fallback a notificación local
       if (Notification.permission === 'granted') {
         this.showLocalNotification({
@@ -708,10 +709,10 @@ export class NotificationService {
     }
 
     // Verificar si estamos en HTTPS o localhost
-    const isSecure = location.protocol === 'https:' || 
-                     location.hostname === 'localhost' || 
+    const isSecure = location.protocol === 'https:' ||
+                     location.hostname === 'localhost' ||
                      location.hostname === '127.0.0.1';
-    
+
     if (!isSecure) {
       console.warn('⚠️ Push notifications requieren HTTPS o localhost');
       return false;
@@ -738,8 +739,9 @@ export class NotificationService {
         return Notification.permission === 'granted';
       } else {
         // Para dispositivos nativos, usar Capacitor
-        const permStatus = await PushNotifications.checkPermissions();
-        return permStatus.receive === 'granted';
+        // const permStatus = await PushNotifications.checkPermissions();
+        // return permStatus.receive === 'granted';
+        return false; // Temporalmente deshabilitado
       }
     } catch (error) {
       console.error('❌ Error verificando permisos:', error);
@@ -747,33 +749,6 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Suscripción automática para usuarios autenticados
-   */
-  async subscribeForAuthenticatedUser(): Promise<boolean> {
-    try {
-      if (!this.vapidPublicKey || !this.registration) {
-        console.warn('⚠️ VAPID key o Service Worker no disponible');
-        return false;
-      }
-
-      // Verificar si ya tenemos una suscripción
-      const existingSubscription = await this.registration.pushManager.getSubscription();
-
-      if (existingSubscription) {
-        console.log('✅ Suscripción existente encontrada');
-        await this.sendSubscriptionToServer(existingSubscription);
-        return true;
-      }
-
-      // Solicitar permisos y crear nueva suscripción
-      const granted = await this.requestNotificationPermission();
-      return granted;
-    } catch (error) {
-      console.error('❌ Error en suscripción automática:', error);
-      return false;
-    }
-  }
 
 
   /**
@@ -799,7 +774,7 @@ export class NotificationService {
       if (!this.vapidPublicKey) {
         console.log('🔄 Clave VAPID no disponible, intentando obtener...');
         await this.getVapidPublicKey();
-        
+
         if (!this.vapidPublicKey) {
           console.error('❌ No se pudo obtener la clave VAPID');
           return false;
@@ -824,16 +799,18 @@ export class NotificationService {
    */
   private async requestCapacitorPermissions(): Promise<boolean> {
     try {
-      const permStatus = await PushNotifications.requestPermissions();
+      // const permStatus = await PushNotifications.requestPermissions();
 
-      if (permStatus.receive === 'granted') {
-        console.log('✅ Permisos de notificaciones concedidos');
-        await PushNotifications.register();
-        return true;
-      } else {
-        console.log('❌ Permisos de notificaciones denegados');
-        return false;
-      }
+      // if (permStatus.receive === 'granted') {
+      //   console.log('✅ Permisos de notificaciones concedidos');
+      //   await PushNotifications.register();
+      //   return true;
+      // } else {
+      //   console.log('❌ Permisos de notificaciones denegados');
+      //   return false;
+      // }
+      console.log('🔔 [NOTIFICATIONS] Capacitor permissions temporalmente deshabilitadas');
+      return false;
     } catch (error) {
       console.error('❌ Error solicitando permisos de Capacitor:', error);
       return false;

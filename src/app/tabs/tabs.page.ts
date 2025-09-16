@@ -5,6 +5,7 @@ import { IonIcon, IonRouterOutlet, IonBadge } from '@ionic/angular/standalone';
 import { Subscription } from 'rxjs';
 import { CartService, Cart } from '../services/cart.service';
 import { NotificationService } from '../services/notification.service';
+import { AuthService } from '../services/auth.service';
 
 @Component({
   selector: 'app-tabs',
@@ -60,6 +61,7 @@ export class TabsPage implements OnInit, OnDestroy {
     private navCtrl: NavController,
     private cartService: CartService,
     private notificationService: NotificationService,
+    private authService: AuthService,
     private cdr: ChangeDetectorRef
   ) {
     this.currentTabIndex = this.tabOrder.indexOf(this.router.url);
@@ -76,22 +78,28 @@ export class TabsPage implements OnInit, OnDestroy {
   }
 
   private subscribeToCart(): void {
-    this.cartSubscription = this.cartService.cartItemsCount$.subscribe(count => {
+    // Suscribirse al contador total que incluye online + offline
+    this.cartSubscription = this.cartService.totalCartItemsCount$.subscribe(count => {
       this.cartItemsCount = count;
       this.cdr.detectChanges(); // Forzar detección de cambios
-      console.log('🛒 [TABS] Contador actualizado:', count);
+      console.log('🛒 [TABS] Contador total actualizado (online + offline):', count);
     });
   }
 
   private subscribeToNotifications(): void {
-    // Por ahora, simular notificaciones no leídas
-    // En el futuro, esto vendrá del servicio de notificaciones
-    this.notificationsSubscription = this.notificationService.token$.subscribe(token => {
-      // Simular contador de notificaciones no leídas
-      // En producción, esto vendría de una API
-      this.unreadNotificationsCount = Math.floor(Math.random() * 5); // Simular 0-4 notificaciones
+    // Solo mostrar notificaciones si el usuario está logueado
+    this.notificationsSubscription = this.authService.authState$.subscribe(authState => {
+      if (authState.isAuthenticated) {
+        // Usuario logueado: simular notificaciones no leídas
+        // En el futuro, esto vendrá del servicio de notificaciones
+        this.unreadNotificationsCount = Math.floor(Math.random() * 5); // Simular 0-4 notificaciones
+        console.log('🔔 [TABS] Usuario logueado - Contador de notificaciones:', this.unreadNotificationsCount);
+      } else {
+        // Usuario no logueado: no mostrar notificaciones
+        this.unreadNotificationsCount = 0;
+        console.log('🔔 [TABS] Usuario no logueado - Sin notificaciones');
+      }
       this.cdr.detectChanges();
-      console.log('🔔 [TABS] Contador de notificaciones actualizado:', this.unreadNotificationsCount);
     });
   }
 

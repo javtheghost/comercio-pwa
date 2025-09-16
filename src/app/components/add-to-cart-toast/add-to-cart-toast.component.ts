@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonIcon, IonText, IonImg } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -10,7 +10,7 @@ import { checkmarkCircle, close } from 'ionicons/icons';
   imports: [CommonModule, IonIcon, IonText, IonImg],
   template: `
     @if (show) {
-      <div class="toast-overlay" (click)="close()">
+      <div class="toast-overlay" (click)="closeToast()">
         <div class="toast-container" (click)="$event.stopPropagation()">
           <div class="toast-content">
             <div class="toast-header">
@@ -18,7 +18,7 @@ import { checkmarkCircle, close } from 'ionicons/icons';
               <ion-text color="success" class="success-text">
                 <h3>¡Producto agregado!</h3>
               </ion-text>
-              <ion-icon name="close" class="close-icon" (click)="close()"></ion-icon>
+              <ion-icon name="close" class="close-icon" (click)="closeToast()"></ion-icon>
             </div>
 
             <div class="product-info">
@@ -199,6 +199,7 @@ export class AddToCartToastComponent implements OnInit, OnDestroy, OnChanges {
   @Input() selectedSize = '';
   @Input() selectedColor = '';
   @Input() price = 0;
+  @Output() close = new EventEmitter<void>();
 
   private autoCloseTimer?: number;
 
@@ -213,14 +214,30 @@ export class AddToCartToastComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['show'] && changes['show'].currentValue === true) {
-      // Limpiar timer anterior si existe
-      if (this.autoCloseTimer) {
-        clearTimeout(this.autoCloseTimer);
-      }
+    if (changes['show']) {
+      console.log('🔔 [TOAST] Cambio detectado:', {
+        previousValue: changes['show'].previousValue,
+        currentValue: changes['show'].currentValue
+      });
 
-      // Iniciar nuevo timer
-      this.startAutoClose();
+      if (changes['show'].currentValue === true) {
+        // Limpiar timer anterior si existe
+        if (this.autoCloseTimer) {
+          clearTimeout(this.autoCloseTimer);
+          this.autoCloseTimer = undefined;
+        }
+
+        // Iniciar nuevo timer
+        this.startAutoClose();
+        console.log('🔔 [TOAST] Toast mostrado, timer iniciado');
+      } else if (changes['show'].currentValue === false) {
+        // Limpiar timer si se oculta manualmente
+        if (this.autoCloseTimer) {
+          clearTimeout(this.autoCloseTimer);
+          this.autoCloseTimer = undefined;
+        }
+        console.log('🔔 [TOAST] Toast ocultado, timer limpiado');
+      }
     }
   }
 
@@ -234,18 +251,25 @@ export class AddToCartToastComponent implements OnInit, OnDestroy, OnChanges {
     // Limpiar timer anterior si existe
     if (this.autoCloseTimer) {
       clearTimeout(this.autoCloseTimer);
+      this.autoCloseTimer = undefined;
     }
 
-    // Crear nuevo timer
-    this.autoCloseTimer = window.setTimeout(() => {
-      this.close();
-    }, 5000); // Se cierra automáticamente después de 5 segundos
+    // Crear nuevo timer solo si el toast está visible
+    if (this.show) {
+      this.autoCloseTimer = window.setTimeout(() => {
+        console.log('🔔 [TOAST] Auto-cierre después de 5 segundos');
+        this.closeToast();
+      }, 5000); // Se cierra automáticamente después de 5 segundos
+
+    }
   }
 
-  close() {
+  closeToast() {
     this.show = false;
     if (this.autoCloseTimer) {
       clearTimeout(this.autoCloseTimer);
+      this.autoCloseTimer = undefined;
     }
+    this.close.emit();
   }
 }

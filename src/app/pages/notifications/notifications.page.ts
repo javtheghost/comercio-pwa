@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgIf, NgFor } from '@angular/common';
 import { IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonLabel, IonIcon, IonBadge, IonButton, IonSpinner, IonRefresher, IonRefresherContent, IonItemSliding, IonItemOptions, IonItemOption, IonAlert, IonToast } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { notifications, checkmarkCircle, time, cart, gift, alertCircle, trash, close } from 'ionicons/icons';
@@ -19,7 +19,7 @@ export interface NotificationItem {
 @Component({
   selector: 'app-notifications',
   standalone: true,
-  imports: [CommonModule, IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonLabel, IonIcon, IonBadge, IonButton, IonSpinner, IonRefresher, IonRefresherContent, IonItemSliding, IonItemOptions, IonItemOption, IonAlert, IonToast],
+  imports: [CommonModule, NgIf, NgFor, IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonLabel, IonIcon, IonBadge, IonButton, IonSpinner, IonRefresher, IonRefresherContent, IonItemSliding, IonItemOptions, IonItemOption, IonAlert, IonToast],
   template: `
     <ion-header>
       <ion-toolbar>
@@ -53,31 +53,31 @@ export interface NotificationItem {
       <!-- Notifications list -->
       <ion-list *ngIf="!loading && notifications.length > 0">
         <ion-item-sliding *ngFor="let notification of notifications">
-          <ion-item 
+          <ion-item
             [class.unread]="!notification.read"
             (click)="markAsRead(notification)"
             button>
-            
-            <ion-icon 
-              [name]="getNotificationIcon(notification.type)" 
+
+            <ion-icon
+              [name]="getNotificationIcon(notification.type)"
               [color]="getNotificationColor(notification.type)"
               slot="start">
             </ion-icon>
-            
+
             <ion-label>
               <h3>{{ notification.title }}</h3>
               <p>{{ notification.message }}</p>
               <p class="timestamp">{{ formatTimestamp(notification.timestamp) }}</p>
             </ion-label>
-            
-            <ion-badge 
-              *ngIf="!notification.read" 
-              color="primary" 
+
+            <ion-badge
+              *ngIf="!notification.read"
+              color="primary"
               slot="end">
               Nuevo
             </ion-badge>
           </ion-item>
-          
+
           <ion-item-options side="end">
             <ion-item-option color="danger" (click)="deleteNotification(notification)">
               <ion-icon name="trash" slot="icon-only"></ion-icon>
@@ -88,17 +88,17 @@ export interface NotificationItem {
 
       <!-- Action buttons -->
       <div *ngIf="!loading && notifications.length > 0" class="action-buttons-container">
-        <ion-button 
-          *ngIf="hasUnreadNotifications()" 
-          fill="clear" 
+        <ion-button
+          *ngIf="hasUnreadNotifications()"
+          fill="clear"
           (click)="markAllAsRead()">
           <ion-icon name="checkmark-circle" slot="start"></ion-icon>
           Marcar todas como leídas
         </ion-button>
-        
-        <ion-button 
-          fill="clear" 
-          color="danger" 
+
+        <ion-button
+          fill="clear"
+          color="danger"
           (click)="confirmDeleteAll()">
           <ion-icon name="trash" slot="start"></ion-icon>
           Eliminar todas
@@ -228,7 +228,7 @@ export class NotificationsPage implements OnInit, OnDestroy {
 
   async loadNotifications() {
     this.loading = true;
-    
+
     try {
       // Cargar notificaciones reales desde localStorage
       // En producción, esto vendría de una API
@@ -237,7 +237,7 @@ export class NotificationsPage implements OnInit, OnDestroy {
 
       // Filtrar notificaciones eliminadas
       this.filterDeletedNotifications();
-      
+
       console.log('✅ Notificaciones reales cargadas:', this.notifications.length);
     } catch (error) {
       console.error('❌ Error cargando notificaciones:', error);
@@ -361,7 +361,7 @@ export class NotificationsPage implements OnInit, OnDestroy {
     this.notifications.forEach(notification => {
       this.addToDeletedList(notification.id);
     });
-    
+
     this.notifications = [];
     this.saveNotifications(); // Guardar cambios
     this.showToastMessage('Todas las notificaciones han sido eliminadas');
@@ -425,7 +425,7 @@ export class NotificationsPage implements OnInit, OnDestroy {
 
   private filterDeletedNotifications(): void {
     const deletedIds = this.getDeletedNotifications();
-    this.notifications = this.notifications.filter(notification => 
+    this.notifications = this.notifications.filter(notification =>
       !deletedIds.includes(notification.id)
     );
     console.log('✅ Notificaciones filtradas, eliminadas:', deletedIds.length);

@@ -42,9 +42,6 @@ export class AuthService {
           error: null
         });
         console.log('✅ [AUTH SERVICE] Datos de autenticación restaurados desde localStorage');
-
-        // Activar notificaciones push para usuario autenticado
-        this.activateNotificationsForUser();
       }
     } catch (error) {
       console.error('❌ [AUTH SERVICE] Error inicializando autenticación:', error);
@@ -139,9 +136,6 @@ export class AuthService {
         });
         window.dispatchEvent(event);
         console.log('✅ Evento userLoggedIn emitido correctamente');
-
-        // Activar notificaciones push para usuario autenticado
-        this.activateNotificationsForUser();
 
       } else {
         // Fallback: usar datos básicos si no se puede obtener la info completa
@@ -459,26 +453,6 @@ export class AuthService {
     });
   }
 
-  /**
-   * Activa las notificaciones push para el usuario autenticado
-   */
-  private async activateNotificationsForUser(): Promise<void> {
-    try {
-      console.log('🔔 Activando notificaciones push para usuario autenticado...');
-
-      // Esperar un poco para que el servicio de notificaciones esté listo
-      setTimeout(async () => {
-        const success = await this.notificationService.subscribeForAuthenticatedUser();
-        if (success) {
-          console.log('✅ Notificaciones push activadas para usuario autenticado');
-        } else {
-          console.log('⚠️ No se pudieron activar las notificaciones push');
-        }
-      }, 1000);
-    } catch (error) {
-      console.error('❌ Error activando notificaciones push:', error);
-    }
-  }
 
   /**
    * Método público para activar notificaciones manualmente

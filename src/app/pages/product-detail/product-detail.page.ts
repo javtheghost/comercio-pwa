@@ -1,7 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
-import { NgIf, JsonPipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import {
   IonHeader,
   IonToolbar,
@@ -22,7 +22,7 @@ import { AddToCartToastComponent } from '../../components/add-to-cart-toast/add-
   selector: 'app-product-detail',
   standalone: true,
   imports: [
-    NgIf,
+    CommonModule,
     IonHeader,
     IonToolbar,
     IonTitle,
@@ -418,21 +418,28 @@ export class ProductDetailPage implements OnInit {
    */
   showSuccessToast() {
     if (this.product) {
+      // Primero ocultar el toast si está visible
+      this.showToast = false;
+      this.cdr.detectChanges();
+
+      // Luego configurar los datos del toast
       this.toastProductName = this.product.name;
       this.toastProductImage = this.product.image || '/assets/images/no-image.png';
       this.toastSelectedSize = this.selectedSize || '';
       this.toastSelectedColor = this.selectedColor || '';
       this.toastPrice = parseFloat(this.currentPrice);
-      this.showToast = true;
 
-      // Forzar detección de cambios inmediatamente
-      this.cdr.detectChanges();
+      // Usar setTimeout para asegurar que el cambio se detecte
+      setTimeout(() => {
+        this.showToast = true;
+        this.cdr.detectChanges();
 
-      console.log('🎉 Toast mostrado:', {
-        show: this.showToast,
-        productName: this.toastProductName,
-        price: this.toastPrice
-      });
+        console.log('🎉 Toast mostrado:', {
+          show: this.showToast,
+          productName: this.toastProductName,
+          price: this.toastPrice
+        });
+      }, 50); // Pequeño delay para asegurar el reset
     }
   }
 

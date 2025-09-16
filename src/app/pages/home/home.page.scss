@@ -50,12 +50,56 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
 
 // Contenedor de categorías
 .categories-container {
-  padding: 16px;
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
+  padding: 16px 0;
   background: white;
   border-bottom: 1px solid var(--ion-color-light);
+
+  .categories-scroll {
+    position: relative;
+    padding: 0 16px;
+
+    // Gradientes para indicar scroll
+    &::before,
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 20px;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    &::before {
+      left: 0;
+      background: linear-gradient(to right, white, transparent);
+    }
+
+    &::after {
+      right: 0;
+      background: linear-gradient(to left, white, transparent);
+    }
+  }
+
+  .categories-wrapper {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 0;
+    scroll-behavior: smooth;
+
+    // Ocultar scrollbar pero mantener funcionalidad
+    scrollbar-width: none; // Firefox
+    -ms-overflow-style: none; // IE/Edge
+
+    &::-webkit-scrollbar {
+      display: none; // Chrome/Safari
+    }
+
+    // Scroll suave con momentum en iOS
+    -webkit-overflow-scrolling: touch;
+  }
 
   .category-chip {
     --background: var(--ion-color-light);
@@ -63,6 +107,10 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
     --border-radius: 20px;
     cursor: pointer;
     transition: all 0.2s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: fit-content;
+    padding: 8px 16px;
 
     &:hover {
       --background: var(--ion-color-primary);
@@ -73,6 +121,13 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
     &:active {
       transform: translateY(0);
     }
+
+    &.active {
+      --background: var(--ion-color-primary);
+      --color: white;
+      --box-shadow: 0 2px 8px rgba(56, 128, 255, 0.3);
+      transform: translateY(-1px);
+    }
   }
 
   // Skeleton para categorías
@@ -80,6 +135,8 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
     display: flex;
     gap: 8px;
     width: 100%;
+    padding: 0 16px;
+    overflow-x: auto;
 
     .skeleton-chip {
       width: 80px;
@@ -234,6 +291,9 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
   cursor: pointer;
   transition: all 0.3s ease;
   background: white;
+  display: flex;
+  flex-direction: column;
+  height: 100%; // Asegurar que todas las cards tengan la misma altura
 
   &:hover {
     transform: translateY(-4px);
@@ -279,10 +339,87 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
         font-size: 16px;
       }
     }
+
+  .add-to-cart-container {
+    margin-top: auto; // Empujar el botón hacia abajo
+    padding-top: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 44px; // Altura fija para mantener alineación
+  }
+
+  .add-to-cart-btn {
+    --background: rgba(56, 128, 255, 0.1);
+    --color: var(--ion-color-primary);
+    --border: 1px solid rgba(56, 128, 255, 0.2);
+    --border-radius: 8px;
+    --padding-start: 16px;
+    --padding-end: 16px;
+    --padding-top: 8px;
+    --padding-bottom: 8px;
+    --box-shadow: none;
+    transition: all 0.2s ease;
+    font-size: 12px;
+    font-weight: 500;
+    width: 100%;
+    max-width: 120px;
+    height: 32px;
+
+    &:hover {
+      --background: rgba(56, 128, 255, 0.15);
+      --border: 1px solid rgba(56, 128, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      --background: rgba(56, 128, 255, 0.2);
+      transform: translateY(0);
+    }
+
+    &:disabled {
+      --background: rgba(146, 148, 156, 0.1);
+      --color: var(--ion-color-medium);
+      --border: 1px solid rgba(146, 148, 156, 0.2);
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    ion-icon {
+      margin-right: 6px;
+      font-size: 16px;
+    }
+
+    span {
+      font-size: 12px;
+      font-weight: 500;
+    }
+  }
+
+  .offline-chip {
+    --background: rgba(255, 193, 7, 0.2);
+    --color: var(--ion-color-warning);
+    font-size: 12px;
+    height: 28px;
+    margin-right: 8px;
+
+    ion-icon {
+      font-size: 14px;
+      margin-right: 4px;
+    }
+
+    ion-label {
+      font-size: 11px;
+      font-weight: 600;
+    }
+  }
   }
 
   .product-content {
     padding: 12px;
+    display: flex;
+    flex-direction: column;
+    flex: 1; // Hacer que el contenido se expanda para llenar el espacio disponible
 
     .product-title {
       font-size: 14px;
@@ -293,6 +430,9 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
       display: -webkit-box;
       -webkit-box-orient: vertical;
       overflow: hidden;
+      -webkit-line-clamp: 2; // Limitar a 2 líneas máximo
+      line-clamp: 2; // Propiedad estándar para compatibilidad
+      min-height: 36px; // Altura mínima para títulos de 1 línea
     }
 
     .product-price-container {
@@ -322,9 +462,15 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
       display: -webkit-box;
       -webkit-box-orient: vertical;
       overflow: hidden;
+      -webkit-line-clamp: 2; // Limitar a 2 líneas máximo
+      line-clamp: 2; // Propiedad estándar para compatibilidad
+      min-height: 32px; // Altura mínima para descripciones de 1 línea
+      flex: 1; // Permitir que se expanda si hay espacio
     }
 
     .product-category {
+      margin-bottom: 8px; // Espacio consistente antes del botón
+
       ion-chip {
         --background: var(--ion-color-light);
         --color: var(--ion-color-medium);
@@ -451,6 +597,36 @@ ion-infinite-scroll-content {
 .is-loading-more {
   opacity: 0.7;
   pointer-events: none;
+}
+
+// Estilos para pull-to-refresh
+ion-refresher {
+  z-index: 10;
+}
+
+ion-refresher-content {
+  --color: transparent;
+  --refresher-icon-color: var(--ion-color-primary);
+  --refresher-text-color: transparent;
+  --refresher-background: transparent;
+}
+
+// Ocultar completamente el texto del refresher
+ion-refresher-content .refresher-pulling-text,
+ion-refresher-content .refresher-refreshing-text {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+// Asegurar que solo se vea el icono
+ion-refresher-content .refresher-pulling-icon,
+ion-refresher-content .refresher-refreshing-icon {
+  --color: var(--ion-color-primary);
+  opacity: 1;
 }
 
 

@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonAvatar, IonSpinner, IonIcon, IonList, IonChip } from '@ionic/angular/standalone';
+import { IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonAvatar, IonSpinner, IonIcon, IonList, IonChip, IonRefresher, IonRefresherContent } from '@ionic/angular/standalone';
 import { AuthService } from '../../services/auth.service';
 import { AddressService } from '../../services/address.service';
 import { OrderService, Order } from '../../services/order.service';
@@ -14,7 +14,7 @@ import { NotificationService } from '../../services/notification.service';
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonAvatar, IonSpinner, IonIcon, IonList, IonChip, NotificationToggleComponent],
+  imports: [CommonModule, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonAvatar, IonSpinner, IonIcon, IonList, IonChip, IonRefresher, IonRefresherContent, NotificationToggleComponent],
   templateUrl: './profile.page.html',
   styleUrls: ['./profile.page.scss']
 })
@@ -274,6 +274,28 @@ export class ProfilePage implements OnInit, OnDestroy {
       console.log('✅ Notificación de prueba enviada');
     } catch (error) {
       console.error('❌ Error enviando notificación de prueba:', error);
+    }
+  }
+
+  /**
+   * Maneja el pull-to-refresh nativo
+   */
+  async doRefresh(event: any): Promise<void> {
+    console.log('🔄 [PROFILE] Pull-to-refresh activado');
+
+    try {
+      // Recargar direcciones y órdenes
+      await Promise.all([
+        this.loadAddresses(),
+        this.loadOrders()
+      ]);
+
+      console.log('✅ [PROFILE] Pull-to-refresh completado');
+    } catch (error) {
+      console.error('❌ [PROFILE] Error en pull-to-refresh:', error);
+    } finally {
+      // Completar el refresh
+      event.target.complete();
     }
   }
 

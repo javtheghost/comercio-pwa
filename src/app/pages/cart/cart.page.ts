@@ -2,34 +2,38 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subscription, Subject, debounceTime, distinctUntilChanged } from 'rxjs';
-import { IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonButton, IonIcon, IonList, IonThumbnail, IonSpinner, IonText } from '@ionic/angular/standalone';
+import { IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonButton, IonIcon, IonList, IonThumbnail, IonSpinner, IonText, ToastController, IonRefresher, IonRefresherContent } from '@ionic/angular/standalone';
 import { CartService, Cart, CartItem } from '../../services/cart.service';
 import { AuthService } from '../../services/auth.service';
+import { OfflineCartService, OfflineCart, OfflineCartItem } from '../../services/offline-cart.service';
 
 @Component({
   selector: 'app-cart',
   standalone: true,
-  imports: [CurrencyPipe, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonButton, IonIcon, IonList, IonThumbnail, IonSpinner, IonText],
+  imports: [CurrencyPipe, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonButton, IonIcon, IonList, IonThumbnail, IonSpinner, IonText, IonRefresher, IonRefresherContent],
   templateUrl: './cart.page.html',
   styleUrls: ['./cart.page.scss']
 })
 export class CartPage implements OnInit, OnDestroy {
   cart: Cart | null = null;
+  offlineCart: OfflineCart | null = null;
   loading = false;
   error: string | null = null;
+  isReallyOnline = false; // Estado real de conexión
   private cartSubscription: Subscription = new Subscription();
-  
+  private offlineCartSubscription: Subscription = new Subscription();
+
   // ✅ CACHE de totales para respuesta instantánea
   private cachedTotals = {
     subtotal: 0,
     tax: 0,
     total: 0
   };
-  
+
   // ✅ DEBOUNCE para evitar múltiples peticiones
   private quantityUpdateSubject = new Subject<{item: CartItem, quantity: number}>();
   private quantityUpdateSubscription: Subscription = new Subscription();
-  
+
   // ✅ DEBOUNCE específico para input (más tiempo)
   private inputUpdateSubject = new Subject<{item: CartItem, quantity: number}>();
   private inputUpdateSubscription: Subscription = new Subscription();
@@ -40,18 +44,23 @@ export class CartPage implements OnInit, OnDestroy {
     private cartService: CartService,
     private authService: AuthService,
     private router: Router,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private offlineCartService: OfflineCartService,
+    private toastController: ToastController
   ) {}
 
   ngOnInit() {
+    this.checkConnectionStatus();
     this.loadCart();
     this.subscribeToCart();
+    this.subscribeToOfflineCart();
     this.setupQuantityDebounce();
     this.setupInputDebounce();
   }
 
   ngOnDestroy() {
     this.cartSubscription.unsubscribe();
+    this.offlineCartSubscription.unsubscribe();
     this.quantityUpdateSubscription.unsubscribe();
     this.inputUpdateSubscription.unsubscribe();
   }
@@ -63,7 +72,7 @@ export class CartPage implements OnInit, OnDestroy {
     this.quantityUpdateSubscription = this.quantityUpdateSubject
       .pipe(
         debounceTime(300), // Esperar 300ms después del último cambio
-        distinctUntilChanged((prev, curr) => 
+        distinctUntilChanged((prev, curr) =>
           prev.item.id === curr.item.id && prev.quantity === curr.quantity
         )
       )
@@ -79,7 +88,7 @@ export class CartPage implements OnInit, OnDestroy {
     this.inputUpdateSubscription = this.inputUpdateSubject
       .pipe(
         debounceTime(800), // Esperar 800ms después de escribir (más tiempo)
-        distinctUntilChanged((prev, curr) => 
+        distinctUntilChanged((prev, curr) =>
           prev.item.id === curr.item.id && prev.quantity === curr.quantity
         )
       )
@@ -98,13 +107,23 @@ export class CartPage implements OnInit, OnDestroy {
       if (cart !== null) {
         this.loading = false;
         this.error = null;
-        
+
         // ✅ INICIALIZAR CACHE de totales
         this.initializeTotalsCache();
-        
+
         // Forzar la detección de cambios
         this.cdr.detectChanges();
       }
+    });
+  }
+
+  /**
+   * Se suscribe a los cambios del carrito offline
+   */
+  private subscribeToOfflineCart(): void {
+    this.offlineCartSubscription = this.offlineCartService.offlineCart$.subscribe(offlineCart => {
+      this.offlineCart = offlineCart;
+      this.cdr.detectChanges();
     });
   }
 
@@ -131,6 +150,19 @@ export class CartPage implements OnInit, OnDestroy {
   loadCart(): void {
     this.loading = true;
     this.error = null;
+
+    // Verificar si hay conexión antes de intentar cargar el carrito online
+    const isOnline = this.offlineCartService.isOnline();
+    const isAuthenticated = this.authService.isAuthenticated();
+
+    console.log('🔍 [CART PAGE] Estado de conexión básico:', { isOnline, isAuthenticated });
+
+    if (!isOnline || !isAuthenticated) {
+      console.log('🔍 [CART PAGE] Sin conexión básica o no autenticado, saltando carga del carrito online');
+      this.loading = false;
+      this.cdr.detectChanges();
+      return;
+    }
 
     this.cartService.getCart().subscribe({
       next: (cart) => {
@@ -172,14 +204,14 @@ export class CartPage implements OnInit, OnDestroy {
    */
   updateQuantity(item: CartItem, event: any): void {
     const inputValue = event.target.value;
-    
+
     // Si está vacío, no hacer nada (esperar a que termine de escribir)
     if (!inputValue || inputValue === '') {
       return;
     }
-    
+
     const newQuantity = parseInt(inputValue);
-    
+
     // Validar rango
     if (newQuantity && newQuantity > 0 && newQuantity <= 99) {
       this.updateItemQuantityFromInput(item, newQuantity);
@@ -204,7 +236,7 @@ export class CartPage implements OnInit, OnDestroy {
       if (cartItem) {
         cartItem.quantity = quantity;
         cartItem.total_price = (parseFloat(cartItem.unit_price || '0') * quantity).toFixed(2);
-        
+
         // Recalcular totales del carrito
         this.recalculateCartTotals();
         this.cdr.detectChanges(); // Actualizar UI inmediatamente
@@ -225,7 +257,7 @@ export class CartPage implements OnInit, OnDestroy {
       if (cartItem) {
         cartItem.quantity = quantity;
         cartItem.total_price = (parseFloat(cartItem.unit_price || '0') * quantity).toFixed(2);
-        
+
         // Recalcular totales del carrito
         this.recalculateCartTotals();
         this.cdr.detectChanges(); // Actualizar UI inmediatamente
@@ -250,7 +282,7 @@ export class CartPage implements OnInit, OnDestroy {
       },
       error: (error) => {
         this.error = 'Error al actualizar la cantidad';
-        
+
         // Revertir cambios optimistas
         if (this.cart) {
           const cartItem = this.cart.items.find(i => i.id === item.id);
@@ -261,7 +293,7 @@ export class CartPage implements OnInit, OnDestroy {
             this.cdr.detectChanges();
           }
         }
-        
+
         // Recargar carrito para mantener consistencia
         this.loadCart();
       }
@@ -379,10 +411,146 @@ export class CartPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Verifica si el carrito está vacío
+   * Verifica si el carrito está vacío (online + offline)
    */
   isCartEmpty(): boolean {
-    return !this.cart || this.cart.items.length === 0;
+    const onlineEmpty = !this.cart || this.cart.items.length === 0;
+    const offlineEmpty = !this.offlineCart || this.offlineCart.items.length === 0;
+    return onlineEmpty && offlineEmpty;
+  }
+
+  /**
+   * Verifica si hay items offline Y el usuario está offline
+   */
+  hasOfflineItems(): boolean {
+    const hasOfflineItems = !!(this.offlineCart && this.offlineCart.items.length > 0);
+    const isOffline = this.isOffline();
+
+    console.log('🔍 [CART PAGE] hasOfflineItems check:', {
+      hasOfflineItems,
+      isOffline,
+      isReallyOnline: this.isReallyOnline
+    });
+
+    // Solo mostrar como "offline" si realmente está offline (sin conexión real)
+    return hasOfflineItems && isOffline;
+  }
+
+  /**
+   * Verifica si hay items offline pendientes de sincronización (cuando está online)
+   */
+  hasPendingOfflineItems(): boolean {
+    const hasOfflineItems = !!(this.offlineCart && this.offlineCart.items.length > 0);
+    const isOnline = !this.isOffline();
+    const isAuthenticated = !this.isNotAuthenticated();
+
+    console.log('🔍 [CART PAGE] hasPendingOfflineItems check:', {
+      hasOfflineItems,
+      isOnline,
+      isAuthenticated,
+      isReallyOnline: this.isReallyOnline
+    });
+
+    // Mostrar como "pendientes" si está online (con o sin autenticación) pero tiene items offline
+    return hasOfflineItems && isOnline;
+  }
+
+  /**
+   * Verifica el estado real de conexión
+   */
+  async checkConnectionStatus(): Promise<void> {
+    try {
+      console.log('🔄 [CART PAGE] Verificando conexión...');
+      this.isReallyOnline = await this.offlineCartService.isReallyOnline();
+      console.log('🔍 [CART PAGE] Estado de conexión real:', this.isReallyOnline);
+
+      // Si ahora estamos online, intentar cargar el carrito
+      if (this.isReallyOnline && this.authService.isAuthenticated()) {
+        console.log('🔄 [CART PAGE] Conexión detectada, cargando carrito...');
+        this.loadCart();
+      }
+
+      this.cdr.detectChanges();
+    } catch (error) {
+      console.error('❌ [CART PAGE] Error verificando conexión:', error);
+      this.isReallyOnline = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  /**
+   * Maneja el pull-to-refresh nativo
+   */
+  async doRefresh(event: any): Promise<void> {
+    console.log('🔄 [CART PAGE] Pull-to-refresh activado');
+
+    try {
+      // Verificar conexión y recargar carrito
+      await this.checkConnectionStatus();
+
+      // Recargar carrito offline también
+      this.offlineCart = this.offlineCartService.getCurrentOfflineCart();
+
+      console.log('✅ [CART PAGE] Pull-to-refresh completado');
+    } catch (error) {
+      console.error('❌ [CART PAGE] Error en pull-to-refresh:', error);
+    } finally {
+      // Completar el refresh
+      event.target.complete();
+    }
+  }
+
+  /**
+   * Verifica si el usuario está offline (usando verificación real)
+   */
+  isOffline(): boolean {
+    return !this.isReallyOnline;
+  }
+
+  /**
+   * Verifica si el usuario no está autenticado
+   */
+  isNotAuthenticated(): boolean {
+    return !this.authService.isAuthenticated();
+  }
+
+  /**
+   * Obtiene todos los items del carrito (online + offline)
+   */
+  getAllCartItems(): (CartItem | OfflineCartItem)[] {
+    const onlineItems = this.cart?.items || [];
+    const offlineItems = this.offlineCart?.items || [];
+    return [...onlineItems, ...offlineItems];
+  }
+
+  /**
+   * Obtiene el total de items en el carrito (online + offline)
+   */
+  getTotalItemsCount(): number {
+    const onlineCount = this.cart?.items_count || 0;
+    const offlineCount = this.offlineCart?.items_count || 0;
+    return onlineCount + offlineCount;
+  }
+
+  /**
+   * Obtiene el subtotal total (online + offline)
+   */
+  getTotalSubtotal(): number {
+    const onlineSubtotal = this.cart ? parseFloat(this.cart.subtotal) : 0;
+    const offlineSubtotal = this.offlineCart?.subtotal || 0;
+    return onlineSubtotal + offlineSubtotal;
+  }
+
+  /**
+   * Obtiene el total combinado (online + offline + envío)
+   */
+  getTotalCombined(): number {
+    const subtotal = this.getTotalSubtotal();
+    const shipping = this.getShippingFee();
+    const tax = this.getVAT();
+    const discount = this.getDiscountAmount();
+
+    return subtotal + shipping + tax - discount;
   }
 
   /**
@@ -423,5 +591,77 @@ export class CartPage implements OnInit, OnDestroy {
    */
   refreshCart(): void {
     this.loadCart();
+  }
+
+  /**
+   * Actualiza la cantidad de un item offline
+   */
+  async updateOfflineItemQuantity(item: OfflineCartItem, quantity: number): Promise<void> {
+    if (quantity < 1) {
+      await this.removeOfflineItem(item);
+      return;
+    }
+
+    try {
+      await this.offlineCartService.updateOfflineCartItemQuantity(item.id, quantity);
+    } catch (error) {
+      console.error('Error actualizando cantidad del item offline:', error);
+    }
+  }
+
+  /**
+   * Elimina un item del carrito offline
+   */
+  async removeOfflineItem(item: OfflineCartItem): Promise<void> {
+    try {
+      await this.offlineCartService.removeFromOfflineCart(item.id);
+    } catch (error) {
+      console.error('Error eliminando item offline:', error);
+    }
+  }
+
+  /**
+   * Limpia el carrito offline
+   */
+  async clearOfflineCart(): Promise<void> {
+    try {
+      await this.offlineCartService.clearOfflineCart();
+    } catch (error) {
+      console.error('Error limpiando carrito offline:', error);
+    }
+  }
+
+  /**
+   * Sincroniza el carrito offline con el online
+   */
+  async syncOfflineCart(): Promise<void> {
+    try {
+      await this.cartService.syncOfflineCartManually();
+      // Mostrar mensaje de éxito
+      const toast = await this.toastController.create({
+        message: 'Carrito sincronizado exitosamente',
+        duration: 2000,
+        color: 'success',
+        position: 'top'
+      });
+      await toast.present();
+    } catch (error) {
+      console.error('Error sincronizando carrito offline:', error);
+      // Mostrar mensaje de error
+      const toast = await this.toastController.create({
+        message: 'Error al sincronizar el carrito',
+        duration: 3000,
+        color: 'danger',
+        position: 'top'
+      });
+      await toast.present();
+    }
+  }
+
+  /**
+   * Verifica si un item es offline
+   */
+  isOfflineItem(item: CartItem | OfflineCartItem): item is OfflineCartItem {
+    return 'is_offline' in item && item.is_offline === true;
   }
 }

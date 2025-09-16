@@ -336,3 +336,33 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
 .close-qr-btn:active {
   background: #2563c7;
 }
+
+// Estilos para pull-to-refresh
+ion-refresher {
+  z-index: 10;
+}
+
+ion-refresher-content {
+  --color: transparent;
+  --refresher-icon-color: var(--ion-color-primary);
+  --refresher-text-color: transparent;
+  --refresher-background: transparent;
+}
+
+// Ocultar completamente el texto del refresher
+ion-refresher-content .refresher-pulling-text,
+ion-refresher-content .refresher-refreshing-text {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+// Asegurar que solo se vea el icono
+ion-refresher-content .refresher-pulling-icon,
+ion-refresher-content .refresher-refreshing-icon {
+  --color: var(--ion-color-primary);
+  opacity: 1;
+}

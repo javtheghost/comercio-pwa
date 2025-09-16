@@ -1,6 +1,12 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
     <ion-title>Descubrir</ion-title>
+    @if (isOffline()) {
+      <ion-chip slot="end" color="warning" class="offline-chip">
+        <ion-icon name="wifi-outline"></ion-icon>
+        <ion-label>Sin conexión</ion-label>
+      </ion-chip>
+    }
   </ion-toolbar>
 </ion-header>
 
@@ -11,17 +17,17 @@
       <ion-icon name="arrow-up-outline"></ion-icon>
     </ion-fab-button>
   </ion-fab>
+
   <!-- Barra de búsqueda -->
   <div class="search-container">
     <ion-searchbar
-      placeholder="Buscar ropa..."
+      placeholder="Buscar productos..."
       (ionInput)="onSearchChange($event)"
       [debounce]="300">
     </ion-searchbar>
-
-
   </div>
-   <h3 class="ion-padding-start  text-sm font-weight-semibold">Categorías</h3>
+
+  <h3 class="ion-padding-start text-sm font-weight-semibold">Categorías</h3>
   <!-- Filtros de categorías -->
   <div class="categories-container">
     <!-- Skeleton para categorías mientras cargan -->
@@ -30,26 +36,38 @@
     </div>
 
     <!-- Categorías reales cuando están cargadas -->
-    <div *ngIf="!loadingCategories">
-      <ion-chip
-        [color]="null"
-        (click)="filterByCategory(null)"
-        class="category-chip">
-        Todas
-      </ion-chip>
+    <div *ngIf="!loadingCategories" class="categories-scroll">
+      <div class="categories-wrapper">
+        <!-- Chip "Todas" al inicio -->
+        <ion-chip
+          [color]="null"
+          (click)="filterByCategory(null)"
+          [class]="'category-chip' + (isCategoryActive(null) ? ' active' : '')">
+          Todas
+        </ion-chip>
 
-      <ion-chip
-        *ngFor="let category of categories"
-        [color]="null"
-        (click)="filterByCategory(category.id)"
-        class="category-chip">
-        {{ category.name }}
-      </ion-chip>
+        <!-- Categorías dinámicas -->
+        <ion-chip
+          *ngFor="let category of categories"
+          [color]="null"
+          (click)="filterByCategory(category.id)"
+          [class]="'category-chip' + (isCategoryActive(category.id) ? ' active' : '')">
+          {{ category.name }}
+        </ion-chip>
+      </div>
     </div>
   </div>
 
   <!-- Contenido principal -->
   <div class="main-content">
+    <!-- Pull-to-refresh solo para el área de productos -->
+    <ion-refresher (ionRefresh)="doRefresh($event)">
+      <ion-refresher-content
+        pullingIcon="chevron-down-circle-outline"
+        refreshingSpinner="circles"
+        style="--color: transparent; --refresher-icon-color: var(--ion-color-primary);">
+      </ion-refresher-content>
+    </ion-refresher>
 
     <!-- Estado de carga con skeletons -->
     <div *ngIf="loading" class="loading-container">
@@ -133,6 +151,19 @@
                {{ product.category.name }}
              </ion-chip>
            </div>
+
+           <!-- Botón de agregar al carrito -->
+           <div class="add-to-cart-container">
+             <ion-button
+               fill="outline"
+               size="small"
+               class="add-to-cart-btn"
+               (click)="addToCart(product); $event.stopPropagation()"
+               [disabled]="!product.is_active">
+               <ion-icon name="cart-outline"></ion-icon>
+               <span>Agregar</span>
+             </ion-button>
+           </div>
          </ion-card-content>
        </ion-card>
      </div>
@@ -164,3 +195,14 @@
     </div>
   </div>
 </ion-content>
+
+<!-- Toast de confirmación mejorado -->
+<app-add-to-cart-toast
+  [show]="showToast"
+  [productName]="toastProductName"
+  [productImage]="toastProductImage"
+  [selectedSize]="toastSelectedSize"
+  [selectedColor]="toastSelectedColor"
+  [price]="toastPrice"
+  (close)="closeToast()">
+</app-add-to-cart-toast>

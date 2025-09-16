@@ -15,14 +15,22 @@ import {
   IonCardTitle,
   IonCardSubtitle,
   IonChip,
+  IonLabel,
   IonInfiniteScroll,
   IonInfiniteScrollContent,
   IonFab,
-  IonFabButton
+  IonFabButton,
+  IonRefresher,
+  IonRefresherContent
 } from '@ionic/angular/standalone';
 import { ProductService } from '../../services/product.service';
 import { Product, ProductUI, Category, PaginatedResponse } from '../../interfaces/product.interfaces';
 import { ProductUtils } from '../../utils/product.utils';
+import { CartService } from '../../services/cart.service';
+import { OfflineCartService } from '../../services/offline-cart.service';
+import { AuthService } from '../../services/auth.service';
+import { ToastController } from '@ionic/angular/standalone';
+import { AddToCartToastComponent } from '../../components/add-to-cart-toast/add-to-cart-toast.component';
 
 @Component({
   selector: 'app-home',
@@ -42,10 +50,14 @@ import { ProductUtils } from '../../utils/product.utils';
     IonCardTitle,
     IonCardSubtitle,
     IonChip,
+    IonLabel,
     IonInfiniteScroll,
-  IonInfiniteScrollContent,
-  IonFab,
-  IonFabButton
+    IonInfiniteScrollContent,
+    IonFab,
+    IonFabButton,
+    IonRefresher,
+    IonRefresherContent,
+    AddToCartToastComponent
   ],
   templateUrl: './home.page.html',
   styleUrls: ['./home.page.scss']
@@ -71,6 +83,7 @@ export class HomePage implements OnInit {
   error = false;
   errorMessage = '';
   searchQuery = '';
+  activeCategoryId: number | null = null; // null = "Todas" activa
 
   // Infinite Scroll properties - Solo para cargar más contenido
   currentPage = 1;
@@ -78,10 +91,29 @@ export class HomePage implements OnInit {
   hasMoreProducts = true;
   isLoadingMore = false;
 
+  // Cache properties - Para mantener productos entre navegaciones
+  private static cachedProducts: ProductUI[] = [];
+  private static cachedCategories: Category[] = [];
+  private static lastLoadTime: number = 0;
+  private static cacheExpiryTime = 5 * 60 * 1000; // 5 minutos en milisegundos
+  private hasLoadedFromCache = false;
+
+  // Toast properties - Para el toast mejorado
+  showToast = false;
+  toastProductName = '';
+  toastProductImage = '';
+  toastSelectedSize = '';
+  toastSelectedColor = '';
+  toastPrice = 0;
+
   constructor(
     private router: Router,
     private productService: ProductService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private cartService: CartService,
+    private offlineCartService: OfflineCartService,
+    private authService: AuthService,
+    private toastController: ToastController
   ) {
   }
 
@@ -91,14 +123,17 @@ export class HomePage implements OnInit {
 
   ionViewWillEnter() {
     console.log('🔄 HomePage ionViewWillEnter ejecutado');
-    this.resetState();
-    console.log('📊 Estado después de reset - loading:', this.loading, 'error:', this.error, 'products:', this.products.length);
 
+    // Verificar si tenemos datos en caché válidos
+    if (this.isCacheValid()) {
+      console.log('📦 Cargando desde caché...');
+      this.loadFromCache();
+    } else {
+      console.log('🔄 Caché expirado o vacío, cargando desde API...');
+    this.resetState();
     this.loadProducts();
     this.loadCategories();
-
-    // Probar que el método funciona inmediatamente
-  // Removed automatic testClick call to avoid blocking UI with alert during navigation
+    }
   }
 
   resetState() {
@@ -107,9 +142,14 @@ export class HomePage implements OnInit {
     this.loadingCategories = true;
     this.error = false;
     this.errorMessage = '';
+
+    // Solo limpiar productos y categorías si no se cargaron desde caché
+    if (!this.hasLoadedFromCache) {
     this.products = [];
     this.categories = [];
+    }
 
+    this.hasLoadedFromCache = false;
   }
 
   loadProducts() {
@@ -165,6 +205,11 @@ export class HomePage implements OnInit {
           lastPage: response.last_page,
           hasMoreProducts: this.hasMoreProducts
         });
+
+        // Guardar en caché solo si no se cargó desde caché
+        if (!this.hasLoadedFromCache) {
+          this.saveToCache();
+        }
       },
       error: (error: any) => {
         console.error('❌ Error cargando productos:', error);
@@ -191,6 +236,11 @@ export class HomePage implements OnInit {
         this.cdr.detectChanges(); // Forzar detección de cambios para ocultar skeleton
         console.log('📂 Total de categorías:', this.categories.length);
         console.log('📂 Categorías mostradas:', this.categories.map(c => c.name));
+
+        // Guardar en caché solo si no se cargó desde caché
+        if (!this.hasLoadedFromCache) {
+          this.saveToCache();
+        }
       },
       error: (error: any) => {
         console.error('❌ Error cargando categorías:', error);
@@ -271,6 +321,9 @@ export class HomePage implements OnInit {
   }
 
   filterByCategory(categoryId: number | null) {
+    // Actualizar la categoría activa
+    this.activeCategoryId = categoryId;
+
     if (categoryId === null) {
       console.log('📂 Mostrando todos los productos');
       this.loadProducts(); // Mostrar todos los productos
@@ -486,6 +539,266 @@ export class HomePage implements OnInit {
     });
   }
 
+  /**
+   * Agrega un producto al carrito (online u offline según la conexión)
+   */
+  async addToCart(product: ProductUI): Promise<void> {
+    console.log('🛒 [HOME] Agregando producto al carrito:', product.name);
 
+    try {
+      // Verificar si hay conexión a internet
+      const isOnline = this.offlineCartService.isOnline();
+      const isAuthenticated = this.authService.isAuthenticated();
+
+      console.log('🔍 [HOME] Estado de conexión:', { isOnline, isAuthenticated });
+
+      if (isOnline && isAuthenticated) {
+        // Usuario online y autenticado - usar carrito online
+        console.log('🛒 [HOME] Agregando al carrito online...');
+
+        const addToCartRequest = {
+          product_id: product.id,
+          quantity: 1,
+          product_variant_id: undefined,
+          selected_attributes: {},
+          custom_options: {},
+          notes: ''
+        };
+
+        this.cartService.addToCart(addToCartRequest).subscribe({
+          next: (cart) => {
+            console.log('✅ [HOME] Producto agregado al carrito online:', cart);
+            this.showSuccessToast(product);
+          },
+          error: (error) => {
+            console.error('❌ [HOME] Error agregando al carrito online:', error);
+            // Si falla el carrito online, agregar al offline como fallback
+            this.addToOfflineCartFallback(product);
+          }
+        });
+      } else {
+        // Usuario offline o no autenticado - usar carrito offline
+        console.log('🛒 [HOME] Agregando al carrito offline...');
+
+        await this.offlineCartService.addToOfflineCart(product, 1);
+        console.log('✅ [HOME] Producto agregado al carrito offline');
+
+        this.showSuccessToast(product);
+      }
+    } catch (error) {
+      console.error('❌ [HOME] Error agregando producto al carrito:', error);
+      this.showErrorToast('Error agregando al carrito');
+    }
+  }
+
+  /**
+   * Muestra el toast mejorado de éxito al agregar al carrito
+   */
+  private showSuccessToast(product: ProductUI): void {
+    // Primero ocultar el toast si está visible
+    this.showToast = false;
+    this.cdr.detectChanges();
+
+    // Configurar los datos del toast
+    this.toastProductName = product.name;
+    this.toastProductImage = this.getProductImageUrl(product);
+    this.toastSelectedSize = ''; // No hay selección de talla en home
+    this.toastSelectedColor = ''; // No hay selección de color en home
+    this.toastPrice = parseFloat(product.price);
+
+    // Usar setTimeout para asegurar que el cambio se detecte
+    setTimeout(() => {
+      this.showToast = true;
+      this.cdr.detectChanges();
+
+      console.log('🎉 [HOME] Toast mejorado mostrado:', {
+        show: this.showToast,
+        productName: this.toastProductName,
+        price: this.toastPrice
+      });
+    }, 50); // Pequeño delay para asegurar el reset
+  }
+
+  /**
+   * Cierra el toast mejorado
+   */
+  closeToast(): void {
+    this.showToast = false;
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Muestra un toast de error
+   */
+  private async showErrorToast(message: string): Promise<void> {
+    const toast = await this.toastController.create({
+      message: message,
+      duration: 3000,
+      position: 'bottom',
+      color: 'danger'
+    });
+    await toast.present();
+  }
+
+  /**
+   * Fallback para agregar al carrito offline si falla el online
+   */
+  private async addToOfflineCartFallback(product: ProductUI): Promise<void> {
+    try {
+      await this.offlineCartService.addToOfflineCart(product, 1);
+      this.showSuccessToast(product);
+    } catch (error) {
+      console.error('❌ [HOME] Error en fallback offline:', error);
+      this.showErrorToast('Error agregando al carrito');
+    }
+  }
+
+  /**
+   * Verifica si el usuario está offline
+   */
+  isOffline(): boolean {
+    return !this.offlineCartService.isOnline();
+  }
+
+  /**
+   * Verifica si una categoría está activa
+   */
+  isCategoryActive(categoryId: number | null): boolean {
+    return this.activeCategoryId === categoryId;
+  }
+
+  /**
+   * Verifica si el caché es válido (no expirado y tiene datos)
+   */
+  private isCacheValid(): boolean {
+    const now = Date.now();
+    const cacheAge = now - HomePage.lastLoadTime;
+    const hasValidProducts = HomePage.cachedProducts.length > 0;
+    const hasValidCategories = HomePage.cachedCategories.length > 0;
+    const isNotExpired = cacheAge < HomePage.cacheExpiryTime;
+
+    console.log('🔍 Verificando caché:', {
+      cacheAge: Math.round(cacheAge / 1000) + 's',
+      expiryTime: Math.round(HomePage.cacheExpiryTime / 1000) + 's',
+      hasProducts: hasValidProducts,
+      hasCategories: hasValidCategories,
+      isNotExpired,
+      isValid: hasValidProducts && hasValidCategories && isNotExpired
+    });
+
+    return hasValidProducts && hasValidCategories && isNotExpired;
+  }
+
+  /**
+   * Carga datos desde el caché
+   */
+  private loadFromCache(): void {
+
+    this.products = [...HomePage.cachedProducts];
+    this.categories = [...HomePage.cachedCategories];
+    this.loading = false;
+    this.loadingCategories = false;
+    this.error = false;
+    this.hasLoadedFromCache = true;
+
+    // Actualizar el estado de paginación basado en los productos cacheados
+    this.updatePaginationState();
+
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Guarda datos en el caché
+   */
+  private saveToCache(): void {
+    console.log('💾 Guardando en caché:', {
+      products: this.products.length,
+      categories: this.categories.length
+    });
+
+    HomePage.cachedProducts = [...this.products];
+    HomePage.cachedCategories = [...this.categories];
+    HomePage.lastLoadTime = Date.now();
+  }
+
+  /**
+   * Actualiza el estado de paginación basado en los productos actuales
+   */
+  private updatePaginationState(): void {
+    // Si tenemos productos, asumimos que hay más disponibles
+    // Esto se puede refinar basándose en la lógica de paginación del backend
+    this.hasMoreProducts = this.products.length >= this.itemsPerPage;
+    this.currentPage = Math.ceil(this.products.length / this.itemsPerPage);
+  }
+
+  /**
+   * Limpia el caché (útil para forzar recarga)
+   */
+  private clearCache(): void {
+    console.log('🗑️ Limpiando caché...');
+    HomePage.cachedProducts = [];
+    HomePage.cachedCategories = [];
+    HomePage.lastLoadTime = 0;
+  }
+
+  /**
+   * Método público para forzar recarga (limpia caché y recarga)
+   */
+  public forceReload(): void {
+    console.log('🔄 Forzando recarga completa...');
+    this.clearCache();
+    this.hasLoadedFromCache = false;
+    this.resetState();
+    this.loadProducts();
+    this.loadCategories();
+  }
+
+  /**
+   * Maneja el pull-to-refresh nativo
+   */
+  async doRefresh(event: any): Promise<void> {
+    console.log('🔄 [HOME] Pull-to-refresh activado');
+
+    try {
+      // Limpiar caché y forzar recarga
+      this.clearCache();
+      this.hasLoadedFromCache = false;
+
+      // Recargar productos y categorías
+      await Promise.all([
+        new Promise<void>((resolve) => {
+          this.loadProducts();
+          // Esperar a que termine la carga
+          const checkLoading = () => {
+            if (!this.loading) {
+              resolve();
+            } else {
+              setTimeout(checkLoading, 100);
+            }
+          };
+          checkLoading();
+        }),
+        new Promise<void>((resolve) => {
+          this.loadCategories();
+          // Esperar a que termine la carga
+          const checkLoading = () => {
+            if (!this.loadingCategories) {
+              resolve();
+            } else {
+              setTimeout(checkLoading, 100);
+            }
+          };
+          checkLoading();
+        })
+      ]);
+
+      console.log('✅ [HOME] Pull-to-refresh completado');
+    } catch (error) {
+      console.error('❌ [HOME] Error en pull-to-refresh:', error);
+    } finally {
+      // Completar el refresh
+      event.target.complete();
+    }
+  }
 
 }

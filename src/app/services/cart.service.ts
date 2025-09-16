@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, BehaviorSubject, throwError } from 'rxjs';
-import { map, catchError, tap } from 'rxjs/operators';
+import { map, catchError, tap, take } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { SecurityService } from './security.service';
+import { OfflineCartService, OfflineCartItem } from './offline-cart.service';
 
 export interface CartItem {
   id: number;
@@ -84,7 +85,8 @@ export class CartService {
 
   constructor(
     private http: HttpClient,
-    private securityService: SecurityService
+    private securityService: SecurityService,
+    private offlineCartService: OfflineCartService
   ) {
     this.initializeSession();
     this.setupEventListeners();
@@ -135,18 +137,33 @@ export class CartService {
     const hasSessionCart = this.hasSessionCart();
     console.log('🛒 [CART SERVICE] ¿Hay carrito de sesión?', hasSessionCart);
 
+    // Verificar si hay carrito offline
+    const hasOfflineCart = this.offlineCartService.getCurrentOfflineCartItemsCount() > 0;
+    console.log('🛒 [CART SERVICE] ¿Hay carrito offline?', hasOfflineCart);
+
     if (hasSessionCart) {
       console.log('🛒 [CART SERVICE] Iniciando fusión del carrito después del login...');
       console.log('🛒 [CART SERVICE] Session ID actual:', this.getSessionId());
 
       this.mergeSessionCart().subscribe({
-        next: (mergedCart) => {
+        next: async (mergedCart) => {
           console.log('✅ [CART SERVICE] Carrito fusionado exitosamente después del login:', mergedCart);
           console.log('✅ [CART SERVICE] Items en el carrito fusionado:', mergedCart.items?.length || 0);
 
           // Actualizar el estado local inmediatamente
           this.cartSubject.next(mergedCart);
           this.updateCartItemsCount(mergedCart);
+
+          // Si hay carrito offline, sincronizarlo también
+          if (hasOfflineCart) {
+            console.log('🔄 [CART SERVICE] Sincronizando carrito offline después de fusión de sesión...');
+            try {
+              await this.syncOfflineCart();
+              console.log('✅ [CART SERVICE] Carrito offline sincronizado exitosamente');
+            } catch (error) {
+              console.error('❌ [CART SERVICE] Error sincronizando carrito offline:', error);
+            }
+          }
 
           // Emitir evento personalizado para notificar a otros componentes
           window.dispatchEvent(new CustomEvent('cartMerged', {
@@ -163,8 +180,19 @@ export class CartService {
           // En caso de error, intentar cargar el carrito del usuario
           console.log('🛒 [CART SERVICE] Intentando cargar carrito del usuario como fallback...');
           this.getCart().subscribe({
-            next: (cart) => {
+            next: async (cart) => {
               console.log('✅ [CART SERVICE] Carrito del usuario cargado como fallback:', cart);
+
+              // Si hay carrito offline, sincronizarlo también
+              if (hasOfflineCart) {
+                console.log('🔄 [CART SERVICE] Sincronizando carrito offline en fallback...');
+                try {
+                  await this.syncOfflineCart();
+                  console.log('✅ [CART SERVICE] Carrito offline sincronizado en fallback');
+                } catch (error) {
+                  console.error('❌ [CART SERVICE] Error sincronizando carrito offline en fallback:', error);
+                }
+              }
             },
             error: (fallbackError) => {
               console.error('❌ [CART SERVICE] Error en fallback:', fallbackError);
@@ -172,11 +200,38 @@ export class CartService {
           });
         }
       });
+    } else if (hasOfflineCart) {
+      console.log('🛒 [CART SERVICE] No hay carrito de sesión, pero hay carrito offline');
+      console.log('🛒 [CART SERVICE] Sincronizando carrito offline...');
+
+      // Sincronizar carrito offline y luego cargar el carrito del usuario
+      this.syncOfflineCart().then(() => {
+        console.log('✅ [CART SERVICE] Carrito offline sincronizado, cargando carrito del usuario...');
+        this.getCart().subscribe({
+          next: (cart) => {
+            console.log('✅ [CART SERVICE] Carrito del usuario cargado después de sincronización offline:', cart);
+          },
+          error: (error) => {
+            console.error('❌ [CART SERVICE] Error cargando carrito del usuario después de sincronización:', error);
+          }
+        });
+      }).catch((error) => {
+        console.error('❌ [CART SERVICE] Error sincronizando carrito offline:', error);
+        // Intentar cargar el carrito del usuario de todas formas
+        this.getCart().subscribe({
+          next: (cart) => {
+            console.log('✅ [CART SERVICE] Carrito del usuario cargado después de error en sincronización:', cart);
+          },
+          error: (fallbackError) => {
+            console.error('❌ [CART SERVICE] Error en fallback después de error de sincronización:', fallbackError);
+          }
+        });
+      });
     } else {
-      console.log('🛒 [CART SERVICE] No hay carrito de sesión para fusionar');
+      console.log('🛒 [CART SERVICE] No hay carrito de sesión ni offline para fusionar');
       console.log('🛒 [CART SERVICE] Cargando carrito del usuario...');
 
-      // Si no hay carrito de sesión, cargar el carrito del usuario
+      // Si no hay carrito de sesión ni offline, cargar el carrito del usuario
       this.getCart().subscribe({
         next: (cart) => {
           console.log('✅ [CART SERVICE] Carrito del usuario cargado:', cart);
@@ -729,5 +784,107 @@ export class CartService {
     // El backend manejará el carrito basado en el token de autenticación
     this.sessionId = '';
     console.log('✅ [CART SERVICE] Sesión limpiada después de fusión, sessionId reseteado');
+  }
+
+  /**
+   * Sincroniza el carrito offline con el carrito online
+   */
+  async syncOfflineCart(): Promise<Cart> {
+    console.log('🔄 [CART SERVICE] Iniciando sincronización del carrito offline...');
+
+    try {
+      // Obtener items del carrito offline
+      const offlineItems = await this.offlineCartService.syncOfflineCartWithOnline();
+
+      if (offlineItems.length === 0) {
+        console.log('🔄 [CART SERVICE] No hay items offline para sincronizar');
+        return this.getCurrentCart() || {} as Cart;
+      }
+
+      console.log('🔄 [CART SERVICE] Sincronizando', offlineItems.length, 'items offline...');
+
+      // Agregar cada item offline al carrito online
+      for (const offlineItem of offlineItems) {
+        const addToCartRequest: AddToCartRequest = {
+          product_id: offlineItem.product_id,
+          quantity: offlineItem.quantity,
+          product_variant_id: offlineItem.selected_attributes?.variant_id,
+          selected_attributes: offlineItem.selected_attributes,
+          custom_options: offlineItem.custom_options,
+          notes: offlineItem.notes
+        };
+
+        try {
+          await this.addToCart(addToCartRequest).pipe(take(1)).toPromise();
+          console.log('✅ [CART SERVICE] Item sincronizado:', offlineItem.product_name);
+        } catch (error) {
+          console.error('❌ [CART SERVICE] Error sincronizando item:', offlineItem.product_name, error);
+          // Continuar con el siguiente item aunque uno falle
+        }
+      }
+
+      // Limpiar el carrito offline después de sincronización exitosa
+      await this.offlineCartService.clearAfterSync();
+      console.log('✅ [CART SERVICE] Carrito offline limpiado después de sincronización');
+
+      // Obtener el carrito actualizado
+      const updatedCart = this.getCurrentCart();
+      if (updatedCart) {
+        console.log('✅ [CART SERVICE] Sincronización completada exitosamente');
+        return updatedCart;
+      } else {
+        throw new Error('No se pudo obtener el carrito actualizado');
+      }
+
+    } catch (error) {
+      console.error('❌ [CART SERVICE] Error en sincronización del carrito offline:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene el contador total de items (online + offline)
+   */
+  getTotalCartItemsCount(): number {
+    const onlineCount = this.getCurrentCartItemsCount();
+    const offlineCount = this.offlineCartService.getCurrentOfflineCartItemsCount();
+    return onlineCount + offlineCount;
+  }
+
+  /**
+   * Observable para el contador total de items (online + offline)
+   */
+  get totalCartItemsCount$(): Observable<number> {
+    return new Observable(observer => {
+      // Combinar ambos observables
+      const onlineSubscription = this.cartItemsCount$.subscribe(onlineCount => {
+        const offlineCount = this.offlineCartService.getCurrentOfflineCartItemsCount();
+        observer.next(onlineCount + offlineCount);
+      });
+
+      const offlineSubscription = this.offlineCartService.offlineCartItemsCount$.subscribe(offlineCount => {
+        const onlineCount = this.getCurrentCartItemsCount();
+        observer.next(onlineCount + offlineCount);
+      });
+
+      return () => {
+        onlineSubscription.unsubscribe();
+        offlineSubscription.unsubscribe();
+      };
+    });
+  }
+
+  /**
+   * Sincroniza manualmente el carrito offline (llamado desde la UI)
+   */
+  async syncOfflineCartManually(): Promise<void> {
+    console.log('🔄 [CART SERVICE] Sincronización manual iniciada...');
+    try {
+      await this.syncOfflineCart();
+      console.log('✅ [CART SERVICE] Sincronización manual completada');
+    } catch (error) {
+      console.error('❌ [CART SERVICE] Error en sincronización manual:', error);
+      throw error;
+    }
   }
 }
