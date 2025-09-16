@@ -126,16 +126,17 @@
     <p>Prueba quitando o cambiando algún filtro para ver más resultados.</p>
   </div>
 
+  <!-- Pull-to-refresh -->
+  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
+    <ion-refresher-content
+      pullingIcon="chevron-down-circle-outline"
+      refreshingSpinner="circles"
+      style="--color: var(--ion-color-primary); --refresher-icon-color: var(--ion-color-primary);">
+    </ion-refresher-content>
+  </ion-refresher>
+
   <!-- Grid de productos -->
   <div *ngIf="!loading && !error && productsFiltered.length > 0" class="products-grid">
-    <!-- Pull-to-refresh solo para el área de resultados -->
-    <ion-refresher (ionRefresh)="doRefresh($event)">
-      <ion-refresher-content
-        pullingIcon="chevron-down-circle-outline"
-        refreshingSpinner="circles"
-        style="--color: transparent; --refresher-icon-color: var(--ion-color-primary);">
-      </ion-refresher-content>
-    </ion-refresher>
     <ion-card
       *ngFor="let product of productsFiltered"
       class="product-card"

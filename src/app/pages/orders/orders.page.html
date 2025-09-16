@@ -103,14 +103,6 @@
 
   <!-- Lista de órdenes -->
   <div *ngIf="orders.length > 0" class="orders-list">
-    <!-- Pull-to-refresh solo para el área de órdenes -->
-    <ion-refresher (ionRefresh)="doRefresh($event)">
-      <ion-refresher-content
-        pullingIcon="chevron-down-circle-outline"
-        refreshingSpinner="circles"
-        style="--color: transparent; --refresher-icon-color: var(--ion-color-primary);">
-      </ion-refresher-content>
-    </ion-refresher>
     <ion-card *ngFor="let order of orders" class="order-card" (click)="viewOrder(order)">
       <ion-card-content>
         <div class="order-header">
@@ -214,12 +206,11 @@
   </ion-infinite-scroll>
 
   <!-- Pull to refresh -->
-  <ion-refresher slot="fixed" (ionRefresh)="refreshOrders($event)">
+  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
     <ion-refresher-content
       pullingIcon="chevron-down-circle-outline"
-      pullingText="Desliza para actualizar"
       refreshingSpinner="circles"
-      refreshingText="Actualizando...">
+      style="--color: var(--ion-color-primary); --refresher-icon-color: var(--ion-color-primary);">
     </ion-refresher-content>
   </ion-refresher>
 </ion-content>

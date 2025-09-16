@@ -8,6 +8,16 @@
       </ion-chip>
     }
   </ion-toolbar>
+
+  <!-- Barra de búsqueda fija -->
+  <ion-toolbar>
+    <ion-searchbar
+      placeholder="Buscar productos..."
+      (ionInput)="onSearchChange($event)"
+      [debounce]="300"
+      class="fixed-searchbar">
+    </ion-searchbar>
+  </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true" scrollEvents="true" (ionScroll)="onContentScroll($event)">
@@ -17,15 +27,6 @@
       <ion-icon name="arrow-up-outline"></ion-icon>
     </ion-fab-button>
   </ion-fab>
-
-  <!-- Barra de búsqueda -->
-  <div class="search-container">
-    <ion-searchbar
-      placeholder="Buscar productos..."
-      (ionInput)="onSearchChange($event)"
-      [debounce]="300">
-    </ion-searchbar>
-  </div>
 
   <h3 class="ion-padding-start text-sm font-weight-semibold">Categorías</h3>
   <!-- Filtros de categorías -->
@@ -60,14 +61,15 @@
 
   <!-- Contenido principal -->
   <div class="main-content">
-    <!-- Pull-to-refresh solo para el área de productos -->
-    <ion-refresher (ionRefresh)="doRefresh($event)">
-      <ion-refresher-content
-        pullingIcon="chevron-down-circle-outline"
-        refreshingSpinner="circles"
-        style="--color: transparent; --refresher-icon-color: var(--ion-color-primary);">
-      </ion-refresher-content>
-    </ion-refresher>
+
+  <!-- Pull-to-refresh -->
+  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
+    <ion-refresher-content
+      pullingIcon="chevron-down-circle-outline"
+      refreshingSpinner="circles"
+      style="--color: var(--ion-color-primary); --refresher-icon-color: var(--ion-color-primary);">
+    </ion-refresher-content>
+  </ion-refresher>
 
     <!-- Estado de carga con skeletons -->
     <div *ngIf="loading" class="loading-container">

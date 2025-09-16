@@ -30,7 +30,11 @@ export interface NotificationItem {
     <ion-content>
       <!-- Pull to refresh -->
       <ion-refresher slot="fixed" (ionRefresh)="handleRefresh($event)">
-        <ion-refresher-content></ion-refresher-content>
+        <ion-refresher-content
+          pullingIcon="chevron-down-circle-outline"
+          refreshingSpinner="circles"
+          style="--color: var(--ion-color-primary); --refresher-icon-color: var(--ion-color-primary);">
+        </ion-refresher-content>
       </ion-refresher>
 
       <!-- Loading state -->

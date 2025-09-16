@@ -27,7 +27,18 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
   --ion-color-light: #f4f5f8;
 }
 
-// Contenedor de búsqueda
+// Search bar fijo en el header
+.fixed-searchbar {
+  --background: white;
+  --border-radius: 12px;
+  --box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --padding-top: 8px;
+  --padding-bottom: 8px;
+}
+
+// Contenedor de búsqueda (ya no se usa, pero lo mantengo por si acaso)
 .search-container {
   padding: 16px;
   background: var(--ion-color-light);
