@@ -60,7 +60,7 @@
   </div>
 
   <!-- Contenido principal -->
-  <div class="main-content">
+  <div class="main-content" *ngIf="showContent">
 
   <!-- Pull-to-refresh -->
   <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">

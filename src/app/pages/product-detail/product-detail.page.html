@@ -11,101 +11,94 @@
 </ion-header>
 
 <ion-content>
-  <div *ngIf="product" class="product-container">
-    <!-- Product Image Section -->
-    <div class="product-image-section">
-      <img [src]="product.image" [alt]="product.name" class="product-image">
-      <ion-button
-        fill="clear"
-        class="favorite-btn"
-        (click)="toggleFavorite()">
-        <ion-icon [name]="product.isFavorite ? 'heart' : 'heart-outline'"></ion-icon>
-      </ion-button>
-
-      <ion-badge
-        *ngIf="product.discount"
-        color="danger"
-        class="discount-badge">
-        -{{ product.discount }}%
-      </ion-badge>
-    </div>
-
-    <!-- Product Information -->
-    <div class="product-info">
-      <h1 class="product-name">{{ product.name }}</h1>
-
-      <div class="product-price">
-        <span class="current-price">${{ product.price }}</span>
-        <span class="original-price" *ngIf="product.originalPrice">${{ product.originalPrice }}</span>
+  <ng-container *ngIf="showContent">
+    <div *ngIf="product" class="product-container">
+      <!-- Product Image Section -->
+      <div class="product-image-section">
+        <img [src]="product.image" [alt]="product.name" class="product-image">
+        <ion-button
+          fill="clear"
+          class="favorite-btn"
+          (click)="toggleFavorite()">
+          <ion-icon [name]="product.isFavorite ? 'heart' : 'heart-outline'"></ion-icon>
+        </ion-button>
+        <ion-badge
+          *ngIf="product.discount"
+          color="danger"
+          class="discount-badge">
+          -{{ product.discount }}%
+        </ion-badge>
       </div>
 
-      <p class="product-description" *ngIf="product.description">
-        {{ product.description }}
-      </p>
-
-      <!-- Variant Selector Component -->
-      <div *ngIf="!loadingVariants && variantInfo">
-        <app-product-variant-selector
-          [variants]="product.variants || []"
-          [attributes]="product.attributes || []"
-          [basePrice]="product.price || '0'"
-          [baseImage]="product.image || ''"
-          [selectedSize]="selectedSize"
-          [selectedColor]="selectedColor"
-          (selectionChange)="onVariantSelectionChange($event)"
-          (variantChange)="onVariantChange($event)">
-        </app-product-variant-selector>
-
-        <!-- Información adicional de variantes -->
-        <div class="variant-info" *ngIf="variantInfo.needs_variants">
-          <div class="size-guide">
-            <p class="size-guide-text">
-              <ion-icon name="information-circle-outline"></ion-icon>
-              {{ variantInfo.size_guide }}
-            </p>
+      <!-- Product Information -->
+      <div class="product-info">
+        <h1 class="product-name">{{ product.name }}</h1>
+        <div class="product-price">
+          <span class="current-price">${{ product.price }}</span>
+          <span class="original-price" *ngIf="product.originalPrice">${{ product.originalPrice }}</span>
+        </div>
+        <p class="product-description" *ngIf="product.description">
+          {{ product.description }}
+        </p>
+        <!-- Variant Selector Component y detalles de variantes -->
+        <div *ngIf="!loadingVariants && variantInfo as vInfo">
+          <app-product-variant-selector
+            [variants]="product.variants || []"
+            [attributes]="product.attributes || []"
+            [basePrice]="product.price || '0'"
+            [baseImage]="product.image || ''"
+            [selectedSize]="selectedSize"
+            [selectedColor]="selectedColor"
+            (selectionChange)="onVariantSelectionChange($event)"
+            (variantChange)="onVariantChange($event)">
+          </app-product-variant-selector>
+          <!-- Detalles de variantes y mensaje de talla única -->
+          <div class="variant-info" *ngIf="vInfo.needs_variants">
+            <div class="size-guide">
+              <p class="size-guide-text">
+                <ion-icon name="information-circle-outline"></ion-icon>
+                {{ vInfo.size_guide }}
+              </p>
+            </div>
+            <div class="variant-details">
+              <p class="variant-type">
+                <strong>Tipo de tallas:</strong> {{ vInfo.display_name }}
+              </p>
+              <p class="available-options" *ngIf="vInfo.available_materials && vInfo.available_materials.length > 0">
+                <strong>Materiales disponibles:</strong> {{ vInfo.available_materials.join(', ') }}
+              </p>
+            </div>
           </div>
-
-          <div class="variant-details">
-            <p class="variant-type">
-              <strong>Tipo de tallas:</strong> {{ variantInfo.display_name }}
-            </p>
-            <p class="available-options" *ngIf="variantInfo.available_materials.length > 0">
-              <strong>Materiales disponibles:</strong> {{ variantInfo.available_materials.join(', ') }}
+          <div class="no-variants" *ngIf="!vInfo.needs_variants">
+            <p class="no-variants-text">
+              <ion-icon name="checkmark-circle-outline"></ion-icon>
+              Producto de talla única - No requiere selección de variantes
             </p>
           </div>
         </div>
-
-        <!-- Mensaje para productos sin variantes -->
-        <div class="no-variants" *ngIf="!variantInfo.needs_variants">
-          <p class="no-variants-text">
-            <ion-icon name="checkmark-circle-outline"></ion-icon>
-            Producto de talla única - No requiere selección de variantes
-          </p>
+        <!-- Loading de variantes -->
+        <div *ngIf="loadingVariants" class="loading-variants">
+          <ion-spinner name="crescent"></ion-spinner>
+          <p>Cargando opciones de variantes...</p>
         </div>
       </div>
-
-      <!-- Loading de variantes -->
-      <div *ngIf="loadingVariants" class="loading-variants">
-        <ion-spinner name="crescent"></ion-spinner>
-        <p>Cargando opciones de variantes...</p>
-      </div>
     </div>
-  </div>
+    <!-- Loading or Error State -->
+    <div *ngIf="loading" class="loading-container">
+      <ion-spinner name="crescent"></ion-spinner>
+      <p>Cargando producto...</p>
+    </div>
+    <div *ngIf="!loading && error" class="error-container">
+      <ion-icon name="alert-circle-outline" style="font-size: 48px; color: #eb445a;"></ion-icon>
+      <h3>{{ error }}</h3>
+      <ion-button color="primary" (click)="goBack()">Volver</ion-button>
+    </div>
+  </ng-container>
 
-  <!-- Loading or Error State -->
-  <div *ngIf="loading" class="loading-container">
-    <ion-spinner name="crescent"></ion-spinner>
-    <p>Cargando producto...</p>
-  </div>
-  <div *ngIf="!loading && error" class="error-container">
-    <ion-icon name="alert-circle-outline" style="font-size: 48px; color: #eb445a;"></ion-icon>
-    <h3>{{ error }}</h3>
-    <ion-button color="primary" (click)="goBack()">Volver</ion-button>
-  </div>
 </ion-content>
 
 <!-- Bottom Action Bar -->
-<div class="action-bar" *ngIf="!loading && !error && product">
+<div class="action-bar" *ngIf="!loading && !error && product && showContent">
   <div class="price-section">
     <span class="price-label">Precio</span>
     <span class="price-amount">${{ currentPrice || product.price }}</span>

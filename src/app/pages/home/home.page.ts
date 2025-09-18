@@ -63,6 +63,7 @@ import { AddToCartToastComponent } from '../../components/add-to-cart-toast/add-
   styleUrls: ['./home.page.scss']
 })
 export class HomePage implements OnInit {
+  showContent = true;
   showScrollTop = false;
   onContentScroll(event: any) {
     // Mostrar el botón si el scroll vertical es mayor a 300px

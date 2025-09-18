@@ -1,5 +1,6 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { NavController } from '@ionic/angular';
 import { Location } from '@angular/common';
 import { CommonModule } from '@angular/common';
 import {
@@ -38,6 +39,8 @@ import { AddToCartToastComponent } from '../../components/add-to-cart-toast/add-
   styleUrls: ['./product-detail.page.scss']
 })
 export class ProductDetailPage implements OnInit {
+  showOverlay = false;
+  showContent = true;
   selectedSize: string | null = null;
   selectedColor: string | null = null;
   product: ProductUI | null = null;
@@ -65,6 +68,7 @@ export class ProductDetailPage implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
+    private navCtrl: NavController,
     private productService: ProductService,
     private cartService: CartService,
     private cdr: ChangeDetectorRef
@@ -406,11 +410,24 @@ export class ProductDetailPage implements OnInit {
   }
 
   goBack() {
-    if (this.fromSearch) {
-      this.router.navigate(['/tabs/search']);
-    } else {
-      this.router.navigate(['/tabs/home']);
-    }
+    // Oculta la action bar y otros elementos fijos antes de navegar
+    this.showContent = false;
+    this.cdr.detectChanges();
+    setTimeout(() => {
+      if (window.history.length > 2) {
+        this.navCtrl.back();
+      } else if (this.fromSearch) {
+        this.navCtrl.navigateRoot(['/tabs/search'], {
+          animated: true,
+          animationDirection: 'back'
+        });
+      } else {
+        this.navCtrl.navigateRoot(['/tabs/home'], {
+          animated: true,
+          animationDirection: 'back'
+        });
+      }
+    }, 10);
   }
 
   /**

@@ -2,44 +2,58 @@
   <ion-toolbar>
     <ion-title>Búsqueda</ion-title>
   </ion-toolbar>
+  <ion-toolbar *ngIf="!showQr">
+    <ion-searchbar
+      *ngIf="!offline"
+      placeholder="Buscar productos..."
+      (ionInput)="onSearchChange($event)"
+      [debounce]="300"
+      class="fixed-searchbar"
+      style="flex: 1;"
+    ></ion-searchbar>
+    <button *ngIf="!offline" class="qr-icon-btn" type="button" (click)="showQr = true" slot="end" style="margin-left:8px;">
+      <ion-icon name="qr-code-outline" style="font-size: 28px; color: #3880ff;"></ion-icon>
+    </button>
+  </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true" scrollEvents="true" (ionScroll)="onContentScroll($event)">
-  <div class="search-container">
-    <div class="searchbar-qr-row">
-      <ion-searchbar
-        placeholder="Buscar producto por nombre o código..."
-  (ionInput)="onSearchChange($event)"
-  (ionChange)="onSearchbarEnter($event)"
-        [debounce]="300"
-        style="flex: 1;">
-      </ion-searchbar>
-      <button class="qr-icon-btn" type="button" (click)="showQr = true">
-        <ion-icon name="qr-code-outline" style="font-size: 28px; color: #3880ff;"></ion-icon>
-      </button>
-    </div>
-
-    <div *ngIf="showQr" class="qr-modal-backdrop" (click)="showQr = false">
-      <div class="qr-modal" (click)="$event.stopPropagation()">
-        <zxing-scanner
-          [torch]="false"
-          (scanSuccess)="onCodeResult($event); showQr = false"
-          [formats]="allowedFormats"
-          [tryHarder]="true"
-          style="display: block; width: 100%; max-width: 320px; margin: 0 auto; border-radius: 12px; overflow: hidden; background: #222;">
-        </zxing-scanner>
-        <div style="text-align: center; margin-top: 8px; color: #666;">
-          <ion-icon name="qr-code-outline" style="font-size: 32px; color: #3880ff;"></ion-icon>
-          <p>Escanea el código QR de un producto</p>
-        </div>
-        <button type="button" class="close-qr-btn" (click)="showQr = false">Cerrar</button>
+  <!-- Overlay de sin conexión, pantalla completa y centrado -->
+  <div *ngIf="offline" class="offline-state-full custom-offline-bg">
+    <div class="offline-card-app">
+      <div class="offline-header-app">
+        <ion-icon name="cloud-offline-outline" class="offline-icon-app"></ion-icon>
+      </div>
+      <div class="offline-content-app">
+        <h2 class="offline-title-app">Sin conexión</h2>
+        <p class="offline-desc-app">No tienes acceso a internet.<br>Por favor revisa tu conexión para poder buscar productos o usar el escáner QR.</p>
+        <button class="offline-retry-btn-app" (click)="reloadPage()">
+          <ion-icon name="refresh-outline"></ion-icon> Reintentar
+        </button>
       </div>
     </div>
   </div>
 
+  <div *ngIf="showQr" class="qr-modal-backdrop qr-modal-block">
+    <div class="qr-modal">
+      <zxing-scanner
+        [torch]="false"
+        (scanSuccess)="onCodeResult($event); showQr = false"
+        [formats]="allowedFormats"
+        [tryHarder]="true"
+        style="display: block; width: 100%; max-width: 320px; margin: 0 auto; border-radius: 12px; overflow: hidden; background: #222;">
+      </zxing-scanner>
+      <div style="text-align: center; margin-top: 8px; color: #666;">
+        <ion-icon name="qr-code-outline" style="font-size: 32px; color: #3880ff;"></ion-icon>
+        <p>Escanea el código QR de un producto</p>
+      </div>
+      <button type="button" class="close-qr-btn" (click)="showQr = false">Cerrar</button>
+    </div>
+  </div>
 
-  <!-- Estado inicial amigable cuando no hay búsqueda activa -->
-  <div *ngIf="!loading && !error && products.length === 0 && !searchQuery.trim()" class="empty-state">
+
+  <!-- Estado inicial amigable cuando no hay búsqueda activa (oculto si offline) -->
+  <div *ngIf="!offline && !loading && !error && products.length === 0 && !searchQuery.trim()" class="empty-state">
     <ion-icon name="search-outline" class="empty-icon"></ion-icon>
     <h3>Busca productos</h3>
     <p>Escribe el nombre o código de un producto para comenzar tu búsqueda.</p>
@@ -51,16 +65,16 @@
       <button class="qr-info-btn" type="button" (click)="showQrInfo()" title="¿Cómo funciona?">
         <ion-icon name="help-circle-outline"></ion-icon>
       </button>
-  <!-- Modal/alert de información sobre escanear productos -->
-  <ion-alert
-    header="¿Cómo escanear productos?"
-    subHeader="Escaneo de código QR"
-    message="Pulsa el ícono de QR junto al buscador y apunta la cámara al código QR del producto. Así podrás encontrarlo rápidamente sin escribir. ¡Ideal para tiendas físicas o catálogos impresos!"
-    [isOpen]="showQrInfoAlert"
-    (didDismiss)="showQrInfoAlert = false"
-  [backdropDismiss]="false"
-  [buttons]="qrInfoButtons">
-  </ion-alert>
+      <!-- Modal/alert de información sobre escanear productos -->
+      <ion-alert
+        header="¿Cómo escanear productos?"
+        subHeader="Escaneo de código QR"
+        message="Pulsa el ícono de QR junto al buscador y apunta la cámara al código QR del producto. Así podrás encontrarlo rápidamente sin escribir. ¡Ideal para tiendas físicas o catálogos impresos!"
+        [isOpen]="showQrInfoAlert"
+        (didDismiss)="showQrInfoAlert = false"
+        [backdropDismiss]="false"
+        [buttons]="qrInfoButtons">
+      </ion-alert>
     </div>
   </div>
 

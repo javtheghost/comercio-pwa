@@ -1,8 +1,6 @@
-// ...existing code...
-// ...existing code...
-// ...existing code...
+// ...importaciones...
 import { Component, inject, ChangeDetectorRef } from '@angular/core';
-import { IonicModule } from '@ionic/angular';
+import { IonicModule, ToastController } from '@ionic/angular';
 import { CommonModule, NgIf, NgFor } from '@angular/common';
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
 import { BarcodeFormat } from '@zxing/library';
@@ -11,6 +9,11 @@ import { ProductService } from '../../services/product.service';
 import { Product, ProductUI } from '../../interfaces/product.interfaces';
 import { ProductUtils } from '../../utils/product.utils';
 
+// Manejo de estado offline
+function isOnline(): boolean {
+  return typeof navigator !== 'undefined' ? navigator.onLine : true;
+}
+
 @Component({
   selector: 'app-search',
   standalone: true,
@@ -18,8 +21,8 @@ import { ProductUtils } from '../../utils/product.utils';
   templateUrl: './search.page.html',
   styleUrls: ['./search.page.scss']
 })
-
 export class SearchPage {
+  private isToastActive = false;
   qrInfoButtons = [
     {
       text: 'Aceptar',
@@ -30,21 +33,11 @@ export class SearchPage {
     }
   ];
   showQrInfoAlert = false;
+  offline = !isOnline();
 
-  showQrInfo() {
-    this.showQrInfoAlert = true;
-  }
-  onSearchbarEnter(event: any) {
-    // Ejecuta la búsqueda solo si hay texto
-    if (this.searchQuery && this.searchQuery.trim()) {
-      this.searchProducts();
-    }
-  }
-  compareDiscount = (o1: any, o2: any) => String(o1) === String(o2);
-  hasMoreProducts = false;
-  allowedFormats = [BarcodeFormat.QR_CODE];
   showQr = false;
   products: ProductUI[] = [];
+  productsFiltered: ProductUI[] = [];
   loading = false;
   error = false;
   errorMessage = '';
@@ -58,18 +51,42 @@ export class SearchPage {
   availableColors: string[] = [];
   availableSizes: string[] = [];
   recommended: ProductUI[] = [];
+  hasMoreProducts = false;
+  showScrollTop = false;
+  allowedFormats = [BarcodeFormat.QR_CODE];
+  compareDiscount = (o1: any, o2: any) => String(o1) === String(o2);
+
   private router = inject(Router);
   private productService = inject(ProductService);
   private cdr = inject(ChangeDetectorRef);
+  private toastController = inject(ToastController);
 
   constructor() {
+    window.addEventListener('online', () => {
+      this.offline = false;
+      this.cdr.detectChanges();
+    });
+    window.addEventListener('offline', () => {
+      this.offline = true;
+      this.cdr.detectChanges();
+    });
     this.loadRecommended();
+  }
+
+  showQrInfo() {
+    this.showQrInfoAlert = true;
+  }
+
+  onSearchbarEnter(event: any) {
+    if (!this.offline && this.searchQuery && this.searchQuery.trim()) {
+      this.searchProducts();
+    }
   }
 
   onSearchbarKeydown(event: KeyboardEvent) {
     const keyboardEvent = event as KeyboardEvent;
     if (keyboardEvent.key === 'Enter') {
-      if (this.searchQuery && this.searchQuery.trim()) {
+      if (!this.offline && this.searchQuery && this.searchQuery.trim()) {
         this.searchProducts();
       }
       keyboardEvent.preventDefault();
@@ -78,7 +95,7 @@ export class SearchPage {
 
   onSearchChange(event: any) {
     this.searchQuery = event.detail.value;
-    if (this.searchQuery && this.searchQuery.trim()) {
+    if (!this.offline && this.searchQuery.trim()) {
       this.searchProducts();
     } else {
       this.products = [];
@@ -93,7 +110,6 @@ export class SearchPage {
     this.sortOption = event.detail.value;
     this.applyFiltersAndSort();
   }
-
 
   onMinDiscountChange(event: any) {
     this.minDiscount = Number(event.detail.value);
@@ -117,7 +133,6 @@ export class SearchPage {
 
   onOfferChange(event: any) {
     this.offerOnly = event.detail.checked;
-    // Si se desactiva la oferta, también resetea el descuento mínimo
     if (!this.offerOnly) {
       this.minDiscount = 0;
     }
@@ -126,7 +141,6 @@ export class SearchPage {
 
   applyFiltersAndSort() {
     let filtered = [...this.products];
-    // Filtro de precio
     switch (this.priceFilter) {
       case 'lt100':
         filtered = filtered.filter(p => Number(p.price) < 100);
@@ -140,21 +154,16 @@ export class SearchPage {
       case 'gt1000':
         filtered = filtered.filter(p => Number(p.price) > 1000);
         break;
-  // case 'lt1000' eliminado
       default:
-        // No filtrar
         break;
     }
-    // Filtro de oferta
     if (this.offerOnly) {
       filtered = filtered.filter(p => {
-        // Considera oferta si tiene compare_price mayor a price y es numérico
         const price = Number(p.price);
         const compare = Number(p.compare_price);
         return (compare > price) && price > 0;
       });
     }
-    // Filtro de descuento mínimo
     if (this.minDiscount > 0) {
       filtered = filtered.filter(p => {
         const price = Number(p.price);
@@ -166,15 +175,12 @@ export class SearchPage {
         return false;
       });
     }
-    // Filtro de color
     if (this.colorFilter) {
       filtered = filtered.filter(p => p.variants && p.variants.some((v: any) => v.color === this.colorFilter));
     }
-    // Filtro de talla
     if (this.sizeFilter) {
       filtered = filtered.filter(p => p.variants && p.variants.some((v: any) => v.size === this.sizeFilter));
     }
-    // Ordenamiento
     switch (this.sortOption) {
       case 'name_asc':
         filtered = filtered.sort((a, b) => a.name.localeCompare(b.name));
@@ -187,36 +193,21 @@ export class SearchPage {
         break;
       case 'relevance':
       default:
-        // No ordenar, mantener el orden original del backend
         break;
     }
     this.productsFiltered = filtered;
     this.cdr.detectChanges();
   }
 
-  productsFiltered: ProductUI[] = [];
-
-  // (Eliminada función duplicada y referencias incorrectas)
-
   searchProducts() {
-    if (!this.searchQuery.trim()) {
-      this.products = [];
-      this.availableColors = [];
-      this.availableSizes = [];
-      this.error = false;
-      this.loading = false;
-      this.cdr.detectChanges();
-      return;
-    }
+    if (!this.searchQuery.trim()) return;
     this.loading = true;
     this.error = false;
     this.cdr.detectChanges();
-  this.productService.searchProducts(this.searchQuery).subscribe({
+    this.productService.searchProducts(this.searchQuery).subscribe({
       next: (products: Product[]) => {
-  this.products = ProductUtils.mapProductsToUI(products);
-  // Suponiendo que no hay paginación, si quieres agregarla, ajusta aquí:
-  this.hasMoreProducts = false; // Si implementas paginación, cámbialo según la respuesta
-        // Extraer colores y tallas disponibles de los resultados
+        this.products = ProductUtils.mapProductsToUI(products);
+        this.hasMoreProducts = false;
         this.availableColors = Array.from(new Set(
           this.products.flatMap(p => (p.variants || []).map((v: any) => v.color)).filter(Boolean)
         ));
@@ -230,20 +221,12 @@ export class SearchPage {
       },
       error: (err: any) => {
         this.loading = false;
-        // Solo mostrar error si la query no está vacía y tiene al menos 2 caracteres
-        if (this.searchQuery.trim().length > 1) {
-          this.error = true;
-          this.errorMessage = 'Error al buscar productos. Intenta de nuevo.';
-        } else {
-          this.error = false;
-        }
         this.cdr.detectChanges();
       }
     });
   }
 
   loadRecommended() {
-    // Puedes cambiar a getFeaturedProducts o getBestsellerProducts según prefieras
     this.productService.getFeaturedProducts().subscribe({
       next: (products: Product[]) => {
         this.recommended = ProductUtils.mapProductsToUI(products);
@@ -259,7 +242,6 @@ export class SearchPage {
   getProductImageUrl(product: ProductUI): string {
     const imageValue = product.image;
     if (imageValue && typeof imageValue === 'object') {
-      // Intentar diferentes propiedades comunes para la URL de imagen
       const imageObj = imageValue as any;
       return imageObj.url || imageObj.src || imageObj.path || imageObj.image_url ||
         imageObj.thumbnail || imageObj.medium || imageObj.large || '';
@@ -271,9 +253,9 @@ export class SearchPage {
 
   goToProductDetail(product: ProductUI, origin?: string) {
     if (origin) {
-      this.router.navigate(['/product', product.id], { queryParams: { from: origin } });
+      this.router.navigate(['/tabs/product', product.id], { queryParams: { from: origin } });
     } else {
-      this.router.navigate(['/product', product.id]);
+      this.router.navigate(['/tabs/product', product.id]);
     }
   }
 
@@ -281,15 +263,12 @@ export class SearchPage {
     if (result) {
       this.showQr = false;
       setTimeout(() => {
-        this.router.navigate(['/product', result]);
+        this.router.navigate(['/tabs/product', result]);
       }, 200);
     }
   }
 
-  showScrollTop = false;
-
   onContentScroll(event: any) {
-    // Mostrar el botón si el scroll vertical es mayor a 300px
     this.showScrollTop = event && event.detail && event.detail.scrollTop > 300;
     this.cdr.detectChanges();
   }
@@ -305,27 +284,34 @@ export class SearchPage {
     product.isFavorite = !product.isFavorite;
   }
 
-  /**
-   * Maneja el pull-to-refresh nativo
-   */
   async doRefresh(event: any): Promise<void> {
-    console.log('🔄 [SEARCH] Pull-to-refresh activado');
-
     try {
-      // Si hay una búsqueda activa, recargar los resultados
       if (this.searchQuery && this.searchQuery.trim()) {
-        console.log('🔄 [SEARCH] Recargando resultados de búsqueda...');
         await this.searchProducts();
-      } else {
-        console.log('ℹ️ [SEARCH] No hay búsqueda activa para recargar');
       }
-
-      console.log('✅ [SEARCH] Pull-to-refresh completado');
-    } catch (error) {
-      console.error('❌ [SEARCH] Error en pull-to-refresh:', error);
-    } finally {
-      // Completar el refresh
       event.target.complete();
+    } catch (error) {
+      event.target.complete();
+    }
+  }
+
+  async reloadPage() {
+    if (navigator.onLine) {
+      window.location.reload();
+    } else {
+      if (this.isToastActive) return;
+      this.isToastActive = true;
+      const toast = await this.toastController.create({
+        message: 'Sigue sin conexión a internet',
+        duration: 2000,
+        color: 'danger',
+        position: 'bottom',
+        icon: 'cloud-offline-outline',
+      });
+      toast.onDidDismiss().then(() => {
+        this.isToastActive = false;
+      });
+      toast.present();
     }
   }
 }
