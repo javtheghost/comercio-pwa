@@ -6,6 +6,7 @@ import { Subscription } from 'rxjs';
 import { CartService, Cart } from '../services/cart.service';
 import { NotificationService } from '../services/notification.service';
 import { AuthService } from '../services/auth.service';
+import { TabNavigationService } from '../services/tab-navigation.service';
 
 @Component({
   selector: 'app-tabs',
@@ -55,6 +56,7 @@ export class TabsPage implements OnInit, OnDestroy {
   unreadNotificationsCount = 0;
   private cartSubscription: Subscription = new Subscription();
   private notificationsSubscription: Subscription = new Subscription();
+  private tabNavSubscription: Subscription = new Subscription();
 
   constructor(
     private router: Router,
@@ -62,7 +64,8 @@ export class TabsPage implements OnInit, OnDestroy {
     private cartService: CartService,
     private notificationService: NotificationService,
     private authService: AuthService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private tabNavService: TabNavigationService
   ) {
     this.currentTabIndex = this.tabOrder.indexOf(this.router.url);
   }
@@ -70,11 +73,15 @@ export class TabsPage implements OnInit, OnDestroy {
   ngOnInit() {
     this.subscribeToCart();
     this.subscribeToNotifications();
+    this.tabNavSubscription = this.tabNavService.tabChange$.subscribe(path => {
+      this.navigate(path);
+    });
   }
 
   ngOnDestroy() {
     this.cartSubscription.unsubscribe();
     this.notificationsSubscription.unsubscribe();
+    this.tabNavSubscription.unsubscribe();
   }
 
   private subscribeToCart(): void {

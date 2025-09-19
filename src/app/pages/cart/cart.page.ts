@@ -6,6 +6,8 @@ import { IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, I
 import { CartService, Cart, CartItem } from '../../services/cart.service';
 import { AuthService } from '../../services/auth.service';
 import { OfflineCartService, OfflineCart, OfflineCartItem } from '../../services/offline-cart.service';
+import { NavController } from '@ionic/angular';
+import { TabNavigationService } from '../../services/tab-navigation.service';
 
 @Component({
   selector: 'app-cart',
@@ -46,7 +48,8 @@ export class CartPage implements OnInit, OnDestroy {
     private router: Router,
     private cdr: ChangeDetectorRef,
     private offlineCartService: OfflineCartService,
-    private toastController: ToastController
+    private toastController: ToastController,
+    private tabNavService: TabNavigationService
   ) {}
 
   ngOnInit() {
@@ -583,7 +586,7 @@ export class CartPage implements OnInit, OnDestroy {
    * Continúa comprando
    */
   continueShopping(): void {
-    this.router.navigate(['/tabs/home']);
+    this.tabNavService.navigateToTab('/tabs/home');
   }
 
   /**

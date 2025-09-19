@@ -262,8 +262,29 @@ export class SearchPage {
   onCodeResult(result: string) {
     if (result) {
       this.showQr = false;
+      let productId: string | null = null;
+      // Si es solo un número, úsalo directo
+      if (/^\d+$/.test(result)) {
+        productId = result;
+      } else {
+        // Si es una URL, intenta extraer el ID al final
+        const match = result.match(/product\/(\d+)/);
+        if (match) {
+          productId = match[1];
+        }
+      }
       setTimeout(() => {
-        this.router.navigate(['/tabs/product', result]);
+        if (productId) {
+          this.router.navigate(['/tabs/product', productId]);
+        } else {
+          this.toastController.create({
+            message: 'QR inválido: no se pudo extraer el ID de producto',
+            duration: 2000,
+            color: 'danger',
+            position: 'bottom',
+            icon: 'alert-circle-outline'
+          }).then(toast => toast.present());
+        }
       }, 200);
     }
   }
