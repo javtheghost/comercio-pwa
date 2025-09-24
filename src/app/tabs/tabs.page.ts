@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, NavigationEnd } from '@angular/router';
 import { NavController } from '@ionic/angular';
 import { IonIcon, IonRouterOutlet, IonBadge } from '@ionic/angular/standalone';
 import { Subscription } from 'rxjs';
@@ -57,6 +57,8 @@ export class TabsPage implements OnInit, OnDestroy {
   private cartSubscription: Subscription = new Subscription();
   private notificationsSubscription: Subscription = new Subscription();
   private tabNavSubscription: Subscription = new Subscription();
+  private routerEventsSubscription: Subscription = new Subscription();
+  private notificationsUpdateHandler?: () => void;
 
   constructor(
     private router: Router,
@@ -67,7 +69,10 @@ export class TabsPage implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private tabNavService: TabNavigationService
   ) {
-    this.currentTabIndex = this.tabOrder.indexOf(this.router.url);
+    // Inicializar índice actual de forma robusta usando prefijo del URL
+    const url = this.router.url || '';
+    const foundIndex = this.tabOrder.findIndex(p => url.startsWith(p));
+    this.currentTabIndex = foundIndex >= 0 ? foundIndex : 0;
   }
 
   ngOnInit() {
@@ -76,12 +81,30 @@ export class TabsPage implements OnInit, OnDestroy {
     this.tabNavSubscription = this.tabNavService.tabChange$.subscribe(path => {
       this.navigate(path);
     });
+
+    // Sincronizar índice inicial y cambios de URL (por ejemplo, al venir desde Login)
+    const setIndexFromUrl = (url: string) => {
+      const foundIndex = this.tabOrder.findIndex(p => url.startsWith(p));
+      if (foundIndex >= 0) {
+        this.currentTabIndex = foundIndex;
+      }
+    };
+    setIndexFromUrl(this.router.url || '');
+    this.routerEventsSubscription = this.router.events.subscribe(ev => {
+      if (ev instanceof NavigationEnd) {
+        setIndexFromUrl(ev.urlAfterRedirects || ev.url);
+      }
+    });
   }
 
   ngOnDestroy() {
     this.cartSubscription.unsubscribe();
     this.notificationsSubscription.unsubscribe();
     this.tabNavSubscription.unsubscribe();
+    this.routerEventsSubscription.unsubscribe();
+    if (this.notificationsUpdateHandler) {
+      window.removeEventListener('notifications:updated', this.notificationsUpdateHandler);
+    }
   }
 
   private subscribeToCart(): void {
@@ -94,27 +117,48 @@ export class TabsPage implements OnInit, OnDestroy {
   }
 
   private subscribeToNotifications(): void {
-    // Solo mostrar notificaciones si el usuario está logueado
-    this.notificationsSubscription = this.authService.authState$.subscribe(authState => {
-      if (authState.isAuthenticated) {
-        // Usuario logueado: simular notificaciones no leídas
-        // En el futuro, esto vendrá del servicio de notificaciones
-        this.unreadNotificationsCount = Math.floor(Math.random() * 5); // Simular 0-4 notificaciones
-        console.log('🔔 [TABS] Usuario logueado - Contador de notificaciones:', this.unreadNotificationsCount);
-      } else {
-        // Usuario no logueado: no mostrar notificaciones
+    const computeUnread = () => {
+      try {
+        const raw = localStorage.getItem('user_notifications');
+        const list = raw ? JSON.parse(raw) : [];
+        const unread = Array.isArray(list) ? list.filter((n: any) => !n.read).length : 0;
+        this.unreadNotificationsCount = unread;
+      } catch {
         this.unreadNotificationsCount = 0;
-        console.log('🔔 [TABS] Usuario no logueado - Sin notificaciones');
       }
       this.cdr.detectChanges();
+      console.log('🔔 [TABS] Contador de notificaciones no leídas:', this.unreadNotificationsCount);
+    };
+
+    // Recalcular en login/logout y forzar 0 si no autenticado
+    this.notificationsSubscription = this.authService.authState$.subscribe(authState => {
+      if (!authState.isAuthenticated) {
+        this.unreadNotificationsCount = 0;
+        this.cdr.detectChanges();
+        console.log('🔔 [TABS] Usuario no logueado - Sin notificaciones');
+      } else {
+        computeUnread();
+      }
     });
+
+    // Recalcular cuando las notificaciones cambien en cualquier parte de la app
+    this.notificationsUpdateHandler = computeUnread;
+    window.addEventListener('notifications:updated', this.notificationsUpdateHandler);
+
+    // Calcular al iniciar
+    computeUnread();
   }
 
   navigate(path: string) {
     const newIndex = this.tabOrder.indexOf(path);
     let direction: 'forward' | 'back' = 'forward';
     if (newIndex > -1) {
-      direction = newIndex > this.currentTabIndex ? 'forward' : 'back';
+      // Evitar inversión en el primer cambio post-login estableciendo una comparación segura
+      if (newIndex === this.currentTabIndex) {
+        direction = 'forward';
+      } else {
+        direction = newIndex > this.currentTabIndex ? 'forward' : 'back';
+      }
       this.currentTabIndex = newIndex;
     }
     this.navCtrl.navigateRoot(path, { animationDirection: direction });

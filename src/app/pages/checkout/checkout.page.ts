@@ -161,6 +161,17 @@ export class CheckoutPage implements OnInit, OnDestroy {
     return this.cart ? parseFloat(this.cart.total) : 0;
   }
 
+  // Calcula el porcentaje de IVA basado en los montos actuales
+  getVatRatePercent(): number {
+    const subtotal = this.getSubtotal();
+    const tax = this.getTax();
+    if (subtotal > 0) {
+      return Math.round((tax / subtotal) * 100);
+    }
+    // Fallback a 16 si no hay datos suficientes
+    return 16;
+  }
+
   isFormValid(): boolean {
     return !!(
       this.shippingAddress.firstName &&

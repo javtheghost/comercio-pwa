@@ -8,6 +8,7 @@ import { AuthService } from '../../services/auth.service';
 import { OfflineCartService, OfflineCart, OfflineCartItem } from '../../services/offline-cart.service';
 import { NavController } from '@ionic/angular';
 import { TabNavigationService } from '../../services/tab-navigation.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-cart',
@@ -230,6 +231,20 @@ export class CartPage implements OnInit, OnDestroy {
   }
 
   /**
+   * Commit de input (online): en blur o Enter, si quedó vacío, forzar a 1
+   */
+  commitQuantityInput(item: CartItem, event: any): void {
+    const inputValue = event.target.value;
+    if (inputValue === '' || inputValue === null || inputValue === undefined) {
+      event.target.value = 1;
+      this.updateItemQuantityFromInput(item, 1);
+      return;
+    }
+    // Si no está vacío, reutilizar la validación existente
+    this.updateQuantity(item, event);
+  }
+
+  /**
    * Actualiza la cantidad de un item desde el input (optimista + debounced largo)
    */
   private updateItemQuantityFromInput(item: CartItem, quantity: number): void {
@@ -314,7 +329,8 @@ export class CartPage implements OnInit, OnDestroy {
       return sum + (parseFloat(item.unit_price || '0') * item.quantity);
     }, 0);
 
-    const tax = subtotal * 0.16; // IVA 16%
+  const vatRate = typeof environment.vatRate === 'number' ? environment.vatRate : 0.16;
+  const tax = subtotal * vatRate; // IVA configurable
     const shipping = parseFloat(this.cart.shipping_amount || '0');
     const total = subtotal + tax + shipping;
 
@@ -382,7 +398,18 @@ export class CartPage implements OnInit, OnDestroy {
    * Obtiene el IVA del carrito (desde cache para respuesta instantánea)
    */
   getVAT(): number {
-    return this.cachedTotals.tax;
+    // Calcular siempre sobre el subtotal combinado (online + offline)
+    const vatRate = typeof environment.vatRate === 'number' ? environment.vatRate : 0.16;
+    const subtotalCombined = this.getTotalSubtotal();
+    return subtotalCombined * vatRate;
+  }
+
+  /**
+   * Retorna la tasa de IVA como porcentaje entero para mostrar en UI (ej. 16)
+   */
+  getVatRatePercent(): number {
+    const vatRate = typeof environment.vatRate === 'number' ? environment.vatRate : 0.16;
+    return Math.round(vatRate * 100);
   }
 
   /**
@@ -600,16 +627,76 @@ export class CartPage implements OnInit, OnDestroy {
    * Actualiza la cantidad de un item offline
    */
   async updateOfflineItemQuantity(item: OfflineCartItem, quantity: number): Promise<void> {
-    if (quantity < 1) {
-      await this.removeOfflineItem(item);
-      return;
+    // Clamp: asegurar mínimo 1 y máximo 99, nunca eliminar aquí
+    if (!Number.isFinite(quantity as any)) {
+      quantity = 1;
     }
+    if (quantity < 1) quantity = 1;
+    if (quantity > 99) quantity = 99;
 
     try {
       await this.offlineCartService.updateOfflineCartItemQuantity(item.id, quantity);
     } catch (error) {
       console.error('Error actualizando cantidad del item offline:', error);
     }
+  }
+
+  /**
+   * Disminuye la cantidad de un item offline sin permitir bajar de 1
+   */
+  async decreaseOfflineQuantity(item: OfflineCartItem): Promise<void> {
+    if (item.quantity > 1) {
+      await this.updateOfflineItemQuantity(item, item.quantity - 1);
+    }
+  }
+
+  /**
+   * Aumenta la cantidad de un item offline respetando el máximo
+   */
+  async increaseOfflineQuantity(item: OfflineCartItem): Promise<void> {
+    await this.updateOfflineItemQuantity(item, item.quantity + 1);
+  }
+
+  /**
+   * Maneja cambios desde el input para items offline con validación
+   */
+  async updateOfflineQuantityFromInput(item: OfflineCartItem, event: any): Promise<void> {
+    const inputValue = event.target.value;
+
+    // Si está vacío, no hacer nada (esperar a que termine de escribir)
+    if (inputValue === '' || inputValue === null || inputValue === undefined) {
+      return;
+    }
+
+    let newQuantity = parseInt(inputValue, 10);
+
+    if (!Number.isFinite(newQuantity)) {
+      newQuantity = 1;
+    }
+
+    if (newQuantity <= 0) {
+      newQuantity = 1;
+      event.target.value = 1;
+    } else if (newQuantity > 99) {
+      newQuantity = 99;
+      event.target.value = 99;
+    }
+
+    await this.updateOfflineItemQuantity(item, newQuantity);
+  }
+
+  /**
+   * Commit de input: en blur o Enter, si quedó vacío, forzar a 1
+   */
+  async commitOfflineQuantityInput(item: OfflineCartItem, event: any): Promise<void> {
+    const inputValue = event.target.value;
+    if (inputValue === '' || inputValue === null || inputValue === undefined) {
+      event.target.value = 1;
+      await this.updateOfflineItemQuantity(item, 1);
+      return;
+    }
+    // Si no está vacío, aplicar mismas reglas de clamping del input
+    await this.updateOfflineQuantityFromInput(item, event);
   }
 
   /**

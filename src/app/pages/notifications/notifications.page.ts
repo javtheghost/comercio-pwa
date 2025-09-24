@@ -324,6 +324,12 @@ export class NotificationsPage implements OnInit, OnDestroy {
 
   async sendTestNotification() {
     try {
+      // Asegurar permisos antes de intentar enviar una prueba
+      const hasPerms = await this.notificationService.checkPermissions();
+      if (!hasPerms) {
+        await this.notificationService.requestPermissionsManually();
+      }
+
       await this.notificationService.sendTestNotification();
       console.log('✅ Notificación de prueba enviada');
     } catch (error) {
@@ -399,6 +405,10 @@ export class NotificationsPage implements OnInit, OnDestroy {
     try {
       localStorage.setItem(this.NOTIFICATIONS_KEY, JSON.stringify(this.notifications));
       console.log('✅ Notificaciones guardadas en localStorage');
+      // Notificar a otros componentes (Tabs) que hubo cambios
+      try {
+        window.dispatchEvent(new CustomEvent('notifications:updated'));
+      } catch {}
     } catch (error) {
       console.error('❌ Error guardando notificaciones:', error);
     }

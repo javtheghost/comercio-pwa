@@ -36,6 +36,7 @@ import { AddToCartToastComponent } from '../../components/add-to-cart-toast/add-
   selector: 'app-home',
   standalone: true,
   imports: [
+    CommonModule,
     NgFor,
     NgIf,
     IonHeader,
@@ -107,6 +108,9 @@ export class HomePage implements OnInit {
   toastSelectedColor = '';
   toastPrice = 0;
 
+  // Control para evitar spam del toast offline
+  private offlineToastActive = false;
+
   constructor(
     private router: Router,
     private productService: ProductService,
@@ -164,6 +168,20 @@ export class HomePage implements OnInit {
     // Resetear paginación al cargar productos iniciales
     this.currentPage = 1;
     this.hasMoreProducts = true;
+
+    // Evitar llamadas de red si estamos offline
+    if (this.isOffline()) {
+      console.warn('📴 [HOME] Offline - evitando llamada a getProductsPaginated');
+      if (this.isCacheValid()) {
+        this.loadFromCache();
+      } else {
+        this.loading = false;
+        this.error = false;
+        this.cdr.detectChanges();
+        this.showOfflineToast('Sin conexión. No se pudo actualizar el catálogo.');
+      }
+      return;
+    }
 
      this.productService.getProductsPaginated(this.currentPage, this.itemsPerPage).subscribe({
        next: (response: PaginatedResponse<Product>) => {
@@ -229,7 +247,20 @@ export class HomePage implements OnInit {
     this.loadingCategories = true;
     this.cdr.detectChanges(); // Forzar detección de cambios para mostrar skeleton
 
-    this.productService.getRootCategories().subscribe({
+      // Evitar llamadas de red si estamos offline
+      if (this.isOffline()) {
+        console.warn('📴 [HOME] Offline - evitando llamada a getRootCategories');
+        if (this.isCacheValid()) {
+          this.loadFromCache();
+        } else {
+          this.loadingCategories = false;
+          this.cdr.detectChanges();
+          this.showOfflineToast('Sin conexión. No se pudieron cargar las categorías.');
+        }
+        return;
+      }
+
+      this.productService.getRootCategories().subscribe({
       next: (categories: Category[]) => {
         console.log('✅ Categorías cargadas exitosamente:', categories);
         this.categories = categories;
@@ -279,27 +310,67 @@ export class HomePage implements OnInit {
 
   goToProductDetail(product: ProductUI) {
     console.log('🔄 CLICK DETECTADO en producto:', product.name);
+
+    // Evitar navegación cuando no hay conexión
+    if (this.isOffline()) {
+      console.warn('📴 Sin conexión: bloqueo de navegación al detalle del producto');
+      this.showOfflineToast();
+      return;
+    }
+
     console.log('🔄 Intentando navegar al producto:', product);
     console.log('📍 Ruta objetivo:', `/tabs/product/${product.id}`);
 
-    this.router.navigate(['/tabs/product', product.id]).then(() => {
-      console.log('✅ Navegación exitosa a producto:', product.id);
-    }).catch((error) => {
-      console.error('❌ Error en navegación:', error);
-    });
+    this.router
+      .navigate(['/tabs/product', product.id])
+      .then(() => {
+        console.log('✅ Navegación exitosa a producto:', product.id);
+      })
+      .catch((error) => {
+        console.error('❌ Error en navegación:', error);
+      });
   }
 
   onSearchChange(event: any) {
     this.searchQuery = event.detail.value;
     if (this.searchQuery.trim()) {
+      // Dejar que searchProducts maneje offline/online
       this.searchProducts();
     } else {
-      this.loadProducts(); // Recargar todos los productos si la búsqueda está vacía
+      // Recargar todos los productos si la búsqueda está vacía
+      if (this.isOffline()) {
+        if (this.isCacheValid()) {
+          this.loadFromCache();
+        } else {
+          this.loading = false;
+          this.cdr.detectChanges();
+        }
+        return;
+      }
+      this.loadProducts();
     }
   }
 
   searchProducts() {
     if (!this.searchQuery.trim()) return;
+
+    // Si está offline, intentar búsqueda local sobre caché
+    if (this.isOffline()) {
+      console.warn('📴 [HOME] Offline - evitando búsqueda remota');
+      const source = (HomePage as any).cachedProducts as ProductUI[];
+      if (source && source.length > 0) {
+        const q = this.searchQuery.toLowerCase();
+        this.products = source.filter(p =>
+          (p.name || '').toLowerCase().includes(q) ||
+          (p.description || '').toLowerCase().includes(q)
+        );
+        this.loading = false;
+        this.cdr.detectChanges();
+      } else {
+        this.showOfflineToast('Sin conexión. No se pudo realizar la búsqueda.');
+      }
+      return;
+    }
 
     console.log('🔍 Iniciando búsqueda:', this.searchQuery);
     this.loading = true;
@@ -327,13 +398,40 @@ export class HomePage implements OnInit {
 
     if (categoryId === null) {
       console.log('📂 Mostrando todos los productos');
-      this.loadProducts(); // Mostrar todos los productos
+      // Mostrar todos los productos
+      if (this.isOffline()) {
+        if (this.isCacheValid()) {
+          this.loadFromCache();
+        } else {
+          this.showOfflineToast('Sin conexión. No se pudo mostrar todo el catálogo.');
+        }
+      } else {
+        this.loadProducts();
+      }
       return;
     }
 
     console.log(`📂 Filtrando por categoría: ${categoryId}`);
     this.loading = true;
     this.cdr.detectChanges(); // Forzar detección de cambios
+
+    // Si estamos offline, intentar filtrar localmente
+    if (this.isOffline()) {
+      const source = ((HomePage as any).cachedProducts as ProductUI[])?.length > 0
+        ? (HomePage as any).cachedProducts as ProductUI[]
+        : this.products;
+      if (source && source.length > 0) {
+        this.products = source.filter(p => p.category?.id === categoryId);
+        this.loading = false;
+        this.cdr.detectChanges();
+      } else {
+        this.products = [];
+        this.loading = false;
+        this.cdr.detectChanges();
+        this.showOfflineToast('Sin conexión. No se pudieron cargar productos de la categoría.');
+      }
+      return;
+    }
 
     this.productService.getCategoryProducts(categoryId).subscribe({
       next: (products: Product[]) => {
@@ -484,6 +582,15 @@ export class HomePage implements OnInit {
 
   // Método para cargar más productos - Usando API real
   loadMoreProducts(event?: any) {
+    // Evitar llamadas de red si estamos offline
+    if (this.isOffline()) {
+      console.warn('📴 [HOME] Offline - evitando infinite scroll');
+      if (event?.target?.complete) {
+        event.target.complete();
+      }
+      this.showOfflineToast('Conéctate a internet para cargar más productos.');
+      return;
+    }
     console.log('📜 Infinite scroll activado:', {
       hasMoreProducts: this.hasMoreProducts,
       isLoadingMore: this.isLoadingMore,
@@ -662,6 +769,31 @@ export class HomePage implements OnInit {
   }
 
   /**
+   * Muestra un toast informativo cuando el usuario intenta abrir un detalle sin conexión
+   */
+  private async showOfflineToast(message?: string): Promise<void> {
+    if (this.offlineToastActive) {
+      // Ya hay un toast visible o en proceso: evitar duplicados
+      return;
+    }
+
+    this.offlineToastActive = true;
+
+    const toast = await this.toastController.create({
+      message: message || 'Conéctate a internet para ver el detalle del producto.',
+      duration: 2500,
+      position: 'bottom',
+      color: 'warning',
+      icon: 'warning-outline'
+    });
+
+    await toast.present();
+    // Cuando el toast se cierre, permitir mostrarlo de nuevo
+    await toast.onDidDismiss();
+    this.offlineToastActive = false;
+  }
+
+  /**
    * Verifica si una categoría está activa
    */
   isCategoryActive(categoryId: number | null): boolean {
@@ -761,6 +893,12 @@ export class HomePage implements OnInit {
     console.log('🔄 [HOME] Pull-to-refresh activado');
 
     try {
+      // Si está offline, no intentes refrescar
+      if (this.isOffline()) {
+        this.showOfflineToast('Sin conexión. No se pudo actualizar.');
+        event.target.complete();
+        return;
+      }
       // Limpiar caché y forzar recarga
       this.clearCache();
       this.hasLoadedFromCache = false;

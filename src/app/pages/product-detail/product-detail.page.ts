@@ -1,6 +1,6 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { NavController } from '@ionic/angular';
+import { NavController, ToastController } from '@ionic/angular';
 import { Location } from '@angular/common';
 import { CommonModule } from '@angular/common';
 import {
@@ -64,6 +64,24 @@ export class ProductDetailPage implements OnInit {
   // Loading state
   addingToCart = false;
 
+  // Offline handling
+  private offlineToastActive = false;
+  private hasHandledOfflineEntry = false;
+
+  // Control de requisitos de selección
+  get requiresSize(): boolean {
+    return !!(this.variantInfo?.needs_variants && this.product?.availableSizes && this.product.availableSizes.length > 0);
+  }
+  get requiresColor(): boolean {
+    return !!(this.variantInfo?.needs_variants && this.product?.availableColors && this.product.availableColors.length > 0);
+  }
+  get selectionMissing(): boolean {
+    return (this.requiresSize && !this.selectedSize) || (this.requiresColor && !this.selectedColor);
+  }
+  get canAddToCart(): boolean {
+    return !this.addingToCart && this.currentStock > 0 && !this.selectionMissing;
+  }
+
 
   constructor(
     private route: ActivatedRoute,
@@ -71,7 +89,8 @@ export class ProductDetailPage implements OnInit {
     private navCtrl: NavController,
     private productService: ProductService,
     private cartService: CartService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private toastController: ToastController
   ) {
     console.log('🏗️ ProductDetailPage constructor ejecutado');
   }
@@ -130,6 +149,22 @@ export class ProductDetailPage implements OnInit {
 
         console.log('🔍 Producto mapeado:', this.product);
 
+        // Inicializar precio siempre; el stock depende si hay variantes
+        this.currentPrice = this.product.price || '0';
+        if (Array.isArray(this.product.variants) && this.product.variants.length > 0) {
+          // Hay variantes: esperar a selección para calcular stock y evitar parpadeos
+          this.currentStock = 0;
+          console.log('🧮 Stock pendiente de variantes. No usar stock del producto para evitar flicker.');
+        } else {
+          // Sin variantes: usar stock del producto
+          this.currentStock = this.product.track_stock ? (this.product.stock_quantity || 0) : 999;
+          console.log('🧮 Stock inicial (producto, sin variantes):', {
+            track_stock: this.product.track_stock,
+            stock_quantity: this.product.stock_quantity,
+            currentStock: this.currentStock
+          });
+        }
+
         // Cargar información de variantes usando la nueva API
         this.loadVariantInfo();
 
@@ -165,6 +200,13 @@ export class ProductDetailPage implements OnInit {
           this.product.availableColors = variantInfo.available_colors;
         }
 
+        // Si el backend devuelve variantes existentes, úsalas como fuente de verdad
+        if (this.product && Array.isArray(variantInfo.existing_variants) && variantInfo.existing_variants.length > 0) {
+          // Mapear existing_variants a ProductVariant (ya coincide con la interfaz usada por el selector)
+          (this.product as any).variants = variantInfo.existing_variants as unknown as ProductVariant[];
+          console.log('🔁 Variants sincronizadas desde variant-info.existing_variants:', this.product.variants);
+        }
+
         // Seleccionar primera talla disponible por defecto si no hay selección
         if (variantInfo.available_sizes.length > 0 && !this.selectedSize) {
           this.selectedSize = variantInfo.available_sizes[0];
@@ -182,6 +224,22 @@ export class ProductDetailPage implements OnInit {
         console.log('🎯 Necesita variantes:', variantInfo.needs_variants);
         console.log('🎯 Tipo de tallas:', variantInfo.size_type);
 
+        // Si NO necesita variantes o no hay variantes, usar stock del producto
+        const hasVariants = Array.isArray(this.product?.variants) && (this.product!.variants.length > 0);
+        if (!variantInfo.needs_variants || !hasVariants) {
+          if (this.product) {
+            this.currentPrice = this.product.price || '0';
+            this.currentStock = this.product.track_stock ? (this.product.stock_quantity || 0) : 999;
+            console.log('🧮 Stock determinado por producto (sin variantes):', {
+              needs_variants: variantInfo.needs_variants,
+              hasVariants,
+              track_stock: this.product.track_stock,
+              stock_quantity: this.product.stock_quantity,
+              currentStock: this.currentStock
+            });
+          }
+        }
+
         this.loadingVariants = false;
         this.cdr.detectChanges();
       },
@@ -190,6 +248,41 @@ export class ProductDetailPage implements OnInit {
         this.loadingVariants = false;
         // No es crítico, continuar sin información de variantes
       }
+    });
+  }
+
+  // ===== Manejo de estado offline (defensa en profundidad) =====
+  private isOnline(): boolean {
+    try {
+      return typeof navigator !== 'undefined' ? navigator.onLine : true;
+    } catch {
+      return true;
+    }
+  }
+
+  private async showOfflineToast(): Promise<void> {
+    if (this.offlineToastActive) return;
+    this.offlineToastActive = true;
+
+    const toast = await this.toastController.create({
+      message: 'Sin conexión. No se puede cargar el detalle del producto.',
+      duration: 2500,
+      color: 'warning',
+      position: 'top'
+    });
+    toast.onDidDismiss().then(() => {
+      this.offlineToastActive = false;
+    });
+    await toast.present();
+  }
+
+  private async handleOfflineEntry(): Promise<void> {
+    if (this.hasHandledOfflineEntry) return;
+    this.hasHandledOfflineEntry = true;
+    await this.showOfflineToast();
+    this.navCtrl.navigateRoot(['/tabs/home'], {
+      animated: true,
+      animationDirection: 'back'
     });
   }
 
@@ -328,10 +421,10 @@ export class ProductDetailPage implements OnInit {
       return;
     }
 
-    // Verificar si el producto requiere talla y no se ha seleccionado
-    if (this.hasSizes() && !this.selectedSize) {
-      console.warn('⚠️ Debe seleccionar una talla');
-      // Aquí podrías mostrar un toast o alert
+    // Verificar si faltan selecciones requeridas
+    if (this.selectionMissing) {
+      console.warn('⚠️ Debe seleccionar las opciones requeridas');
+      this.showSelectionMissingToast();
       return;
     }
 
@@ -340,10 +433,20 @@ export class ProductDetailPage implements OnInit {
       return;
     }
 
+    // Determinar variantId de forma robusta
+    const variantId = this.currentVariant?.id ?? this.getSelectedVariantId();
+
+    // Si el producto necesita variantes y hay variantes físicas, exigir variantId válido
+    if (this.variantInfo?.needs_variants && Array.isArray(this.product.variants) && this.product.variants.length > 0 && !variantId) {
+      console.warn('⚠️ No hay una variante válida para la selección actual');
+      this.showSelectionMissingToast();
+      return;
+    }
+
     const request: AddToCartRequest = {
       product_id: this.product.id,
       quantity: 1,
-      product_variant_id: this.getSelectedVariantId(),
+      product_variant_id: variantId,
       selected_attributes: {
         size: this.selectedSize,
         color: this.selectedColor
@@ -387,12 +490,43 @@ export class ProductDetailPage implements OnInit {
   getSelectedVariantId(): number | undefined {
     if (!this.product?.variants) return undefined;
 
-    const variant = this.product.variants.find(v => {
-      const hasMatchingSize = !this.selectedSize ||
-        (v.attributes && v.attributes.size === this.selectedSize);
-      const hasMatchingColor = !this.selectedColor ||
-        (v.attributes && v.attributes.color === this.selectedColor);
+    const parseAttrs = (v: any) => {
+      const raw = v?.attributes;
+      if (!raw) return {} as any;
+      try {
+        const val = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (!Array.isArray(val)) {
+          const obj: any = val;
+          const out: any = {};
+          out.size = obj.size ?? obj.talla ?? obj.Size ?? obj.Talla ?? obj.SIZE ?? undefined;
+          out.color = obj.color ?? obj.Color ?? obj.colour ?? obj.COLOUR ?? undefined;
+          if (Array.isArray(obj.attributes)) {
+            for (const item of obj.attributes) {
+              const type = (item.type || item.name || '').toString().toLowerCase();
+              const value = item.value ?? item.val ?? item.label ?? undefined;
+              if (type.includes('size') || type.includes('talla')) out.size = value;
+              if (type.includes('color') || type.includes('colour')) out.color = value;
+            }
+          }
+          return out;
+        }
+        const out: any = {};
+        (val as any[]).forEach((item: any) => {
+          const type = (item.type || item.name || '').toString().toLowerCase();
+          const value = item.value ?? item.val ?? item.label ?? undefined;
+          if (type.includes('size') || type.includes('talla')) out.size = value;
+          if (type.includes('color') || type.includes('colour')) out.color = value;
+        });
+        return out;
+      } catch {
+        return {} as any;
+      }
+    };
 
+    const variant = this.product.variants.find(v => {
+      const attrs = parseAttrs(v);
+      const hasMatchingSize = !this.selectedSize || attrs.size === this.selectedSize;
+      const hasMatchingColor = !this.selectedColor || attrs.color === this.selectedColor;
       return hasMatchingSize && hasMatchingColor;
     });
 
@@ -402,6 +536,12 @@ export class ProductDetailPage implements OnInit {
   fromSearch = false;
 
   ngOnInit() {
+    // Si entran directo al detalle sin conexión, salir con feedback
+    if (!this.isOnline()) {
+      this.handleOfflineEntry();
+      return;
+    }
+
     this.productId = this.route.snapshot.paramMap.get('id');
     this.route.queryParams.subscribe(params => {
       this.fromSearch = params['from'] === 'search';
@@ -467,6 +607,23 @@ export class ProductDetailPage implements OnInit {
     this.showToast = false;
   }
 
+  private async showSelectionMissingToast(): Promise<void> {
+    const needs: string[] = [];
+    if (this.requiresSize && !this.selectedSize) needs.push('talla');
+    if (this.requiresColor && !this.selectedColor) needs.push('color');
+    const message = needs.length > 1
+      ? `Selecciona ${needs.join(' y ')}`
+      : `Selecciona ${needs[0]}`;
+
+    const toast = await this.toastController.create({
+      message,
+      duration: 2200,
+      color: 'medium',
+      position: 'top'
+    });
+    await toast.present();
+  }
+
 
   onVariantSelectionChange(selection: VariantSelection) {
     console.log('🔄 Variante seleccionada:', selection);
@@ -475,6 +632,13 @@ export class ProductDetailPage implements OnInit {
     this.currentStock = selection.stock || 0;
     this.selectedSize = selection.size || null;
     this.selectedColor = selection.color || null;
+    console.log('🧮 Stock actualizado desde variante:', {
+      from: 'variant',
+      variantId: this.currentVariant?.id,
+      size: this.selectedSize,
+      color: this.selectedColor,
+      currentStock: this.currentStock
+    });
   }
 
   onVariantChange(variant: ProductVariant | null) {

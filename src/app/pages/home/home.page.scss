@@ -492,6 +492,52 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
   }
 }
 
+// Estado visual cuando no hay conexión: las cards no son clicables
+// En offline, solo cambia el cursor de la card (para indicar que no abre detalle), sin opacar la UI
+.product-card.offline-disabled {
+  cursor: not-allowed;
+}
+
+// Badge de "Sin conexión" sobre la imagen
+.product-image-container {
+  position: relative;
+
+  .offline-indicator {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 3;
+    --background: #fffbe6; // tono amarillo claro
+    --color: #8a6d3b;
+    border-radius: 12px;
+    padding: 0 6px;
+    height: 22px;
+
+    ion-icon {
+      font-size: 14px;
+      margin-right: 4px;
+    }
+  }
+}
+
+// Banner de offline dentro del contenido
+.offline-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fffbe6;
+  color: #8a6d3b;
+  border: 1px solid #fae2a1;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-top: 8px;
+  font-size: 12px;
+
+  ion-icon {
+    font-size: 16px;
+  }
+}
+
 // Responsive
 @media (max-width: 480px) {
   .products-grid {

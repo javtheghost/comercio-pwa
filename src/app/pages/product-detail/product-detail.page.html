@@ -42,16 +42,25 @@
         </p>
         <!-- Variant Selector Component y detalles de variantes -->
         <div *ngIf="!loadingVariants && variantInfo as vInfo">
-          <app-product-variant-selector
-            [variants]="product.variants || []"
-            [attributes]="product.attributes || []"
-            [basePrice]="product.price || '0'"
-            [baseImage]="product.image || ''"
-            [selectedSize]="selectedSize"
-            [selectedColor]="selectedColor"
-            (selectionChange)="onVariantSelectionChange($event)"
-            (variantChange)="onVariantChange($event)">
-          </app-product-variant-selector>
+          <!-- Mostrar selector si se necesitan variantes; incluso si no hay variantes físicas, usar overrides -->
+          <ng-container *ngIf="vInfo.needs_variants; else singleSizeBlock">
+            <app-product-variant-selector
+              [variants]="product.variants || []"
+              [attributes]="product.attributes || []"
+              [attributeAssignments]="product.attribute_assignments || []"
+              [basePrice]="product.price || '0'"
+              [baseImage]="product.image || ''"
+              [baseStock]="product.track_stock ? (product.stock_quantity || 0) : 999"
+              [branchProducts]="product.branch_products || []"
+              [selectedSize]="selectedSize"
+              [selectedColor]="selectedColor"
+              [availableSizesOverride]="vInfo.available_sizes || []"
+              [availableColorsOverride]="vInfo.available_colors || []"
+              (selectionChange)="onVariantSelectionChange($event)"
+              (variantChange)="onVariantChange($event)">
+            </app-product-variant-selector>
+          </ng-container>
+
           <!-- Detalles de variantes y mensaje de talla única -->
           <div class="variant-info" *ngIf="vInfo.needs_variants">
             <div class="size-guide">
@@ -69,12 +78,14 @@
               </p>
             </div>
           </div>
-          <div class="no-variants" *ngIf="!vInfo.needs_variants">
-            <p class="no-variants-text">
-              <ion-icon name="checkmark-circle-outline"></ion-icon>
-              Producto de talla única - No requiere selección de variantes
-            </p>
-          </div>
+          <ng-template #singleSizeBlock>
+            <div class="no-variants" *ngIf="!vInfo.needs_variants || !product.variants || product.variants.length === 0">
+              <p class="no-variants-text">
+                <ion-icon name="checkmark-circle-outline"></ion-icon>
+                Producto de talla única - No requiere selección de variantes
+              </p>
+            </div>
+          </ng-template>
         </div>
         <!-- Loading de variantes -->
         <div *ngIf="loadingVariants" class="loading-variants">
@@ -109,13 +120,13 @@
   <ion-button
     class="add-to-cart-btn"
     (click)="addToCart()"
-    [disabled]="currentStock <= 0 || addingToCart">
+    [disabled]="!canAddToCart">
     @if (addingToCart) {
       <ion-spinner name="crescent" slot="start"></ion-spinner>
     } @else {
       <ion-icon name="cart-outline" slot="start"></ion-icon>
     }
-    {{ currentStock <= 0 ? 'Agotado' : (addingToCart ? 'Agregando...' : 'Agregar al Carrito') }}
+    {{ currentStock <= 0 ? 'Agotado' : (selectionMissing ? 'Selecciona opciones' : (addingToCart ? 'Agregando...' : 'Agregar al Carrito')) }}
   </ion-button>
 </div>
 

@@ -66,7 +66,7 @@
                 <span>${{ getSubtotal() | number:'1.2-2' }}</span>
               </div>
               <div class="total-line">
-                <span>IVA:</span>
+                <span>IVA ({{ getVatRatePercent() }}%):</span>
                 <span>${{ getTax() | number:'1.2-2' }}</span>
               </div>
               <div class="total-line">

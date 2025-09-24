@@ -4,6 +4,8 @@ export const environment = {
   apiUrl: 'http://localhost:8000/api', // URL del backend Laravel
   appName: 'STORE',
   version: '1.0.0',
+  // Tasa de IVA por defecto (16% en MX)
+  vatRate: 0.16,
   // Clave secreta para encriptación (en producción usar variable de entorno)
   encryptionSecret: 'your-super-secret-encryption-key-change-in-production',
   recaptcha: {

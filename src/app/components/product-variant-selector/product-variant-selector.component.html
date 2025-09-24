@@ -1,4 +1,4 @@
-<div class="variant-selector" *ngIf="hasVariants()">
+<div class="variant-selector" *ngIf="hasVariants() || hasSizes() || hasColors()">
 
   <!-- Size Selection -->
   <div class="size-section" *ngIf="hasSizes()">
@@ -14,10 +14,10 @@
         <ion-col size="auto" *ngFor="let size of availableSizes">
           <ion-button
             [color]="selectedSize === size ? 'primary' : 'medium'"
-            [disabled]="!isSizeAvailable(size)"
             (click)="selectSize(size)"
             class="size-button"
-            [class.out-of-stock]="!isSizeAvailable(size)">
+            [disabled]="!isSizeSelectable(size)"
+            [class.out-of-stock]="getStockForSize(size) <= 0">
             {{ size }}
             <span class="stock-indicator" *ngIf="getStockForSize(size) <= 5 && getStockForSize(size) > 0">
               ({{ getStockForSize(size) }})
@@ -39,10 +39,10 @@
         <ion-col size="auto" *ngFor="let color of availableColors">
           <ion-button
             [color]="selectedColor === color ? 'primary' : 'medium'"
-            [disabled]="!isColorAvailable(color)"
             (click)="selectColor(color)"
             class="color-button"
-            [class.out-of-stock]="!isColorAvailable(color)">
+            [disabled]="!isColorSelectable(color)"
+            [class.out-of-stock]="getStockForColor(color) <= 0">
             <div class="color-preview"
                  [style.background-color]="getColorHex(color)"
                  [class.selected]="selectedColor === color">
@@ -82,8 +82,8 @@
 
 </div>
 
-<!-- Fallback for products without variants -->
-<div class="no-variants" *ngIf="!hasVariants()">
+<!-- Fallback for products without variants or options -->
+<div class="no-variants" *ngIf="!hasVariants() && !hasSizes() && !hasColors()">
   <ion-chip color="light">
     <ion-icon name="checkmark-circle-outline"></ion-icon>
     <ion-label>Producto de talla única</ion-label>

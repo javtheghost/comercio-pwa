@@ -165,6 +165,14 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(notificationData.title, notificationData)
       .then(() => {
         console.log('✅ Notificación mostrada:', notificationData.title);
+        // Informar a las ventanas abiertas para actualizar badges/listas
+        return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsList) => {
+          clientsList.forEach((client) => {
+            try {
+              client.postMessage({ type: 'PUSH_RECEIVED', payload: notificationData });
+            } catch (e) { /* noop */ }
+          });
+        });
       })
       .catch((error) => {
         console.error('❌ Error mostrando notificación:', error);
@@ -221,11 +229,15 @@ self.addEventListener('notificationclick', (event) => {
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           client.focus();
-          client.postMessage({
-            type: 'NOTIFICATION_CLICK',
-            data: notificationData,
-            url: urlToOpen
-          });
+          try {
+            client.postMessage({
+              type: 'NOTIFICATION_CLICK',
+              data: notificationData,
+              url: urlToOpen,
+              title: notificationData.title,
+              body: notificationData.body
+            });
+          } catch (e) { /* noop */ }
           return;
         }
       }

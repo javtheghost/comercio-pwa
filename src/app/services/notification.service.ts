@@ -9,6 +9,7 @@ import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
 // } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { environment } from '../../environments/environment';
+import { SecurityService } from './security.service';
 
 export interface NotificationToken {
   token: string;
@@ -49,7 +50,7 @@ export class NotificationService {
   private registration: ServiceWorkerRegistration | null = null;
   private isDevelopmentMode: boolean = false;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private securityService: SecurityService) {}
 
   /**
    * Inicializa las notificaciones push
@@ -271,11 +272,54 @@ export class NotificationService {
         }
       };
 
-      await firstValueFrom(this.http.post(`${this.API_URL}/webpush/subscribe`, {
+      // Intentar asociar con el usuario logueado si existe (desde SecurityService para evitar dependencias circulares)
+      let userId: number | undefined = undefined;
+      try {
+        const user = await this.securityService.getSecureUser();
+        if (user && typeof user.id === 'number') userId = user.id;
+      } catch {}
+
+      // Campos extra para compatibilidad con distintos backends (p. ej. web-push-php)
+      const p256dh = subscriptionData.keys.p256dh;
+      const auth = subscriptionData.keys.auth;
+      const contentEncoding = 'aes128gcm'; // Navegadores modernos
+      const expirationTime = (subscription as any).expirationTime || null;
+
+      const body = {
         ...subscriptionData,
+        // Alt keys flatten
+        p256dh,
+        auth,
+        publicKey: p256dh,
+        authToken: auth,
+        content_encoding: contentEncoding,
+        expirationTime,
         user_agent: navigator.userAgent,
-        platform: 'web'
-      }));
+        platform: 'web',
+        user_id: userId
+      };
+
+      // Normalizar base y construir URLs seguras (evitar /api/api)
+      const base = (this.API_URL || '').replace(/\/+$/, '');
+      const primaryUrl = `${base}/webpush/subscribe`;
+      const hasApiSuffix = /\/api$/i.test(base);
+      const altBase = hasApiSuffix ? base.replace(/\/api$/i, '') : `${base}/api`;
+      const altUrl = `${altBase}/webpush/subscribe`;
+
+      // Intento principal
+      try {
+        await firstValueFrom(this.http.post(primaryUrl, body));
+      } catch (primaryErr: any) {
+        console.error('❌ Error en', primaryUrl, primaryErr?.status, primaryErr?.error || primaryErr);
+        // Fallback a ruta alternativa inteligente
+        try {
+          await firstValueFrom(this.http.post(altUrl, body));
+          console.log('✅ Suscripción enviada usando ruta alternativa', altUrl);
+        } catch (altErr: any) {
+          console.error('❌ También falló', altUrl, altErr?.status, altErr?.error || altErr);
+          throw altErr;
+        }
+      }
 
       console.log('✅ Suscripción enviada al servidor');
     } catch (error) {
@@ -394,8 +438,32 @@ export class NotificationService {
     // Listener para mensajes del service worker (web)
     if (typeof window !== 'undefined') {
       window.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
+        if (!event.data) return;
+        // Click en notificación
+        if (event.data.type === 'NOTIFICATION_CLICK') {
+          // Persistir por si la app no estaba en primer plano cuando llegó el push
+          const title = event.data.title || 'Nueva Notificación';
+          const body = event.data.body || 'Tienes una nueva notificación';
+          this.addToRealNotifications({
+            title,
+            body,
+            data: event.data.data || { type: 'system' },
+            icon: event.data.icon,
+            badge: event.data.badge
+          });
           this.handleNotificationTapped(event.data);
+        }
+        // Push recibido desde SW (app en primer plano o para actualizar badge)
+        if (event.data.type === 'PUSH_RECEIVED') {
+          const payload = event.data.payload || {};
+          // Persistir en storage para que la pestaña de notificaciones y el badge se actualicen
+          this.addToRealNotifications({
+            title: payload.title || 'Nueva Notificación',
+            body: payload.body || 'Tienes una nueva notificación',
+            data: payload.data || { type: 'system' },
+            icon: payload.icon,
+            badge: payload.badge
+          });
         }
       });
     }
@@ -477,6 +545,10 @@ export class NotificationService {
    */
   async sendTestNotification(): Promise<void> {
     try {
+      // Asegurar una suscripción activa antes de enviar
+      const ensured = await this.ensureActiveSubscription();
+      console.log('🔐 Suscripción activa antes de prueba:', ensured);
+
       const payload: NotificationPayload = {
         title: 'Prueba de Notificación',
         body: 'Esta es una notificación de prueba desde tu app',
@@ -486,8 +558,8 @@ export class NotificationService {
         }
       };
 
-      // Si estamos en modo desarrollo, mostrar notificación local
-      if (this.isDevelopmentMode) {
+      // Si estamos en localhost, usar notificación local para evitar silencios por backend
+      if (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || this.isDevelopmentMode) {
         this.showLocalNotification(payload);
         console.log('✅ Notificación local mostrada (modo desarrollo)');
         return;
@@ -507,6 +579,72 @@ export class NotificationService {
         });
         console.log('✅ Notificación local mostrada (fallback)');
       }
+    }
+  }
+
+  /**
+   * Garantiza que exista una suscripción push activa y registrada en el servidor
+   */
+  private async ensureActiveSubscription(): Promise<boolean> {
+    try {
+      if (!this.isAvailable()) {
+        console.warn('⚠️ Push no disponible, no se puede asegurar suscripción');
+        return false;
+      }
+
+      if (!this.vapidPublicKey) {
+        await this.getVapidPublicKey();
+      }
+
+      if (!this.registration) {
+        try {
+          this.registration = await navigator.serviceWorker.register('/sw.js');
+          console.log('✅ Service Worker registrado (ensure)');
+        } catch (e) {
+          console.error('❌ No se pudo registrar SW en ensureActiveSubscription:', e);
+          return false;
+        }
+      }
+
+      const existing = await this.registration.pushManager.getSubscription();
+      if (existing) {
+        // Reasegurar que está en el servidor
+        await this.sendSubscriptionToServer(existing);
+        return true;
+      }
+
+      if (!this.vapidPublicKey) {
+        console.error('❌ Sin clave VAPID, no se puede suscribir');
+        return false;
+      }
+
+      // Si los permisos no han sido otorgados, solicitarlos
+      if (Notification.permission !== 'granted') {
+        const ok = await this.requestNotificationPermission();
+        return ok;
+      }
+
+      // Permisos concedidos pero sin suscripción: crear y registrar
+      try {
+        const sub = await this.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: this.urlBase64ToUint8Array(this.vapidPublicKey)
+        });
+        await this.sendSubscriptionToServer(sub);
+        console.log('✅ Suscripción creada (ensure)');
+        return true;
+      } catch (e) {
+        console.error('❌ Error creando suscripción en ensureActiveSubscription:', e);
+        // Activar modo desarrollo si estamos en localhost para usar notificaciones locales
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+          this.isDevelopmentMode = true;
+          return true; // Permitimos continuar con locales
+        }
+        return false;
+      }
+    } catch (e) {
+      console.error('❌ Error en ensureActiveSubscription:', e);
+      return false;
     }
   }
 
@@ -541,6 +679,11 @@ export class NotificationService {
 
       // Agregar a la lista de notificaciones reales
       this.addToRealNotifications(payload);
+
+      // Emitir evento global para actualizar badges inmediatamente
+      try {
+        window.dispatchEvent(new CustomEvent('notifications:updated'));
+      } catch {}
     }
   }
 
@@ -588,6 +731,11 @@ export class NotificationService {
       localStorage.setItem('user_notifications', JSON.stringify(existing));
 
       console.log('✅ Notificación real guardada en localStorage');
+
+      // Notificar a otros componentes que hubo cambios
+      try {
+        window.dispatchEvent(new CustomEvent('notifications:updated'));
+      } catch {}
     } catch (error) {
       console.error('❌ Error guardando notificación en localStorage:', error);
     }

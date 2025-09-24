@@ -3,6 +3,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { IonicModule } from '@ionic/angular';
 import { TabsPage } from '../../tabs/tabs.page';
+import { OrderService, Order } from '../../services/order.service';
 
 @Component({
   selector: 'app-order-confirmation',
@@ -13,14 +14,41 @@ import { TabsPage } from '../../tabs/tabs.page';
 })
 export class OrderConfirmationPage implements OnInit {
   orderId: string | null = null;
+  order: Order | null = null;
+  loading = false;
+  error: string | null = null;
 
   constructor(
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private orderService: OrderService
   ) {}
 
   ngOnInit() {
-    this.orderId = this.route.snapshot.queryParams['orderId'] || '12345';
+    this.orderId = this.route.snapshot.queryParams['orderId'] || null;
+    if (this.orderId) {
+      const idNum = Number(this.orderId);
+      if (!Number.isNaN(idNum)) {
+        this.fetchOrder(idNum);
+      }
+    }
+  }
+
+  private fetchOrder(id: number): void {
+    this.loading = true;
+    this.error = null;
+    this.orderService.getOrder(id).subscribe({
+      next: (resp) => {
+        // Backend suele devolver { success, data }
+        this.order = resp?.data ? resp.data as Order : (resp as Order);
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('Error cargando orden:', err);
+        this.error = 'No se pudo cargar la orden.';
+        this.loading = false;
+      }
+    });
   }
 
   goToHome(): void {

@@ -11,7 +11,7 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
+<ion-content [style.--padding-bottom]="'calc(88px + env(safe-area-inset-bottom))'">
   <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
     <ion-refresher-content
       pullingIcon="chevron-down-circle-outline"
@@ -94,6 +94,8 @@
                   type="number"
                   [value]="item.quantity"
                   (input)="updateQuantity(item, $event)"
+                  (blur)="commitQuantityInput(item, $event)"
+                  (keyup.enter)="commitQuantityInput(item, $event)"
                   (click)="selectInput($event)"
                   class="quantity-input"
                   min="1"
@@ -183,7 +185,7 @@
           <!-- Quantity Selector -->
           <div slot="end" class="quantity-controls">
             <div class="quantity-selector">
-              <ion-button fill="clear" size="small" (click)="updateOfflineItemQuantity(item, item.quantity - 1)" class="quantity-btn">
+              <ion-button fill="clear" size="small" (click)="decreaseOfflineQuantity(item)" class="quantity-btn">
                 <ion-icon name="remove-outline"></ion-icon>
               </ion-button>
 
@@ -191,13 +193,15 @@
                 <input
                   type="number"
                   [value]="item.quantity"
-                  (input)="updateOfflineItemQuantity(item, +$event.target.value)"
+                  (input)="updateOfflineQuantityFromInput(item, $event)"
+                  (blur)="commitOfflineQuantityInput(item, $event)"
+                  (keyup.enter)="commitOfflineQuantityInput(item, $event)"
                   class="quantity-input"
                   min="1"
                   max="99">
               </div>
 
-              <ion-button fill="clear" size="small" (click)="updateOfflineItemQuantity(item, item.quantity + 1)" class="quantity-btn">
+              <ion-button fill="clear" size="small" (click)="increaseOfflineQuantity(item)" class="quantity-btn">
                 <ion-icon name="add-outline"></ion-icon>
               </ion-button>
             </div>
@@ -233,7 +237,7 @@
           <!-- Quantity Selector -->
           <div slot="end" class="quantity-controls">
             <div class="quantity-selector">
-              <ion-button fill="clear" size="small" (click)="updateOfflineItemQuantity(item, item.quantity - 1)" class="quantity-btn">
+              <ion-button fill="clear" size="small" (click)="decreaseOfflineQuantity(item)" class="quantity-btn">
                 <ion-icon name="remove-outline"></ion-icon>
               </ion-button>
 
@@ -241,13 +245,15 @@
                 <input
                   type="number"
                   [value]="item.quantity"
-                  (input)="updateOfflineItemQuantity(item, +$event.target.value)"
+                  (input)="updateOfflineQuantityFromInput(item, $event)"
+                  (blur)="commitOfflineQuantityInput(item, $event)"
+                  (keyup.enter)="commitOfflineQuantityInput(item, $event)"
                   class="quantity-input"
                   min="1"
                   max="99">
               </div>
 
-              <ion-button fill="clear" size="small" (click)="updateOfflineItemQuantity(item, item.quantity + 1)" class="quantity-btn">
+              <ion-button fill="clear" size="small" (click)="increaseOfflineQuantity(item)" class="quantity-btn">
                 <ion-icon name="add-outline"></ion-icon>
               </ion-button>
             </div>
@@ -280,7 +286,7 @@
         }
 
         <div class="summary-row">
-          <span>IVA</span>
+          <span>IVA ({{ getVatRatePercent() }}%)</span>
           <span>{{ getVAT() | currency:'MXN' }}</span>
         </div>
 

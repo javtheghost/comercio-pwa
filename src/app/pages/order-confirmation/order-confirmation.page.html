@@ -11,18 +11,34 @@
     </div>
 
     <h1>¡Orden Confirmada!</h1>
-    <p class="order-id">Número de orden: #{{ orderId }}</p>
+    <p class="order-id">
+      Número de orden: #{{ order?.order_number || orderId }}
+    </p>
 
-    <ion-card>
-      <ion-card-content>
-        <h3>¿Qué sigue?</h3>
-        <ul>
-          <li>Recibirás un email de confirmación</li>
-          <li>Procesaremos tu orden en 1-2 días hábiles</li>
-          <li>Te notificaremos cuando esté en camino</li>
-        </ul>
-      </ion-card-content>
-    </ion-card>
+    @if (order) {
+      <ion-card>
+        <ion-card-content>
+          <h3>Resumen</h3>
+          <div class="summary">
+            <div class="line"><span>Subtotal:</span><span>${{ order.subtotal | number:'1.2-2' }}</span></div>
+            <div class="line"><span>IVA ({{ order.subtotal > 0 ? (order.tax_amount / order.subtotal * 100 | number:'1.0-0') : '16' }}%):</span><span>${{ order.tax_amount | number:'1.2-2' }}</span></div>
+            <div class="line"><span>Envío:</span><span>${{ order.shipping_amount | number:'1.2-2' }}</span></div>
+            <div class="line total"><span>Total:</span><span>${{ order.total_amount | number:'1.2-2' }}</span></div>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    } @else {
+      <ion-card>
+        <ion-card-content>
+          <h3>¿Qué sigue?</h3>
+          <ul>
+            <li>Recibirás un email de confirmación</li>
+            <li>Procesaremos tu orden en 1-2 días hábiles</li>
+            <li>Te notificaremos cuando esté en camino</li>
+          </ul>
+        </ion-card-content>
+      </ion-card>
+    }
 
     <div class="actions">
       <ion-button expand="block" fill="outline" (click)="goToOrders()">

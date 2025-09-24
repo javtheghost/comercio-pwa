@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { NavController } from '@ionic/angular';
 import {
   IonContent,
   IonIcon,
@@ -28,7 +29,8 @@ import { LoginRequest } from '../../interfaces/auth.interfaces';
 })
 export class LoginPage implements OnInit {
 onSkip() {
-  this.router.navigate(['/tabs/home']);
+  // Usar NavController con animationDirection 'back' para transición izquierda->derecha
+  this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
 }
   loginForm: FormGroup;
   showPassword = false;
@@ -44,7 +46,8 @@ onSkip() {
     private authService: AuthService,
     private router: Router,
     private cdr: ChangeDetectorRef,
-    public recaptchaService: RecaptchaService
+    public recaptchaService: RecaptchaService,
+    private navCtrl: NavController
   ) {
     this.loginForm = this.formBuilder.group({
       email: ['', [Validators.required, Validators.email]],
@@ -55,7 +58,7 @@ onSkip() {
   ngOnInit() {
     // Check if user is already authenticated
     if (this.authService.isAuthenticated()) {
-      this.router.navigate(['/tabs/home']);
+      this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
     }
 
     // Suscribirse a cambios en el estado de autenticación
@@ -106,7 +109,8 @@ onSkip() {
 
           // Si llegamos aquí, el login fue exitoso
           this.showToastMessage('¡Inicio de sesión exitoso!');
-          this.router.navigate(['/tabs/home']);
+          // En login exitoso, usar 'forward' (derecha->izquierda) al ir a Home
+          this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
         },
         error: (error) => {
           console.log('❌ Error completo del backend:', error);
