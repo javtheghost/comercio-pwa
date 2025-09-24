@@ -124,6 +124,7 @@
       <button
         type="submit"
         class="register-button"
+        [disabled]="loading || registerForm.invalid"
       >
         <ion-spinner *ngIf="loading" name="crescent" class="button-spinner"></ion-spinner>
         <span *ngIf="!loading">Crear Cuenta</span>

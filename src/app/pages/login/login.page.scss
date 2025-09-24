@@ -68,6 +68,14 @@
   background: #ffffff;
   transition: all 0.2s ease;
   box-sizing: border-box;
+  /* Hide native reveal/clear icons in Edge/Chromium to avoid double eye icon */
+  &::-ms-reveal,
+  &::-ms-clear {
+    display: none;
+  }
+  &::-webkit-credentials-auto-fill-button {
+    visibility: hidden; display: none; pointer-events: none; height: 0; width: 0; margin: 0; padding: 0;
+  }
 
   &:focus {
     outline: none;
@@ -172,10 +180,13 @@
   &:disabled {
     background: #9ca3af;
     cursor: not-allowed;
+    opacity: 0.9;
   }
 
   .button-spinner {
     --color: #ffffff;
+    width: 20px;
+    height: 20px;
   }
 }
 

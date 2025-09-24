@@ -1,7 +1,8 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgIf } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { NavController } from '@ionic/angular';
 import {
   IonContent,
   IonIcon,
@@ -17,6 +18,7 @@ import { RegisterRequest } from '../../interfaces/auth.interfaces';
   standalone: true,
   imports: [
     CommonModule,
+    NgIf,
     ReactiveFormsModule,
     IonContent,
     IonIcon,
@@ -42,6 +44,7 @@ export class RegisterPage implements OnInit {
     private formBuilder: FormBuilder,
     private authService: AuthService,
     private router: Router,
+    private navCtrl: NavController,
     public recaptchaService: RecaptchaService
   ) {
     this.registerForm = this.formBuilder.group({
@@ -56,7 +59,7 @@ export class RegisterPage implements OnInit {
   ngOnInit() {
     // Check if user is already authenticated
     if (this.authService.isAuthenticated()) {
-      this.router.navigate(['/tabs/home']);
+      this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
     }
   }
 
@@ -112,7 +115,28 @@ export class RegisterPage implements OnInit {
           // Cerrar el modal y redirigir después de 3 segundos
           setTimeout(() => {
             this.closeSuccessModal();
-            this.router.navigate(['/tabs/home']);
+            this.authService.getCurrentUser().subscribe({
+              next: (freshUser) => {
+                if (freshUser?.email_verified_at) {
+                  this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
+                } else {
+                  const email = freshUser?.email || this.registerForm.value.email || '';
+                  // Register -> VerifyEmail: izquierda->derecha (back)
+                  this.navCtrl.navigateRoot(['/tabs/verify-email'], { animationDirection: 'back' });
+                  this.router.navigate([], { queryParams: { email, sent: '1' }, queryParamsHandling: 'merge' });
+                }
+              },
+              error: () => {
+                const user = this.authService.getCurrentUserValue();
+                if (user?.email_verified_at) {
+                  this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
+                } else {
+                  const email = user?.email || this.registerForm.value.email || '';
+                  this.navCtrl.navigateRoot(['/tabs/verify-email'], { animationDirection: 'back' });
+                  this.router.navigate([], { queryParams: { email, sent: '1' }, queryParamsHandling: 'merge' });
+                }
+              }
+            });
           }, 3000);
         },
         error: (error) => {

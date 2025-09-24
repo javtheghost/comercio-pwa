@@ -52,6 +52,8 @@ export class ProductDetailPage implements OnInit {
   currentStock: number = 0;
   variantInfo: VariantInfo | null = null;
   loadingVariants = false;
+  // Stock base a nivel producto (cuando NO hay variantes)
+  productBaseStock: number = 0;
 
   // Toast properties
   showToast = false;
@@ -68,18 +70,28 @@ export class ProductDetailPage implements OnInit {
   private offlineToastActive = false;
   private hasHandledOfflineEntry = false;
 
-  // Control de requisitos de selección
+  // Control de requisitos de selección (basado en variantes reales, no solo en needs_variants)
+  private variantSizes: Set<string> = new Set();
+  private variantColors: Set<string> = new Set();
+
   get requiresSize(): boolean {
-    return !!(this.variantInfo?.needs_variants && this.product?.availableSizes && this.product.availableSizes.length > 0);
+    // Requiere seleccionar talla cuando hay variantes y más de una talla distinta
+    return this.hasRealVariants && this.variantSizes.size > 1;
   }
   get requiresColor(): boolean {
-    return !!(this.variantInfo?.needs_variants && this.product?.availableColors && this.product.availableColors.length > 0);
+    // Requiere seleccionar color cuando hay variantes y más de un color distinto
+    return this.hasRealVariants && this.variantColors.size > 1;
   }
   get selectionMissing(): boolean {
     return (this.requiresSize && !this.selectedSize) || (this.requiresColor && !this.selectedColor);
   }
   get canAddToCart(): boolean {
     return !this.addingToCart && this.currentStock > 0 && !this.selectionMissing;
+  }
+
+  // Verdadero cuando existen variantes físicas para el producto
+  get hasRealVariants(): boolean {
+    return !!(this.product?.variants && this.product.variants.length > 0);
   }
 
 
@@ -157,15 +169,18 @@ export class ProductDetailPage implements OnInit {
           console.log('🧮 Stock pendiente de variantes. No usar stock del producto para evitar flicker.');
         } else {
           // Sin variantes: usar stock del producto
-          this.currentStock = this.product.track_stock ? (this.product.stock_quantity || 0) : 999;
+          // Calcular stock base preferentemente desde branch_products (producto_variant_id=null)
+          this.productBaseStock = this.computeProductBaseStock(this.product as any);
+          this.currentStock = this.product.track_stock ? this.productBaseStock : 999;
           console.log('🧮 Stock inicial (producto, sin variantes):', {
             track_stock: this.product.track_stock,
             stock_quantity: this.product.stock_quantity,
-            currentStock: this.currentStock
+            currentStock: this.currentStock,
+            productBaseStock: this.productBaseStock
           });
         }
 
-        // Cargar información de variantes usando la nueva API
+  // Cargar información de variantes usando la nueva API
         this.loadVariantInfo();
 
         this.loading = false;
@@ -205,16 +220,20 @@ export class ProductDetailPage implements OnInit {
           // Mapear existing_variants a ProductVariant (ya coincide con la interfaz usada por el selector)
           (this.product as any).variants = variantInfo.existing_variants as unknown as ProductVariant[];
           console.log('🔁 Variants sincronizadas desde variant-info.existing_variants:', this.product.variants);
+          // Actualizar sets de opciones disponibles según variantes reales
+          this.updateVariantOptionSets();
         }
 
-        // Seleccionar primera talla disponible por defecto si no hay selección
-        if (variantInfo.available_sizes.length > 0 && !this.selectedSize) {
-          this.selectedSize = variantInfo.available_sizes[0];
-        }
-
-        // Seleccionar primer color disponible por defecto si no hay selección
-        if (variantInfo.available_colors.length > 0 && !this.selectedColor) {
-          this.selectedColor = variantInfo.available_colors[0];
+        // Si hay variantes reales, preferir autoselección en el selector.
+        // Si NO hay variantes reales, podemos usar overrides del backend como referencia visual.
+        if (!this.hasRealVariants) {
+          // Seleccionar primera talla/color si vienen de variant-info
+          if (variantInfo.available_sizes.length > 0 && !this.selectedSize) {
+            this.selectedSize = variantInfo.available_sizes[0];
+          }
+          if (variantInfo.available_colors.length > 0 && !this.selectedColor) {
+            this.selectedColor = variantInfo.available_colors[0];
+          }
         }
 
         console.log('🎯 Tallas disponibles:', variantInfo.available_sizes);
@@ -224,20 +243,19 @@ export class ProductDetailPage implements OnInit {
         console.log('🎯 Necesita variantes:', variantInfo.needs_variants);
         console.log('🎯 Tipo de tallas:', variantInfo.size_type);
 
-        // Si NO necesita variantes o no hay variantes, usar stock del producto
-        const hasVariants = Array.isArray(this.product?.variants) && (this.product!.variants.length > 0);
-        if (!variantInfo.needs_variants || !hasVariants) {
-          if (this.product) {
-            this.currentPrice = this.product.price || '0';
-            this.currentStock = this.product.track_stock ? (this.product.stock_quantity || 0) : 999;
-            console.log('🧮 Stock determinado por producto (sin variantes):', {
-              needs_variants: variantInfo.needs_variants,
-              hasVariants,
-              track_stock: this.product.track_stock,
-              stock_quantity: this.product.stock_quantity,
-              currentStock: this.currentStock
-            });
-          }
+        // Stock a nivel producto solo cuando NO hay variantes reales
+        if (!this.hasRealVariants && this.product) {
+          this.currentPrice = this.product.price || '0';
+          // Recalcular base stock por si llegó branch_products en esta llamada
+          this.productBaseStock = this.computeProductBaseStock(this.product as any);
+          this.currentStock = this.product.track_stock ? this.productBaseStock : 999;
+          console.log('🧮 Stock determinado por producto (sin variantes):', {
+            needs_variants: variantInfo.needs_variants,
+            track_stock: this.product.track_stock,
+            stock_quantity: this.product.stock_quantity,
+            productBaseStock: this.productBaseStock,
+            currentStock: this.currentStock
+          });
         }
 
         this.loadingVariants = false;
@@ -249,6 +267,76 @@ export class ProductDetailPage implements OnInit {
         // No es crítico, continuar sin información de variantes
       }
     });
+  }
+
+  // Recolecta las opciones reales de talla y color a partir de las variantes físicas
+  private updateVariantOptionSets(): void {
+    this.variantSizes.clear();
+    this.variantColors.clear();
+    try {
+      const variants = this.product?.variants || [];
+      variants.forEach(v => {
+        const attrs = this.parseVariantAttributes(v);
+        const size = attrs.size ? String(attrs.size).trim() : '';
+        const color = attrs.color ? String(attrs.color).trim() : '';
+        if (size) this.variantSizes.add(size);
+        if (color) this.variantColors.add(color);
+      });
+      console.log('🧭 Opciones de variantes detectadas:', {
+        sizes: Array.from(this.variantSizes),
+        colors: Array.from(this.variantColors)
+      });
+    } catch (e) {
+      console.warn('No se pudieron actualizar las opciones de variantes:', e);
+    }
+  }
+
+  private parseVariantAttributes(v: any): { size?: string; color?: string } {
+    const raw = v?.attributes;
+    if (!raw) return {};
+    try {
+      const val = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (!Array.isArray(val)) {
+        const obj: any = val;
+        const out: any = {};
+        out.size = obj.size ?? obj.talla ?? obj.Size ?? obj.Talla ?? obj.SIZE ?? undefined;
+        out.color = obj.color ?? obj.Color ?? obj.colour ?? obj.COLOUR ?? undefined;
+        if (Array.isArray(obj.attributes)) {
+          for (const item of obj.attributes) {
+            const type = (item.type || item.name || '').toString().toLowerCase();
+            const value = item.value ?? item.val ?? item.label ?? undefined;
+            if (type.includes('size') || type.includes('talla')) out.size = value;
+            if (type.includes('color') || type.includes('colour')) out.color = value;
+          }
+        }
+        return out;
+      }
+      const out: any = {};
+      (val as any[]).forEach((item: any) => {
+        const type = (item.type || item.name || '').toString().toLowerCase();
+        const value = item.value ?? item.val ?? item.label ?? undefined;
+        if (type.includes('size') || type.includes('talla')) out.size = value;
+        if (type.includes('color') || type.includes('colour')) out.color = value;
+      });
+      return out;
+    } catch {
+      return {};
+    }
+  }
+
+  // Calcula stock base del producto sumando branch_products a nivel producto (sin variante)
+  private computeProductBaseStock(product: Product): number {
+    try {
+      const branches = (product as any).branch_products as any[] | undefined;
+      if (Array.isArray(branches) && branches.length > 0) {
+        const sum = branches
+          .filter(bp => (bp.product_variant_id === null || bp.product_variant_id === undefined) && bp.is_active !== false)
+          .reduce((acc, bp) => acc + (Number(bp.stock) || 0), 0);
+        if (sum > 0) return sum;
+      }
+    } catch {}
+    // Fallback al stock_quantity del producto si no hay branch_products
+    return Number(product.stock_quantity || 0);
   }
 
   // ===== Manejo de estado offline (defensa en profundidad) =====
@@ -436,8 +524,8 @@ export class ProductDetailPage implements OnInit {
     // Determinar variantId de forma robusta
     const variantId = this.currentVariant?.id ?? this.getSelectedVariantId();
 
-    // Si el producto necesita variantes y hay variantes físicas, exigir variantId válido
-    if (this.variantInfo?.needs_variants && Array.isArray(this.product.variants) && this.product.variants.length > 0 && !variantId) {
+    // Si hay variantes físicas, exigir variantId válido SIEMPRE (aunque needs_variants venga en false)
+    if (Array.isArray(this.product.variants) && this.product.variants.length > 0 && !variantId) {
       console.warn('⚠️ No hay una variante válida para la selección actual');
       this.showSelectionMissingToast();
       return;

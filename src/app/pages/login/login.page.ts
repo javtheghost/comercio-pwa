@@ -1,5 +1,5 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgIf } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NavController } from '@ionic/angular';
@@ -18,6 +18,7 @@ import { LoginRequest } from '../../interfaces/auth.interfaces';
   standalone: true,
   imports: [
     CommonModule,
+    NgIf,
     ReactiveFormsModule,
     IonContent,
     IonIcon,
@@ -37,6 +38,9 @@ onSkip() {
   showToast = false;
   toastMessage = '';
   authLoading = false;
+  verifyingSession = false;
+  // UI flag to indicate immediate submission state (used for Enter key feedback)
+  submitting = false;
 
   // reCAPTCHA
   recaptchaToken = '';
@@ -58,7 +62,7 @@ onSkip() {
   ngOnInit() {
     // Check if user is already authenticated
     if (this.authService.isAuthenticated()) {
-      this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
+      this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
     }
 
     // Suscribirse a cambios en el estado de autenticación
@@ -80,14 +84,17 @@ onSkip() {
     }
 
     // Prevenir múltiples clics
-    if (this.authLoading) {
+    if (this.authLoading || this.submitting) {
       return;
     }
 
     try {
+      // Set immediate UI feedback
+      this.submitting = true;
       // Verificar si reCAPTCHA está disponible
       if (!this.recaptchaService.isRecaptchaAvailable()) {
         this.showToastMessage('reCAPTCHA no disponible. Por favor, recarga la página e intenta nuevamente.');
+        this.submitting = false;
         return;
       }
 
@@ -109,11 +116,73 @@ onSkip() {
 
           // Si llegamos aquí, el login fue exitoso
           this.showToastMessage('¡Inicio de sesión exitoso!');
-          // En login exitoso, usar 'forward' (derecha->izquierda) al ir a Home
-          this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
+          // pass control to verifying overlay; keep button not loading now
+          this.submitting = false;
+          this.verifyingSession = true;
+          // Esperar a obtener el usuario fresco desde /auth/me para evitar estado obsoleto
+          this.authService.getCurrentUser().subscribe({
+            next: (freshUser) => {
+              if (freshUser?.email_verified_at) {
+                this.verifyingSession = false;
+                this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
+              } else {
+                // Segunda comprobación breve para evitar parpadeos por estado desincronizado
+                setTimeout(() => {
+                  this.authService.getCurrentUser().subscribe({
+                    next: (second) => {
+                      if (second?.email_verified_at) {
+                        this.verifyingSession = false;
+                        this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
+                      } else {
+                        const email = (second?.email || freshUser?.email || this.loginForm.value.email || '').trim();
+                        this.verifyingSession = false;
+                        this.router.navigate(['/tabs/verify-email'], { queryParams: { email, sent: '1' } });
+                      }
+                    },
+                    error: () => {
+                      const user = this.authService.getCurrentUserValue();
+                      const email = (user?.email || this.loginForm.value.email || '').trim();
+                      this.verifyingSession = false;
+                      this.router.navigate(['/tabs/verify-email'], { queryParams: { email, sent: '1' } });
+                    }
+                  });
+                }, 350);
+              }
+            },
+            error: () => {
+              // Reintentar una vez para evitar falsos negativos por demora de backend
+              setTimeout(() => {
+                this.authService.getCurrentUser().subscribe({
+                  next: (retryUser) => {
+                    if (retryUser?.email_verified_at) {
+                      this.verifyingSession = false;
+                      this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
+                    } else {
+                      const email = (retryUser?.email || this.loginForm.value.email || '').trim();
+                      this.verifyingSession = false;
+                      this.router.navigate(['/tabs/verify-email'], { queryParams: { email, sent: '1' } });
+                    }
+                  },
+                  error: () => {
+                    // Último recurso: decidir con el estado actual
+                    const user = this.authService.getCurrentUserValue();
+                    if (user?.email_verified_at) {
+                      this.verifyingSession = false;
+                      this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
+                    } else {
+                      const email = (user?.email || this.loginForm.value.email || '').trim();
+                      this.verifyingSession = false;
+                      this.router.navigate(['/tabs/verify-email'], { queryParams: { email, sent: '1' } });
+                    }
+                  }
+                });
+              }, 350);
+            }
+          });
         },
         error: (error) => {
           console.log('❌ Error completo del backend:', error);
+          this.submitting = false;
 
           // Aplicar errores específicos a los campos correspondientes
           if (error.error && error.error.errors) {
@@ -137,6 +206,7 @@ onSkip() {
         }
       });
     } catch (error) {
+      this.submitting = false;
       this.showToastMessage('Error de reCAPTCHA. Error al verificar reCAPTCHA. Por favor, recarga la página e intenta nuevamente.');
     }
   }

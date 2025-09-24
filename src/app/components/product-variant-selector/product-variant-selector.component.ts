@@ -132,8 +132,31 @@ export class ProductVariantSelectorComponent implements OnInit, OnChanges {
       }
     });
 
-    this.availableSizes = this.sortSizes(Array.from(sizes));
-    this.availableColors = Array.from(colors);
+    // Si existen variantes reales con colores/tallas específicas, filtrar placeholders como "Único"/"Talla única"/"Varios"
+    const hasRealVariantSizes = hasVariants && this.variants.some(v => {
+      const a = this.parseAttrs(v);
+      const val = (a.size || '').toString().trim();
+      return val && !this.isPlaceholderSize(val);
+    });
+
+    const hasRealVariantColors = hasVariants && this.variants.some(v => {
+      const a = this.parseAttrs(v);
+      const val = (a.color || '').toString().trim();
+      return val && !this.isPlaceholderColor(val);
+    });
+
+    let sizeList = Array.from(sizes);
+    let colorList = Array.from(colors);
+
+    if (hasRealVariantSizes) {
+      sizeList = sizeList.filter(s => !this.isPlaceholderSize(s));
+    }
+    if (hasRealVariantColors) {
+      colorList = colorList.filter(c => !this.isPlaceholderColor(c));
+    }
+
+    this.availableSizes = this.sortSizes(sizeList);
+    this.availableColors = colorList;
 
     // Seleccionar primera opción por defecto si no hay selección previa
     if (this.availableSizes.length > 0 && !this.selectedSize) {
@@ -142,6 +165,16 @@ export class ProductVariantSelectorComponent implements OnInit, OnChanges {
     if (this.availableColors.length > 0 && !this.selectedColor) {
       this.selectedColor = this.availableColors[0];
     }
+  }
+
+  private isPlaceholderSize(v: string): boolean {
+    const val = (v || '').toString().toLowerCase();
+    return val.includes('talla única') || val === 'única' || val === 'unica' || val === 'único' || val === 'unico' || val === 'varios' || val === 'varias';
+  }
+
+  private isPlaceholderColor(v: string): boolean {
+    const val = (v || '').toString().toLowerCase();
+    return val === 'único' || val === 'unico' || val === 'default' || val === 'varios' || val === 'varias';
   }
 
   private ensureValidSelections() {

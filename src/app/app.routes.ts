@@ -11,6 +11,8 @@ import { OrderConfirmationPage } from './pages/order-confirmation/order-confirma
 import { AddressPage } from './pages/address/address.page';
 import { NotificationsPage } from './pages/notifications/notifications.page';
 import { AuthGuard } from './guards/auth.guard';
+import { VerifiedGuard } from './guards/verified.guard';
+import { VerifyEmailPage } from './pages/verify-email/verify-email.page';
 
 export const routes: Routes = [
   {
@@ -21,12 +23,12 @@ export const routes: Routes = [
   {
     path: 'checkout',
     component: CheckoutPage,
-    canActivate: [AuthGuard]
+    canActivate: [AuthGuard, VerifiedGuard]
   },
   {
     path: 'order-confirmation',
     component: OrderConfirmationPage,
-    canActivate: [AuthGuard]
+    canActivate: [AuthGuard, VerifiedGuard]
   },
   {
     path: 'tabs',
@@ -52,7 +54,7 @@ export const routes: Routes = [
       {
         path: 'orders',
         component: OrdersPage,
-        canActivate: [AuthGuard]
+        canActivate: [AuthGuard, VerifiedGuard]
       },
       {
         path: 'notifications',
@@ -60,7 +62,12 @@ export const routes: Routes = [
       },
       {
         path: 'profile',
-        component: ProfilePage
+        component: ProfilePage,
+        canActivate: [AuthGuard, VerifiedGuard]
+      },
+      {
+        path: 'verify-email',
+        component: VerifyEmailPage
       },
       {
         path: 'product/:id',
@@ -77,12 +84,12 @@ export const routes: Routes = [
       {
         path: 'address',
         component: AddressPage,
-        canActivate: [AuthGuard]
+        canActivate: [AuthGuard, VerifiedGuard]
       },
       {
         path: 'address/:id',
         component: AddressPage,
-        canActivate: [AuthGuard]
+        canActivate: [AuthGuard, VerifiedGuard]
       }
     ]
   }

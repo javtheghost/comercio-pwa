@@ -319,6 +319,11 @@ export class AuthService {
     );
   }
 
+  // Reenviar correo de verificación
+  async resendVerificationEmail(): Promise<void> {
+    await firstValueFrom(this.authApiService.resendVerificationEmail());
+  }
+
   isAuthenticated(): boolean {
     return this.authStateSubject.value.isAuthenticated;
   }

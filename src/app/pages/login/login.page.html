@@ -44,9 +44,6 @@
             [class.valid]="isFieldValid('password')"
             [class.error]="hasFieldError('password')"
           />
-          <div class="input-icon" *ngIf="isFieldValid('password')">
-            <ion-icon name="checkmark-circle" class="valid-icon"></ion-icon>
-          </div>
           <button
             type="button"
             class="password-toggle"
@@ -71,10 +68,10 @@
       <button
         type="submit"
         class="login-button"
-        [disabled]="authLoading"
+        [disabled]="submitting || authLoading"
       >
-        <ion-spinner *ngIf="authLoading" name="crescent" class="button-spinner"></ion-spinner>
-        <span *ngIf="!authLoading">Iniciar Sesión</span>
+        <ion-spinner *ngIf="submitting || authLoading" name="crescent" class="button-spinner"></ion-spinner>
+        <span *ngIf="!(submitting || authLoading)">Iniciar Sesión</span>
       </button>
 
       <!-- Omitir e ir al catálogo como enlace -->
@@ -145,6 +142,37 @@
     </div>
   </div>
 </ion-content>
+
+<!-- Fullscreen verifying overlay -->
+<div class="verifying-overlay" *ngIf="verifyingSession">
+  <div class="verifying-box">
+    <ion-spinner name="crescent"></ion-spinner>
+    <span>Preparando tu sesión…</span>
+  </div>
+  <style>
+    .verifying-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      backdrop-filter: blur(2px);
+    }
+    .verifying-box {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      color: #333;
+      font-weight: 600;
+    }
+  </style>
+</div>
 
 <!-- Toast for notifications -->
 <ion-toast

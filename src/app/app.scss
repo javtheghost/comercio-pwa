@@ -32,3 +32,17 @@ ion-content {
   touch-action: auto !important;
   scroll-behavior: smooth;
 }
+
+/* Toast used by VerifiedGuard */
+.verify-toast {
+  --background: var(--ion-color-warning);
+  --color: var(--ion-color-warning-contrast, #000);
+  --border-radius: 12px;
+  --box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  font-weight: 600;
+}
+
+.verify-toast .toast-button {
+  color: var(--ion-color-dark-contrast, #fff);
+  font-weight: 700;
+}

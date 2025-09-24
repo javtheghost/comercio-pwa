@@ -1,0 +1,20 @@
+<ion-content class="verify-content">
+  <div class="verify-container">
+    <div class="icon-wrapper">
+      <ion-icon name="mail-unread-outline"></ion-icon>
+    </div>
+    <h1>Verifica tu correo</h1>
+    <p>Hemos enviado un enlace de verificación a {{ email || 'tu correo' }}. Abre tu correo y toca el enlace para continuar.</p>
+    <div class="actions" *ngIf="!unauthenticated; else unauth">
+      <ion-button expand="block" (click)="refreshStatus()" [disabled]="loading">
+        <ion-spinner *ngIf="loading" name="crescent"></ion-spinner>
+        <span *ngIf="!loading">Ya verifiqué, continuar</span>
+      </ion-button>
+      <ion-button expand="block" fill="outline" (click)="resend()" [disabled]="loading">Reenviar correo</ion-button>
+    </div>
+    <ng-template #unauth>
+      <ion-button expand="block" (click)="goToLogin()">Iniciar sesión</ion-button>
+    </ng-template>
+  </div>
+  <ion-toast [isOpen]="showToast" (didDismiss)="showToast=false" [message]="toastMessage" duration="2000"></ion-toast>
+</ion-content>

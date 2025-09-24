@@ -122,4 +122,15 @@ export class AuthApiService {
       withCredentials: true
     });
   }
+
+  /**
+   * Reenvía el correo de verificación
+   */
+  resendVerificationEmail(): Observable<any> {
+    const headers = this.getAuthHeaders();
+    return this.http.post(`${this.baseUrl}/auth/email/resend`, {}, {
+      headers: headers,
+      withCredentials: true
+    });
+  }
 }
