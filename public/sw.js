@@ -197,10 +197,10 @@ self.addEventListener('notificationclick', (event) => {
   } else if (notificationData.type) {
     switch (notificationData.type) {
       case 'new_order':
-        urlToOpen = `/orders/${notificationData.order_id || ''}`;
+        urlToOpen = `/order-confirmation?orderId=${notificationData.order_id || ''}`;
         break;
       case 'order_status':
-        urlToOpen = `/orders/${notificationData.order_id || ''}`;
+        urlToOpen = `/order-confirmation?orderId=${notificationData.order_id || ''}`;
         break;
       case 'promotion':
         urlToOpen = notificationData.promotion_url || '/promotions';

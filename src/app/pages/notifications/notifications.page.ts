@@ -4,6 +4,8 @@ import { IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonLabel
 import { addIcons } from 'ionicons';
 import { notifications, checkmarkCircle, time, cart, gift, alertCircle, trash, close } from 'ionicons/icons';
 import { NotificationService } from '../../services/notification.service';
+import { Router } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
 import { Subscription } from 'rxjs';
 
 export interface NotificationItem {
@@ -59,7 +61,7 @@ export interface NotificationItem {
         <ion-item-sliding *ngFor="let notification of notifications">
           <ion-item
             [class.unread]="!notification.read"
-            (click)="markAsRead(notification)"
+            (click)="openNotification(notification)"
             button>
 
             <ion-icon
@@ -211,23 +213,48 @@ export class NotificationsPage implements OnInit, OnDestroy {
   deleteAlertMessage = '';
   deleteAlertButtons: any[] = [];
   private subscription: Subscription = new Subscription();
-  private readonly STORAGE_KEY = 'deleted_notifications';
-  private readonly NOTIFICATIONS_KEY = 'user_notifications';
+  // Claves por usuario
+  private readonly NOTIF_PREFIX = 'notifications_';
+  private readonly DELETED_PREFIX = 'notifications_deleted_';
+  // Estado auth actual (para determinar clave)
+  private currentUserId: number | 'guest' = 'guest';
+  private authSub?: Subscription;
+  private globalNotifListener?: any;
 
-  constructor(private notificationService: NotificationService) {
+  constructor(private notificationService: NotificationService, private authService: AuthService, private router: Router) {
     addIcons({ notifications, checkmarkCircle, time, cart, gift, alertCircle, trash, close });
   }
 
   ngOnInit() {
+    // Suscribirse al estado de auth para actualizar clave de almacenamiento
+    this.authSub = this.authService.authState$.subscribe(state => {
+      const newId = state.isAuthenticated && state.user && typeof (state.user as any).id === 'number'
+        ? (state.user as any).id as number
+        : 'guest';
+      const changed = newId !== this.currentUserId;
+      this.currentUserId = newId;
+      if (changed) {
+        this.loadNotifications();
+      }
+    });
+
     this.loadNotifications();
     // Exponer el método públicamente para el servicio de notificaciones
     (window as any).notificationsPage = this;
+
+    // Escuchar eventos globales de actualizaciones
+    this.globalNotifListener = () => this.loadNotifications();
+    window.addEventListener('notifications:updated', this.globalNotifListener);
   }
 
   ngOnDestroy() {
     this.subscription.unsubscribe();
     // Limpiar referencia global
     (window as any).notificationsPage = null;
+    if (this.authSub) this.authSub.unsubscribe();
+    if (this.globalNotifListener) {
+      window.removeEventListener('notifications:updated', this.globalNotifListener);
+    }
   }
 
   async loadNotifications() {
@@ -236,7 +263,7 @@ export class NotificationsPage implements OnInit, OnDestroy {
     try {
       // Cargar notificaciones reales desde localStorage
       // En producción, esto vendría de una API
-      const savedNotifications = this.getSavedNotifications();
+  const savedNotifications = this.getSavedNotifications();
       this.notifications = savedNotifications;
 
       // Filtrar notificaciones eliminadas
@@ -264,6 +291,21 @@ export class NotificationsPage implements OnInit, OnDestroy {
     }
   }
 
+  openNotification(notification: NotificationItem) {
+    this.markAsRead(notification);
+    const data = notification.data || {};
+    const orderId = data.orderId ?? data.order_id;
+    const url: string | undefined = data.url;
+    if (orderId) {
+      this.router.navigate(['/order-confirmation'], { queryParams: { orderId } });
+      return;
+    }
+    if (url) {
+      this.router.navigateByUrl(url.startsWith('/') ? url : `/${url}`);
+      return;
+    }
+  }
+
   markAllAsRead() {
     this.notifications.forEach(notification => {
       notification.read = true;
@@ -278,6 +320,10 @@ export class NotificationsPage implements OnInit, OnDestroy {
 
   getNotificationIcon(type: string): string {
     switch (type) {
+      case 'new_order':
+        return 'cart';
+      case 'order_status':
+        return 'notifications';
       case 'order':
         return 'cart';
       case 'promotion':
@@ -293,6 +339,10 @@ export class NotificationsPage implements OnInit, OnDestroy {
 
   getNotificationColor(type: string): string {
     switch (type) {
+      case 'new_order':
+        return 'primary';
+      case 'order_status':
+        return 'medium';
       case 'order':
         return 'primary';
       case 'promotion':
@@ -386,7 +436,20 @@ export class NotificationsPage implements OnInit, OnDestroy {
   // Métodos de persistencia
   private getSavedNotifications(): NotificationItem[] {
     try {
-      const saved = localStorage.getItem(this.NOTIFICATIONS_KEY);
+      const key = this.getNotificationsKey();
+      let saved = localStorage.getItem(key);
+      // Migración desde clave antigua si aplica
+      if (!saved) {
+        const legacy = localStorage.getItem('user_notifications');
+        if (legacy) {
+          try {
+            localStorage.setItem(key, legacy);
+            localStorage.removeItem('user_notifications');
+            saved = legacy;
+            console.log('🔁 Migradas notificaciones desde clave legacy a per-user');
+          } catch {}
+        }
+      }
       if (saved) {
         const notifications = JSON.parse(saved);
         // Convertir timestamps de string a Date
@@ -403,7 +466,8 @@ export class NotificationsPage implements OnInit, OnDestroy {
 
   private saveNotifications(): void {
     try {
-      localStorage.setItem(this.NOTIFICATIONS_KEY, JSON.stringify(this.notifications));
+      const key = this.getNotificationsKey();
+      localStorage.setItem(key, JSON.stringify(this.notifications));
       console.log('✅ Notificaciones guardadas en localStorage');
       // Notificar a otros componentes (Tabs) que hubo cambios
       try {
@@ -416,7 +480,7 @@ export class NotificationsPage implements OnInit, OnDestroy {
 
   private getDeletedNotifications(): string[] {
     try {
-      const deleted = localStorage.getItem(this.STORAGE_KEY);
+      const deleted = localStorage.getItem(this.getDeletedKey());
       return deleted ? JSON.parse(deleted) : [];
     } catch (error) {
       console.error('❌ Error cargando notificaciones eliminadas:', error);
@@ -429,7 +493,7 @@ export class NotificationsPage implements OnInit, OnDestroy {
       const deleted = this.getDeletedNotifications();
       if (!deleted.includes(notificationId)) {
         deleted.push(notificationId);
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(deleted));
+        localStorage.setItem(this.getDeletedKey(), JSON.stringify(deleted));
         console.log('✅ Notificación marcada como eliminada:', notificationId);
       }
     } catch (error) {
@@ -460,5 +524,15 @@ export class NotificationsPage implements OnInit, OnDestroy {
 
   private generateNotificationId(): string {
     return 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  // Helpers de clave por usuario
+  private getNotificationsKey(): string {
+    const id = this.currentUserId ?? 'guest';
+    return `${this.NOTIF_PREFIX}${id}`;
+    }
+  private getDeletedKey(): string {
+    const id = this.currentUserId ?? 'guest';
+    return `${this.DELETED_PREFIX}${id}`;
   }
 }

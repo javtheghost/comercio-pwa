@@ -49,8 +49,50 @@ export class NotificationService {
   private vapidPublicKey: string | null = null;
   private registration: ServiceWorkerRegistration | null = null;
   private isDevelopmentMode: boolean = false;
+  // Suscripción pendiente cuando falla por 401 (usuario aún no autenticado)
+  private pendingSubscription: PushSubscription | null = null;
+  // Indicador de disponibilidad de endpoints WebPush en el backend
+  private webPushAvailable: boolean | null = null;
+  // Claves por usuario para persistencia
+  private readonly NOTIF_PREFIX = 'notifications_';
+  private readonly NOTIF_DELETED_PREFIX = 'notifications_deleted_';
 
-  constructor(private http: HttpClient, private securityService: SecurityService) {}
+  constructor(private http: HttpClient, private securityService: SecurityService) {
+    // Reintentar registro de suscripción pendiente cuando el usuario inicia sesión
+    if (typeof window !== 'undefined') {
+      window.addEventListener('userLoggedIn', () => {
+        if (this.pendingSubscription) {
+          console.log('🔄 Reintentando registro de suscripción pendiente tras login...');
+          // Guardar referencia local y limpiar para evitar loops
+          const sub = this.pendingSubscription;
+          this.pendingSubscription = null;
+          this.sendSubscriptionToServer(sub)
+            .then(() => console.log('✅ Suscripción pendiente registrada correctamente tras login'))
+            .catch(err => {
+              console.error('❌ Error reenviando suscripción tras login:', err);
+              // Si vuelve a fallar por 401, se almacenará de nuevo dentro del método sendSubscriptionToServer
+            });
+        }
+      });
+
+      // Limpiar estado y desuscribir si el usuario hace logout
+      window.addEventListener('userLoggedOut', async () => {
+        try {
+          this.pendingSubscription = null;
+          if (this.registration) {
+            const existing = await this.registration.pushManager.getSubscription();
+            if (existing) {
+              await existing.unsubscribe();
+              console.log('🧹 Suscripción push anulada tras logout');
+            }
+          }
+        } catch (e) {
+          console.warn('⚠️ Error limpiando suscripción tras logout (no crítico):', e);
+        }
+        // Nota: No borramos notificaciones persistentes; se mantienen por usuario
+      });
+    }
+  }
 
   /**
    * Inicializa las notificaciones push
@@ -310,14 +352,34 @@ export class NotificationService {
       try {
         await firstValueFrom(this.http.post(primaryUrl, body));
       } catch (primaryErr: any) {
-        console.error('❌ Error en', primaryUrl, primaryErr?.status, primaryErr?.error || primaryErr);
-        // Fallback a ruta alternativa inteligente
-        try {
-          await firstValueFrom(this.http.post(altUrl, body));
-          console.log('✅ Suscripción enviada usando ruta alternativa', altUrl);
-        } catch (altErr: any) {
-          console.error('❌ También falló', altUrl, altErr?.status, altErr?.error || altErr);
-          throw altErr;
+        const status = primaryErr?.status;
+        console.warn('⚠️ Error en', primaryUrl, status, primaryErr?.error || primaryErr);
+
+        // 401: no autenticado -> guardar para reintentar tras login
+        if (status === 401) {
+          console.warn('🔐 Suscripción push diferida: 401 (no autenticado). Se intentará nuevamente tras el evento userLoggedIn.');
+          this.pendingSubscription = subscription as PushSubscription;
+          return;
+        }
+
+        // 404: probar ruta alternativa
+        if (status === 404) {
+          try {
+            await firstValueFrom(this.http.post(altUrl, body));
+            console.log('✅ Suscripción enviada usando ruta alternativa', altUrl);
+          } catch (altErr: any) {
+            const altStatus = altErr?.status;
+            if (altStatus === 404) {
+              console.warn('ℹ️ Endpoint de WebPush no disponible (ambas rutas 404). Continuando sin push.');
+              return;
+            }
+            console.error('❌ Fallback también falló', altUrl, altStatus, altErr?.error || altErr);
+            return;
+          }
+        } else {
+          // Otros errores (500, etc.) se registran y se continúa
+          console.warn('ℹ️ Error no crítico registrando suscripción. Continuando.');
+          return;
         }
       }
 
@@ -535,9 +597,39 @@ export class NotificationService {
    * Navega basado en los datos de la notificación
    */
   private navigateFromNotification(data: any): void {
-    // Implementar navegación basada en el tipo de notificación
-    // Esto se puede integrar con el Router de Angular
+    // Navegación basada en el payload
     console.log('🧭 Navegando desde notificación:', data);
+    try {
+      const orderId = data?.orderId ?? data?.order_id;
+      const url = data?.url;
+      if (orderId) {
+        // Preferir la pantalla de confirmación con el detalle de la orden
+        this.navigateByUrl(`/order-confirmation?orderId=${orderId}`);
+        return;
+      }
+      if (url) {
+        const finalUrl = (typeof url === 'string' && url.length) ? (url.startsWith('/') ? url : `/${url}`) : '/';
+        this.navigateByUrl(finalUrl);
+        return;
+      }
+    } catch {}
+  }
+
+  private navigateByUrl(url: string) {
+    // Intentar usar el Router si está accesible globalmente; fallback a location
+    try {
+      const ng = (window as any).ng;
+      const injector = ng && ng.getInjector && ng.getInjector(document.body);
+      const router = injector && injector.get && injector.get((window as any).ng.coreTokens?.Router);
+      if (router && typeof router.navigateByUrl === 'function') {
+        router.navigateByUrl(url);
+        return;
+      }
+    } catch {}
+    try {
+      // Fallback
+      window.location.hash = `#${url}`;
+    } catch {}
   }
 
   /**
@@ -558,15 +650,9 @@ export class NotificationService {
         }
       };
 
-      // Si estamos en localhost, usar notificación local para evitar silencios por backend
-      if (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || this.isDevelopmentMode) {
-        this.showLocalNotification(payload);
-        console.log('✅ Notificación local mostrada (modo desarrollo)');
-        return;
-      }
-
+      // Intentar siempre el endpoint del servidor primero
       await firstValueFrom(this.http.post(`${this.API_URL}/webpush/test`, payload));
-      console.log('✅ Notificación de prueba enviada');
+      console.log('✅ Notificación de prueba enviada (WebPush real)');
     } catch (error) {
       console.error('❌ Error enviando notificación de prueba:', error);
 
@@ -712,10 +798,48 @@ export class NotificationService {
   }
 
   /**
+   * Espera un breve tiempo por un PUSH entrante que coincida con el tipo/id
+   * Si no llega, devuelve false para que mostremos un fallback local.
+   */
+  private waitForPush(match: { type: string; orderId?: number; timeoutMs?: number }): Promise<boolean> {
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        cleanup();
+        resolve(false);
+      }, Math.max(1500, match.timeoutMs || 4000));
+
+      const handler = (event: MessageEvent) => {
+        try {
+          const data = event.data;
+          if (!data || data.type !== 'PUSH_RECEIVED') return;
+          const p = data.payload || {};
+          const d = p.data || {};
+          if (d.type === match.type) {
+            if (match.orderId == null || d.orderId === match.orderId || d.order_id === match.orderId) {
+              cleanup();
+              resolve(true);
+            }
+          }
+        } catch {}
+      };
+
+      const cleanup = () => {
+        try { window.removeEventListener('message', handler as any); } catch {}
+        clearTimeout(timeout);
+      };
+
+      try { window.addEventListener('message', handler as any); } catch {}
+    });
+  }
+
+  /**
    * Guarda notificación en localStorage directamente
    */
-  private saveNotificationToStorage(payload: NotificationPayload): void {
+  private async saveNotificationToStorage(payload: NotificationPayload): Promise<void> {
     try {
+      const user = await this.securityService.getSecureUser();
+      const userId = user && typeof user.id === 'number' ? user.id : 'guest';
+      const key = this.getNotificationsKey(userId);
       const notification = {
         id: 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
         title: payload.title,
@@ -726,9 +850,9 @@ export class NotificationService {
         data: payload.data
       };
 
-      const existing = JSON.parse(localStorage.getItem('user_notifications') || '[]');
+      const existing = JSON.parse(localStorage.getItem(key) || '[]');
       existing.unshift(notification);
-      localStorage.setItem('user_notifications', JSON.stringify(existing));
+      localStorage.setItem(key, JSON.stringify(existing));
 
       console.log('✅ Notificación real guardada en localStorage');
 
@@ -738,6 +862,43 @@ export class NotificationService {
       } catch {}
     } catch (error) {
       console.error('❌ Error guardando notificación en localStorage:', error);
+    }
+  }
+
+  // Helpers de clave por usuario
+  private getNotificationsKey(userId: number | 'guest'): string {
+    return `${this.NOTIF_PREFIX}${userId}`;
+  }
+  private getDeletedKey(userId: number | 'guest'): string {
+    return `${this.NOTIF_DELETED_PREFIX}${userId}`;
+  }
+
+  /**
+   * Marca como leídas todas las notificaciones asociadas a una orden dada
+   */
+  async markNotificationsReadByOrderId(orderId: number): Promise<void> {
+    try {
+      const user = await this.securityService.getSecureUser();
+      const userId = user && typeof user.id === 'number' ? user.id : 'guest';
+      const key = this.getNotificationsKey(userId);
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const list = JSON.parse(raw);
+      let changed = false;
+      for (const n of list) {
+        const d = n.data || {};
+        const nOrderId = d.orderId ?? d.order_id;
+        if (nOrderId === orderId && !n.read) {
+          n.read = true;
+          changed = true;
+        }
+      }
+      if (changed) {
+        localStorage.setItem(key, JSON.stringify(list));
+        try { window.dispatchEvent(new CustomEvent('notifications:updated')); } catch {}
+      }
+    } catch (e) {
+      console.warn('⚠️ No se pudieron marcar notificaciones como leídas para la orden', orderId, e);
     }
   }
 
@@ -760,29 +921,107 @@ export class NotificationService {
    */
   async sendOrderNotification(orderData: any): Promise<void> {
     try {
-      const payload: NotificationPayload = {
-        title: '¡Orden Confirmada!',
-        body: `Tu pedido ${orderData.orderNumber || `#${orderData.id}`} ha sido confirmado y está siendo preparado`,
-        data: {
-          type: 'new_order',
-          orderId: orderData.id,
-          orderNumber: orderData.orderNumber || `#${orderData.id}`,
-          url: `/orders/${orderData.id}`
-        }
-      };
+      // Asegurar suscripción activa registrada en el servidor (reduce 422 por falta de destino)
+      try {
+        await this.ensureActiveSubscription();
+      } catch {}
 
-      // Si estamos en modo desarrollo, mostrar notificación local
-      if (this.isDevelopmentMode) {
-        this.showLocalNotification(payload);
-        console.log('✅ Notificación de orden mostrada (modo desarrollo)');
+      // Normalizar ID y número de orden desde distintas formas posibles
+      const orderIdRaw = (orderData && (orderData.id ?? orderData.orderId));
+      const idNum = Number(orderIdRaw);
+      const orderNumberVal = (orderData && (orderData.order_number ?? orderData.orderNumber)) ?? (Number.isFinite(idNum) ? `#${idNum}` : undefined);
+
+      // Si no tenemos un ID numérico válido, no intentes enviar al backend (evita 422)
+      if (!Number.isFinite(idNum) || idNum <= 0) {
+        console.warn('⚠️ ID de orden inválido al intentar enviar notificación. Mostrando local. orderIdRaw:', orderIdRaw);
+        this.showLocalNotification({
+          title: '¡Orden Confirmada!',
+          body: `Tu pedido ${orderNumberVal || ''} ha sido confirmado`,
+          data: { type: 'new_order', orderId: orderIdRaw, orderNumber: orderNumberVal }
+        });
         return;
       }
 
-      // En producción, enviar al servidor
-      await firstValueFrom(this.http.post(`${this.API_URL}/webpush/order-notification`, payload));
-      console.log('✅ Notificación de orden enviada al servidor');
+      const payload: NotificationPayload = {
+        title: '¡Orden Confirmada!',
+        body: `Tu pedido ${orderNumberVal || `#${idNum}`} ha sido confirmado y está siendo preparado`,
+        data: {
+          type: 'new_order',
+          orderId: idNum,
+          orderNumber: orderNumberVal || `#${idNum}`,
+          url: `/order-confirmation?orderId=${idNum}`
+        }
+      };
+
+      // Añadir metadatos útiles para el backend (no rompen si el back no los usa)
+      let userId: number | undefined = undefined;
+      try {
+        const user = await this.securityService.getSecureUser();
+        if (user && typeof user.id === 'number') userId = user.id;
+      } catch {}
+      const plainOrderNumber = (orderNumberVal || `#${idNum}`)?.toString().replace(/^#/, '');
+      const customerId = orderData?.customer_id ?? orderData?.customerId;
+      const bodyForServer = {
+        // Campos de notificación
+        title: payload.title,
+        body: payload.body,
+        data: payload.data,
+        // Identificadores y alias comunes
+        order_id: idNum,
+        orderId: idNum,
+        order_number: plainOrderNumber,
+        orderNumber: plainOrderNumber,
+        customer_id: customerId,
+        customerId: customerId,
+        user_id: userId,
+        recipient_user_id: userId,
+        to_user_id: userId,
+        notification_type: 'order_created'
+      };
+      // Enviar al servidor primero (preferir WebPush real)
+      try {
+        // Log de depuración (no contiene secretos)
+        try { console.debug('📤 Enviando order-notification:', bodyForServer); } catch {}
+        await firstValueFrom(this.http.post(`${this.API_URL}/webpush/order-notification`, bodyForServer));
+        this.webPushAvailable = true;
+        console.log('✅ Notificación de orden enviada al servidor');
+        // Si no llega push en breve, mostrar fallback local para no dejar al usuario sin feedback visual
+        const gotPush = await this.waitForPush({ type: 'new_order', orderId: idNum, timeoutMs: 4000 });
+        if (!gotPush && Notification.permission === 'granted') {
+          console.log('⏱️ No llegó push a tiempo, mostrando notificación local de cortesía');
+          this.showLocalNotification(payload);
+        }
+      } catch (err: any) {
+        const status = err?.status;
+        if (status === 422) {
+          console.warn('⚠️ Validación falló (422) al enviar notificación de orden. Detalles:', err?.error || err);
+        }
+        if (status === 404) {
+          // Endpoint no existe: marcar como no disponible y caer a local sin ruido rojo
+          this.webPushAvailable = false;
+          console.warn('ℹ️ WebPush order-notification no disponible (404). Usando notificación local.');
+          this.showLocalNotification({
+            title: '¡Orden Confirmada!',
+            body: `Tu pedido ${orderData.orderNumber || `#${orderData.id}`} ha sido confirmado`,
+            data: { type: 'new_order', orderId: orderData.id, orderNumber: orderData.orderNumber }
+          });
+          console.log('✅ Notificación local de orden mostrada (fallback)');
+          return;
+        }
+        // Otros errores: warning y fallback local si es posible
+        console.warn('⚠️ Error enviando notificación de orden al servidor. Mostrando local.', err?.message || err);
+        if (Notification.permission === 'granted') {
+          this.showLocalNotification({
+            title: '¡Orden Confirmada!',
+            body: `Tu pedido ${orderData.orderNumber || `#${orderData.id}`} ha sido confirmado`,
+            data: { type: 'new_order', orderId: orderData.id, orderNumber: orderData.orderNumber }
+          });
+          console.log('✅ Notificación local de orden mostrada (fallback)');
+        }
+        return;
+      }
     } catch (error) {
-      console.error('❌ Error enviando notificación de orden:', error);
+      console.warn('⚠️ Error general en sendOrderNotification:', (error as any)?.message || error);
 
       // Fallback a notificación local
       if (Notification.permission === 'granted') {
@@ -801,6 +1040,11 @@ export class NotificationService {
    */
   async sendOrderStatusNotification(orderData: any, newStatus: string): Promise<void> {
     try {
+      // Asegurar suscripción activa registrada en el servidor (reduce 422 por falta de destino)
+      try {
+        await this.ensureActiveSubscription();
+      } catch {}
+
       const statusMessages: { [key: string]: string } = {
         'processing': 'Tu pedido está siendo preparado',
         'shipped': 'Tu pedido ha sido enviado',
@@ -810,29 +1054,98 @@ export class NotificationService {
 
       const message = statusMessages[newStatus] || `El estado de tu pedido ha cambiado a: ${newStatus}`;
 
+      // Normalizar ID y número de orden
+      const orderIdRaw = (orderData && (orderData.id ?? orderData.orderId));
+      const idNum = Number(orderIdRaw);
+      const orderNumberVal = (orderData && (orderData.order_number ?? orderData.orderNumber)) ?? (Number.isFinite(idNum) ? `#${idNum}` : undefined);
+
+      if (!Number.isFinite(idNum) || idNum <= 0) {
+        console.warn('⚠️ ID de orden inválido al intentar enviar notificación de estado. Mostrando local. orderIdRaw:', orderIdRaw);
+        this.showLocalNotification({
+          title: 'Actualización de Pedido',
+          body: message,
+          data: { type: 'order_status', orderId: orderIdRaw, status: newStatus }
+        });
+        return;
+      }
+
       const payload: NotificationPayload = {
         title: 'Actualización de Pedido',
         body: message,
         data: {
           type: 'order_status',
-          orderId: orderData.id,
+          orderId: idNum,
           status: newStatus,
-          url: `/orders/${orderData.id}`
+          url: `/order-confirmation?orderId=${idNum}`
         }
       };
 
-      // Si estamos en modo desarrollo, mostrar notificación local
-      if (this.isDevelopmentMode) {
-        this.showLocalNotification(payload);
-        console.log('✅ Notificación de estado de orden mostrada (modo desarrollo)');
+      // Añadir metadatos útiles para el backend
+      let userId: number | undefined = undefined;
+      try {
+        const user = await this.securityService.getSecureUser();
+        if (user && typeof user.id === 'number') userId = user.id;
+      } catch {}
+      const plainOrderNumber = (orderNumberVal || `#${idNum}`)?.toString().replace(/^#/, '');
+      const customerId = orderData?.customer_id ?? orderData?.customerId;
+      const bodyForServer = {
+        // Campos de notificación
+        title: payload.title,
+        body: payload.body,
+        data: payload.data,
+        // Identificadores y alias comunes
+        order_id: idNum,
+        orderId: idNum,
+        order_number: plainOrderNumber,
+        orderNumber: plainOrderNumber,
+        status: newStatus,
+        customer_id: customerId,
+        customerId: customerId,
+        user_id: userId,
+        recipient_user_id: userId,
+        to_user_id: userId,
+        notification_type: 'order_status'
+      };
+      // Enviar al servidor primero (preferir WebPush real)
+      try {
+        try { console.debug('📤 Enviando order-status-notification:', bodyForServer); } catch {}
+        await firstValueFrom(this.http.post(`${this.API_URL}/webpush/order-status-notification`, bodyForServer));
+        this.webPushAvailable = true;
+        console.log('✅ Notificación de estado de orden enviada al servidor');
+        const gotPush = await this.waitForPush({ type: 'order_status', orderId: idNum, timeoutMs: 4000 });
+        if (!gotPush && Notification.permission === 'granted') {
+          console.log('⏱️ No llegó push de estado a tiempo, mostrando notificación local de cortesía');
+          this.showLocalNotification(payload);
+        }
+      } catch (err: any) {
+        const status = err?.status;
+        if (status === 422) {
+          console.warn('⚠️ Validación falló (422) al enviar notificación de estado. Detalles:', err?.error || err);
+        }
+        if (status === 404) {
+          this.webPushAvailable = false;
+          console.warn('ℹ️ WebPush order-status-notification no disponible (404). Usando notificación local.');
+          this.showLocalNotification({
+            title: 'Actualización de Pedido',
+            body: message,
+            data: { type: 'order_status', orderId: orderData.id, status: newStatus }
+          });
+          console.log('✅ Notificación local de estado mostrada (fallback)');
+          return;
+        }
+        console.warn('⚠️ Error enviando notificación de estado. Mostrando local.', err?.message || err);
+        if (Notification.permission === 'granted') {
+          this.showLocalNotification({
+            title: 'Actualización de Pedido',
+            body: message,
+            data: { type: 'order_status', orderId: orderData.id, status: newStatus }
+          });
+          console.log('✅ Notificación local de estado mostrada (fallback)');
+        }
         return;
       }
-
-      // En producción, enviar al servidor
-      await firstValueFrom(this.http.post(`${this.API_URL}/webpush/order-status-notification`, payload));
-      console.log('✅ Notificación de estado de orden enviada al servidor');
     } catch (error) {
-      console.error('❌ Error enviando notificación de estado de orden:', error);
+      console.warn('⚠️ Error general en sendOrderStatusNotification:', (error as any)?.message || error);
 
       // Fallback a notificación local
       if (Notification.permission === 'granted') {

@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, firstValueFrom } from 'rxjs';
+import { Observable, BehaviorSubject, firstValueFrom, catchError, of, switchMap } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Address, CreateAddressRequest, UpdateAddressRequest, AddressResponse } from '../interfaces/address.interfaces';
+import { AuthService } from './auth.service';
 
 @Injectable({
   providedIn: 'root'
@@ -12,18 +13,46 @@ export class AddressService {
   private addressesSubject = new BehaviorSubject<Address[]>([]);
   public addresses$ = this.addressesSubject.asObservable();
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private authService: AuthService) {}
 
   /**
    * Obtener todas las direcciones del usuario
    */
   getUserAddresses(): Observable<AddressResponse> {
-    const req$ = this.http.get<AddressResponse>(`${this.API_URL}/addresses`);
+    // Intento principal: /addresses (autodetecta el usuario autenticado)
+    const primary$ = this.http.get<AddressResponse>(`${this.API_URL}/addresses`);
+
+    const enhanced$ = primary$.pipe(
+      catchError(err => {
+        // Fallback: intentar rutas alternativas si existen diferencias en el backend
+        const currentUser: any = this.authService.getCurrentUserValue();
+        const userId: number | null = currentUser?.id ?? null;
+        const customerId: number | null = (currentUser?.customer_id
+          || currentUser?.customer?.id
+          || currentUser?.profile?.customer_id
+          || null);
+
+        if (customerId) {
+          return this.http.get<AddressResponse>(`${this.API_URL}/customers/${customerId}/addresses`).pipe(
+            catchError(() => {
+              return userId
+                ? this.http.get<AddressResponse>(`${this.API_URL}/users/${userId}/addresses`)
+                : of({ success: false, message: 'No se pudieron cargar las direcciones', data: [] } as any);
+            })
+          );
+        }
+
+        return userId
+          ? this.http.get<AddressResponse>(`${this.API_URL}/users/${userId}/addresses`)
+          : of({ success: false, message: 'No se pudieron cargar las direcciones', data: [] } as any);
+      })
+    );
+
     // Actualizar stream cuando cargamos listado
-    req$.subscribe({
+    enhanced$.subscribe({
       next: (res) => {
-        if (res && res.success) {
-          const list = Array.isArray(res.data) ? (res.data as Address[]) : [];
+        if (res && (res as any).success) {
+          const list = Array.isArray((res as any).data) ? ((res as any).data as Address[]) : [];
           this.addressesSubject.next(list);
         }
       },
@@ -31,7 +60,8 @@ export class AddressService {
         // No actualizar stream en error
       }
     });
-    return req$;
+
+    return enhanced$;
   }
 
   /**

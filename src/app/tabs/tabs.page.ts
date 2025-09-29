@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, Input } from '@angular/core';
 import { Router, NavigationEnd } from '@angular/router';
 import { NavController } from '@ionic/angular';
 import { IonIcon, IonRouterOutlet, IonBadge } from '@ionic/angular/standalone';
@@ -45,11 +45,13 @@ import { TabNavigationService } from '../services/tab-navigation.service';
         <span>Cuenta</span>
       </button>
     </div>
-    <ion-router-outlet></ion-router-outlet>
+    @if (!inline) { <ion-router-outlet></ion-router-outlet> }
   `,
-  styleUrls: ['./tabs.page.scss']
+  styleUrls: ['./tabs.page.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TabsPage implements OnInit, OnDestroy {
+  @Input() inline = false; // Cuando se usa embebido como barra, ocultar el router-outlet interno
   tabOrder = ['/tabs/home', '/tabs/search', '/tabs/notifications', '/tabs/cart', '/tabs/profile'];
   currentTabIndex = 0;
   cartItemsCount = 0;
@@ -59,6 +61,8 @@ export class TabsPage implements OnInit, OnDestroy {
   private tabNavSubscription: Subscription = new Subscription();
   private routerEventsSubscription: Subscription = new Subscription();
   private notificationsUpdateHandler?: () => void;
+  private readonly NOTIF_PREFIX = 'notifications_';
+  private currentUserId: number | 'guest' = 'guest';
 
   constructor(
     private router: Router,
@@ -110,8 +114,10 @@ export class TabsPage implements OnInit, OnDestroy {
   private subscribeToCart(): void {
     // Suscribirse al contador total que incluye online + offline
     this.cartSubscription = this.cartService.totalCartItemsCount$.subscribe(count => {
-      this.cartItemsCount = count;
-      this.cdr.detectChanges(); // Forzar detección de cambios
+      Promise.resolve().then(() => {
+        this.cartItemsCount = count;
+        this.cdr.markForCheck();
+      });
       console.log('🛒 [TABS] Contador total actualizado (online + offline):', count);
     });
   }
@@ -119,25 +125,45 @@ export class TabsPage implements OnInit, OnDestroy {
   private subscribeToNotifications(): void {
     const computeUnread = () => {
       try {
-        const raw = localStorage.getItem('user_notifications');
+        const key = `${this.NOTIF_PREFIX}${this.currentUserId}`;
+        const raw = localStorage.getItem(key);
         const list = raw ? JSON.parse(raw) : [];
         const unread = Array.isArray(list) ? list.filter((n: any) => !n.read).length : 0;
-        this.unreadNotificationsCount = unread;
+        Promise.resolve().then(() => {
+          this.unreadNotificationsCount = unread;
+          this.cdr.markForCheck();
+        });
       } catch {
-        this.unreadNotificationsCount = 0;
+        Promise.resolve().then(() => {
+          this.unreadNotificationsCount = 0;
+          this.cdr.markForCheck();
+        });
       }
-      this.cdr.detectChanges();
       console.log('🔔 [TABS] Contador de notificaciones no leídas:', this.unreadNotificationsCount);
     };
 
     // Recalcular en login/logout y forzar 0 si no autenticado
     this.notificationsSubscription = this.authService.authState$.subscribe(authState => {
+      const newId = authState.isAuthenticated && authState.user && typeof (authState.user as any).id === 'number'
+        ? (authState.user as any).id as number
+        : 'guest';
+      const changed = newId !== this.currentUserId;
+      this.currentUserId = newId;
+
       if (!authState.isAuthenticated) {
-        this.unreadNotificationsCount = 0;
-        this.cdr.detectChanges();
+        // Mantenemos notificaciones per-user; solo mostramos 0 si está desloguado
+        Promise.resolve().then(() => {
+          this.unreadNotificationsCount = 0;
+          this.cdr.markForCheck();
+        });
         console.log('🔔 [TABS] Usuario no logueado - Sin notificaciones');
       } else {
-        computeUnread();
+        // Si cambió de usuario, recomputar desde su clave correspondiente
+        if (changed) {
+          computeUnread();
+        } else {
+          computeUnread();
+        }
       }
     });
 
@@ -147,6 +173,11 @@ export class TabsPage implements OnInit, OnDestroy {
 
     // Calcular al iniciar
     computeUnread();
+  }
+
+  private scheduleCD() {
+    // Evita ExpressionChanged... posponiendo el marcado a la microtarea siguiente
+    Promise.resolve().then(() => this.cdr.markForCheck());
   }
 
   navigate(path: string) {
@@ -161,6 +192,10 @@ export class TabsPage implements OnInit, OnDestroy {
       }
       this.currentTabIndex = newIndex;
     }
+    // Aria/focus: si hay un elemento enfocado dentro de una vista que va a ocultarse, hacer blur
+    try {
+      (document.activeElement as HTMLElement)?.blur?.();
+    } catch {}
     this.navCtrl.navigateRoot(path, { animationDirection: direction });
   }
 

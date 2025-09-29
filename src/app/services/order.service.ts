@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, BehaviorSubject } from 'rxjs';
+import { Observable, BehaviorSubject, catchError, of, switchMap, map } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { AuthService } from './auth.service';
 
 export interface OrderItem {
   product_id: number;
@@ -109,7 +110,7 @@ export class OrderService {
   private ordersSubject = new BehaviorSubject<Order[]>([]);
   public orders$ = this.ordersSubject.asObservable();
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private authService: AuthService) {}
 
   /**
    * Crear una nueva orden
@@ -140,7 +141,64 @@ export class OrderService {
    * Obtener una orden específica por ID
    */
   getOrder(orderId: number): Observable<any> {
-    return this.http.get(`${this.API_URL}/orders/${orderId}`);
+    const base = (this.API_URL || '').replace(/\/+$/, '');
+    const primaryUrl = `${base}/orders/${orderId}`;
+    const hasApiSuffix = /\/api$/i.test(base);
+    const altBase = hasApiSuffix ? base.replace(/\/api$/i, '') : `${base}/api`;
+    const altUrl = `${altBase}/orders/${orderId}`;
+
+    const currentUser: any = this.authService.getCurrentUserValue();
+    const userId: number | null = (currentUser?.id ?? null);
+    const customerId: number | null = (currentUser?.customer_id
+      || currentUser?.customer?.id
+      || currentUser?.profile?.customer_id
+      || null);
+
+    // Intento principal: /orders/:id
+    return this.http.get(primaryUrl).pipe(
+      catchError(() => {
+        // Fallback 1: alt base /api/orders/:id (o viceversa)
+        return this.http.get(altUrl).pipe(
+          catchError(() => {
+            // Fallback 2: si hay customerId, intentar /customers/{id}/orders/{orderId}
+            if (customerId) {
+              const custPrimary = `${base}/customers/${customerId}/orders/${orderId}`;
+              const custAlt = `${altBase}/customers/${customerId}/orders/${orderId}`;
+              return this.http.get(custPrimary).pipe(
+                catchError(() => this.http.get(custAlt))
+              );
+            }
+            // Fallback 3: si hay userId, intentar /users/{id}/orders/{orderId}
+            if (userId) {
+              const userPrimary = `${base}/users/${userId}/orders/${orderId}`;
+              const userAlt = `${altBase}/users/${userId}/orders/${orderId}`;
+              return this.http.get(userPrimary).pipe(
+                catchError(() => this.http.get(userAlt))
+              );
+            }
+            // Fallback final: listar últimas órdenes del usuario y buscar la id
+            if (userId) {
+              try { console.debug('[ORDER SERVICE] Fallback list to find order by id:', orderId); } catch {}
+              return this.getUserOrders(userId, { per_page: 50, sort_by: 'created_at', sort_order: 'desc' }).pipe(
+                map((resp: any) => {
+                  try {
+                    const ordersData = resp?.data?.orders || resp?.data || resp;
+                    const list = Array.isArray(ordersData?.data) ? ordersData.data : Array.isArray(ordersData) ? ordersData : [];
+                    const found = list.find((o: any) => (o?.id === orderId));
+                    return found ? { success: true, data: found } : { success: false, data: null };
+                  } catch {
+                    return { success: false, data: null };
+                  }
+                }),
+                catchError(() => of({ success: false, data: null }))
+              );
+            }
+            // Si no hay más opciones, devolver fallo controlado
+            return of({ success: false, message: 'No se pudo obtener la orden', data: null });
+          })
+        );
+      })
+    );
   }
 
   /**
@@ -204,6 +262,23 @@ export class OrderService {
       });
     }
 
+    // Si el usuario autenticado tiene un customer_id asociado, preferir el endpoint de customers
+    const currentUser: any = this.authService.getCurrentUserValue();
+    const customerId: number | null = (currentUser?.customer_id
+      || currentUser?.customer?.id
+      || currentUser?.profile?.customer_id
+      || null);
+
+    if (customerId) {
+      return this.http.get(`${this.API_URL}/customers/${customerId}/orders`, { params }).pipe(
+        catchError(err => {
+          // Fallback al endpoint por usuario si el de customer falla por compatibilidad
+          return this.http.get(`${this.API_URL}/users/${userId}/orders`, { params });
+        })
+      );
+    }
+
+    // Fallback por defecto: endpoint por usuario
     return this.http.get(`${this.API_URL}/users/${userId}/orders`, { params });
   }
 

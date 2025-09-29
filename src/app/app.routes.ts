@@ -57,6 +57,11 @@ export const routes: Routes = [
         canActivate: [AuthGuard, VerifiedGuard]
       },
       {
+        path: 'orders/:id',
+        loadComponent: () => import('./pages/order-detail/order-detail.page').then(m => m.OrderDetailPage),
+        canActivate: [AuthGuard, VerifiedGuard]
+      },
+      {
         path: 'notifications',
         component: NotificationsPage
       },

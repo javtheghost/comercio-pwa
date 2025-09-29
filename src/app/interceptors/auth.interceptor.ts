@@ -18,9 +18,21 @@ export const authInterceptor: HttpInterceptorFn = (
   return next(modifiedRequest).pipe(
     catchError((error: HttpErrorResponse) => {
       if (error.status === 401 && authService.isAuthenticated()) {
-        // Por ahora, simplemente hacer logout en caso de 401
-        // En el futuro se puede implementar refresh token automático
-        authService.logout().subscribe();
+        try {
+          const url = request.url || '';
+          const isAuthMe = /\/auth\/me(\?.*)?$/.test(url);
+          const isLogin = /\/auth\/login(\?.*)?$/.test(url);
+          const isRefresh = /\/auth\/(refresh|token|refresh-token)(\/.+)?(\?.*)?$/.test(url);
+
+          // Solo cerrar sesión si el 401 viene de validar identidad
+          if (isAuthMe || isRefresh) {
+            authService.logout().subscribe();
+          }
+          // Para otros 401, dejar que la UI maneje el error sin cerrar la sesión automáticamente
+        } catch (e) {
+          // En caso de cualquier error en esta lógica, no forzar logout
+          console.warn('[AUTH INTERCEPTOR] Error evaluando 401, no se forzará logout:', e);
+        }
       }
       return throwError(() => error);
     })

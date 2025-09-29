@@ -1,41 +1,198 @@
 .confirmation-container {
-  padding: 40px 20px;
+  padding: 24px 16px 8px;
   text-align: center;
-  max-width: 500px;
+  max-width: 640px;
   margin: 0 auto;
+  position: relative;
 }
 
-.success-icon {
-  margin-bottom: 24px;
+/* Asegura espacio de scroll suficiente para no quedar bajo la barra inferior */
+:host ion-content { --padding-bottom: 16px; }
 
-  ion-icon {
-    font-size: 80px;
+
+.has-footer-space { --padding-bottom: 16px !important; }
+
+/* Si hay muchos productos, aumentar aún más el padding inferior del contenido para habilitar scroll suficiente */
+:host ion-content.has-many-items { --padding-bottom: calc(env(safe-area-inset-bottom) + 56px) !important; }
+
+.success-card {
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  background: var(--ion-color-light, #fff);
+  /* Asegurar espacio extra dentro del card para que el último item no quede tapado */
+  ion-card-content {
+    padding-bottom: 8px; /* mínimo por defecto para evitar scroll cuando hay 1 producto */
+    display: block;
   }
 }
 
-h1 {
-  color: var(--ion-color-success);
-  margin-bottom: 16px;
-  font-size: 28px;
-  font-weight: 600;
+/* Si hay varios productos, añadir padding inferior dentro del card para que el último no quede tapado */
+:host ion-content.has-many-items .success-card ion-card-content {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 48px);
 }
 
-.order-id {
-  color: var(--ion-color-medium);
-  font-size: 16px;
-  margin-bottom: 32px;
+.success-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+
+  .hero-badge {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: var(--ion-color-success);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+  }
+  .badge-icon {
+    font-size: 48px;
+    color: #fff;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--ion-text-color, #222);
+  }
+
+  .order-id {
+    margin: 0;
+    color: var(--ion-color-medium);
+    font-size: 14px;
+  }
+}
+
+.summary.modern {
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(0,0,0,0.06);
+
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 4px;
+    font-size: 15px;
+
+    /* hint removido */
+    color: var(--ion-text-color-step-600, #333);
+
+    & + .row {
+      border-top: 1px dashed rgba(0,0,0,0.08);
+    }
+
+    /* sin estilos de click */
+    &.total {
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--ion-text-color, #111);
+    }
+  }
+}
+
+.next-steps {
+  text-align: left;
+  h3 {
+    margin: 8px 0 4px;
+    font-weight: 600;
+  }
+  ul {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--ion-color-medium);
+  }
+}
+
+.items-list {
+  margin-top: 4px;
+  margin-bottom: 12px;
+  ion-item {
+    --inner-padding-end: 8px;
+  }
+  ion-thumbnail {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #f4f4f4;
+  }
+  ion-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  ion-label h3 {
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  /* Línea de variante bajo el nombre */
+  .variant {
+    color: var(--ion-color-medium);
+    font-size: 13px;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  .meta {
+    color: var(--ion-color-medium);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .meta .dot { opacity: 0.5; }
+  .line-total {
+    font-weight: 600;
+    white-space: nowrap;
+    margin-left: 8px;
+  }
+  /* ítem ya no es clickeable */
 }
 
 .actions {
-  margin-top: 32px;
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
 
   ion-button {
-    margin-bottom: 12px;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
+    --box-shadow: 0 6px 18px rgba(0,0,0,0.1);
   }
+}
+
+/* Sticky removed to avoid overlapping the content; buttons will appear at the end with sufficient padding */
+
+.bottom-safe-area { display: none; }
+
+/* Acciones flotantes por encima de la tab bar */
+/* Botones flotantes removidos para vista desde notificaciones */
+
+/* Espaciadores eliminados; usamos solo padding condicional en ion-content */
+
+
+/* Back button: make arrow larger without changing toolbar height */
+:host ::ng-deep .back-btn {
+  --padding-start: 6px;
+  --padding-end: 6px;
+  --padding-top: 6px;
+  --padding-bottom: 6px;
+  min-width: 36px;
+  min-height: 36px;
+}
+
+:host ::ng-deep .back-btn ion-icon {
+  font-size: 26px;
 }
 
 

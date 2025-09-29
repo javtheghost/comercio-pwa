@@ -298,11 +298,12 @@ export class CheckoutPage implements OnInit, OnDestroy {
         });
         await toast.present();
 
-        // Redirigir a página de confirmación
+        // Redirigir a página de confirmación (modo "gracias")
         this.router.navigate(['/order-confirmation'], {
           queryParams: {
             orderId: response.data.id,
-            orderNumber: response.data.order_number
+            orderNumber: response.data.order_number,
+            mode: 'thanks' // indica que venimos de la compra recién hecha
           }
         });
 

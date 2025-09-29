@@ -205,7 +205,7 @@ export class OrdersPage implements OnInit, OnDestroy {
     this.currentPage++;
 
     try {
-      const response = await firstValueFrom(this.orderService.getCustomerOrders(this.user!.id, {
+      const response = await firstValueFrom(this.orderService.getUserOrders(this.user!.id, {
         ...this.filters,
         page: this.currentPage
       }));
@@ -225,7 +225,7 @@ export class OrdersPage implements OnInit, OnDestroy {
 
   viewOrder(order: Order): void {
     console.log('👁️ [ORDERS] Viendo orden:', order.id);
-    this.router.navigate(['/order-detail', order.id]);
+    this.router.navigate(['/tabs/orders', order.id]);
   }
 
   async cancelOrder(order: Order): Promise<void> {
