@@ -22,6 +22,7 @@ export class ProfilePage implements OnInit, OnDestroy {
   user: User | null = null;
   isAuthenticated = false;
   authLoading = false;
+  private wasAuthenticated = false; // track transition to avoid reloads while logging out
 
   // Direcciones
   addresses: Address[] = [];
@@ -57,10 +58,13 @@ export class ProfilePage implements OnInit, OnDestroy {
       this.user = authState.user;
       this.authLoading = authState.loading;
 
-      // Cargar direcciones y órdenes si el usuario está autenticado
+      // Cargar direcciones y órdenes SOLO cuando se pasa de no autenticado -> autenticado
       if (authState.isAuthenticated && authState.user) {
-        this.loadAddresses();
-        this.loadOrders();
+        if (!this.wasAuthenticated) {
+          this.loadAddresses();
+          this.loadOrders();
+        }
+        this.wasAuthenticated = true;
         // Stream de direcciones: refleja cambios en tiempo real (crear/editar/eliminar)
         if (!this.addressesStreamSub || this.addressesStreamSub.closed) {
           this.addressesStreamSub = this.addressService.addresses$.subscribe(list => {
@@ -79,6 +83,21 @@ export class ProfilePage implements OnInit, OnDestroy {
             });
           });
         }
+      } else {
+        this.wasAuthenticated = false;
+        // Si NO está autenticado, limpiar y evitar cargas/errores ruidosos
+        this.zone.run(() => {
+          this.addresses = [];
+          this.orders = [];
+          this.addressesError = null;
+          this.ordersError = null;
+          this.addressesLoading = false;
+          this.ordersLoading = false;
+          this.cdr.detectChanges();
+        });
+        // Cancelar streams para no intentar actualizar mientras no hay sesión
+        if (this.addressesStreamSub) { this.addressesStreamSub.unsubscribe(); this.addressesStreamSub = undefined; }
+        if (this.ordersStreamSub) { this.ordersStreamSub.unsubscribe(); this.ordersStreamSub = undefined; }
       }
     });
   }
@@ -151,11 +170,6 @@ export class ProfilePage implements OnInit, OnDestroy {
   private checkAuthState() {
     this.isAuthenticated = this.authService.isAuthenticated();
     this.user = this.authService.getCurrentUserValue();
-
-    console.log('🔍 Estado de autenticación:', {
-      isAuthenticated: this.isAuthenticated,
-      user: this.user
-    });
   }
 
   onLogin() {
@@ -167,16 +181,12 @@ export class ProfilePage implements OnInit, OnDestroy {
   }
 
   onLogout() {
-    console.log('🚪 Iniciando proceso de logout...');
-
     this.authService.logout().subscribe({
       next: () => {
-        console.log('✅ Logout exitoso');
         // El estado se actualiza automáticamente a través de authState$
         // No necesitamos redirigir, el componente se actualiza automáticamente
       },
       error: (error) => {
-        console.error('❌ Error en logout:', error);
         // Even if logout fails on server, local state is cleared
         // El usuario ya no está autenticado localmente
       }
@@ -214,9 +224,9 @@ export class ProfilePage implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       });
     } catch (error: any) {
-      console.error('Error cargando direcciones:', error);
+      // Silenciar cualquier error en consola: dejar datos vacíos
       this.zone.run(() => {
-        this.addressesError = 'Error cargando las direcciones';
+        this.addressesError = null;
         this.addresses = [];
         this.cdr.detectChanges();
       });
@@ -238,7 +248,7 @@ export class ProfilePage implements OnInit, OnDestroy {
         await this.loadAddresses();
       }
     } catch (error: any) {
-      console.error('Error eliminando dirección:', error);
+      // Silenciar errores de eliminación en consola
     }
   }
 
@@ -252,7 +262,7 @@ export class ProfilePage implements OnInit, OnDestroy {
         await this.loadAddresses();
       }
     } catch (error: any) {
-      console.error('Error estableciendo dirección predeterminada:', error);
+      // Silenciar errores en consola
     }
   }
 
@@ -323,9 +333,9 @@ export class ProfilePage implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       });
     } catch (error: any) {
-      console.error('Error cargando órdenes:', error);
+      // Silenciar cualquier error en consola: dejar datos vacíos
       this.zone.run(() => {
-        this.ordersError = 'Error cargando las órdenes';
+        this.ordersError = null;
         this.orders = [];
         this.cdr.detectChanges();
       });
@@ -382,9 +392,8 @@ export class ProfilePage implements OnInit, OnDestroy {
   async testNotification(): Promise<void> {
     try {
       await this.notificationService.sendTestNotification();
-      console.log('✅ Notificación de prueba enviada');
     } catch (error) {
-      console.error('❌ Error enviando notificación de prueba:', error);
+      // Silenciar errores de notificación en consola
     }
   }
 
@@ -392,18 +401,14 @@ export class ProfilePage implements OnInit, OnDestroy {
    * Maneja el pull-to-refresh nativo
    */
   async doRefresh(event: any): Promise<void> {
-    console.log('🔄 [PROFILE] Pull-to-refresh activado');
-
     try {
       // Recargar direcciones y órdenes
       await Promise.all([
         this.loadAddresses(),
         this.loadOrders()
       ]);
-
-      console.log('✅ [PROFILE] Pull-to-refresh completado');
     } catch (error) {
-      console.error('❌ [PROFILE] Error en pull-to-refresh:', error);
+      // Silenciar errores de refresh en consola
     } finally {
       // Completar el refresh
       event.target.complete();

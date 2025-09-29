@@ -178,7 +178,7 @@ export class OrderService {
             }
             // Fallback final: listar últimas órdenes del usuario y buscar la id
             if (userId) {
-              try { console.debug('[ORDER SERVICE] Fallback list to find order by id:', orderId); } catch {}
+              // Silenciar logs en fallback
               return this.getUserOrders(userId, { per_page: 50, sort_by: 'created_at', sort_order: 'desc' }).pipe(
                 map((resp: any) => {
                   try {
@@ -251,6 +251,10 @@ export class OrderService {
    * Obtener órdenes por user_id (para el frontend)
    */
   getUserOrders(userId: number, filters?: OrderFilters): Observable<any> {
+    // Evitar llamadas si no hay sesión
+    if (!this.authService.isAuthenticated()) {
+      return of({ success: true, data: { orders: { data: [], total: 0, per_page: filters?.per_page || 10, current_page: 1 } } });
+    }
     let params = new HttpParams();
 
     if (filters) {
@@ -272,14 +276,31 @@ export class OrderService {
     if (customerId) {
       return this.http.get(`${this.API_URL}/customers/${customerId}/orders`, { params }).pipe(
         catchError(err => {
+          if (err?.status === 401) {
+            return of({ success: true, data: { orders: { data: [], total: 0, per_page: Number(params.get('per_page')) || 10, current_page: Number(params.get('page')) || 1 } } });
+          }
           // Fallback al endpoint por usuario si el de customer falla por compatibilidad
-          return this.http.get(`${this.API_URL}/users/${userId}/orders`, { params });
+          return this.http.get(`${this.API_URL}/users/${userId}/orders`, { params }).pipe(
+            catchError(innerErr => {
+              if (innerErr?.status === 401) {
+                return of({ success: true, data: { orders: { data: [], total: 0, per_page: Number(params.get('per_page')) || 10, current_page: Number(params.get('page')) || 1 } } });
+              }
+              return of({ success: false, data: { orders: { data: [] } } });
+            })
+          );
         })
       );
     }
 
     // Fallback por defecto: endpoint por usuario
-    return this.http.get(`${this.API_URL}/users/${userId}/orders`, { params });
+    return this.http.get(`${this.API_URL}/users/${userId}/orders`, { params }).pipe(
+      catchError(err => {
+        if (err?.status === 401) {
+          return of({ success: true, data: { orders: { data: [], total: 0, per_page: Number(params.get('per_page')) || 10, current_page: Number(params.get('page')) || 1 } } });
+        }
+        return of({ success: false, data: { orders: { data: [] } } });
+      })
+    );
   }
 
   /**

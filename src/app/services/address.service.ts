@@ -19,11 +19,23 @@ export class AddressService {
    * Obtener todas las direcciones del usuario
    */
   getUserAddresses(): Observable<AddressResponse> {
+    // Evitar llamadas si no hay sesión
+    if (!this.authService.isAuthenticated()) {
+      const empty = { success: true, message: null, data: [] } as any;
+      // limpiar stream
+      this.addressesSubject.next([]);
+      return of(empty);
+    }
     // Intento principal: /addresses (autodetecta el usuario autenticado)
     const primary$ = this.http.get<AddressResponse>(`${this.API_URL}/addresses`);
 
     const enhanced$ = primary$.pipe(
       catchError(err => {
+        // Silenciar 401 devolviendo lista vacía
+        if (err?.status === 401) {
+          const empty = { success: true, message: null, data: [] } as any;
+          return of(empty);
+        }
         // Fallback: intentar rutas alternativas si existen diferencias en el backend
         const currentUser: any = this.authService.getCurrentUserValue();
         const userId: number | null = currentUser?.id ?? null;
@@ -43,8 +55,15 @@ export class AddressService {
         }
 
         return userId
-          ? this.http.get<AddressResponse>(`${this.API_URL}/users/${userId}/addresses`)
-          : of({ success: false, message: 'No se pudieron cargar las direcciones', data: [] } as any);
+          ? this.http.get<AddressResponse>(`${this.API_URL}/users/${userId}/addresses`).pipe(
+              catchError(innerErr => {
+                if (innerErr?.status === 401) {
+                  return of({ success: true, message: null, data: [] } as any);
+                }
+                return of({ success: false, message: 'No se pudieron cargar las direcciones', data: [] } as any);
+              })
+            )
+          : of({ success: true, message: null, data: [] } as any);
       })
     );
 
@@ -54,10 +73,13 @@ export class AddressService {
         if (res && (res as any).success) {
           const list = Array.isArray((res as any).data) ? ((res as any).data as Address[]) : [];
           this.addressesSubject.next(list);
+        } else {
+          this.addressesSubject.next([]);
         }
       },
       error: () => {
-        // No actualizar stream en error
+        // Silenciar cualquier error actualizando stream vacío
+        this.addressesSubject.next([]);
       }
     });
 
