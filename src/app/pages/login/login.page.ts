@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, NgIf } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -28,7 +28,7 @@ import { LoginRequest } from '../../interfaces/auth.interfaces';
   templateUrl: './login.page.html',
   styleUrls: ['./login.page.scss']
 })
-export class LoginPage implements OnInit {
+export class LoginPage implements OnInit, OnDestroy {
 onSkip() {
   // Usar NavController con animationDirection 'back' para transición izquierda->derecha
   this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
@@ -38,7 +38,13 @@ onSkip() {
   showToast = false;
   toastMessage = '';
   authLoading = false;
-  verifyingSession = false;
+  private _verifyingSession = false;
+  get verifyingSession(): boolean { return this._verifyingSession; }
+  set verifyingSession(val: boolean) {
+    this._verifyingSession = val;
+    this.updateVerifyingOverlay();
+    this.cdr.detectChanges();
+  }
   // UI flag to indicate immediate submission state (used for Enter key feedback)
   submitting = false;
 
@@ -82,10 +88,37 @@ onSkip() {
     // Reset any transient UI flags to avoid stuck loading states when navigating back from logout
     this.submitting = false;
     this.verifyingSession = false;
+    this.setVerifyingOverlay(false);
     // Also clear any lingering toasts
     this.showToast = false;
     // Trigger change detection for immediate UI update
     this.cdr.detectChanges();
+  }
+
+  ionViewWillLeave() {
+    this.setVerifyingOverlay(false);
+  }
+
+  ngOnDestroy(): void {
+    this.setVerifyingOverlay(false);
+  }
+
+  private setVerifyingOverlay(active: boolean) {
+    try {
+      document.body.classList.toggle('verifying-session-active', !!active);
+    } catch {}
+  }
+
+  // (single ngOnDestroy is sufficient)
+
+  private updateVerifyingOverlay() {
+    try {
+      if (this._verifyingSession) {
+        document.body.classList.add('verifying-session-active');
+      } else {
+        document.body.classList.remove('verifying-session-active');
+      }
+    } catch {}
   }
 
   async onLogin() {
@@ -130,11 +163,13 @@ onSkip() {
           // pass control to verifying overlay; keep button not loading now
           this.submitting = false;
           this.verifyingSession = true;
+          this.setVerifyingOverlay(true);
           // Esperar a obtener el usuario fresco desde /auth/me para evitar estado obsoleto
           this.authService.getCurrentUser().subscribe({
             next: (freshUser) => {
               if (freshUser?.email_verified_at) {
                 this.verifyingSession = false;
+                this.setVerifyingOverlay(false);
                 this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
               } else {
                 // Segunda comprobación breve para evitar parpadeos por estado desincronizado
@@ -143,10 +178,12 @@ onSkip() {
                     next: (second) => {
                       if (second?.email_verified_at) {
                         this.verifyingSession = false;
+                        this.setVerifyingOverlay(false);
                         this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
                       } else {
                         const email = (second?.email || freshUser?.email || this.loginForm.value.email || '').trim();
                         this.verifyingSession = false;
+                        this.setVerifyingOverlay(false);
                         this.router.navigate(['/tabs/verify-email'], { queryParams: { email, sent: '1' } });
                       }
                     },
@@ -154,6 +191,7 @@ onSkip() {
                       const user = this.authService.getCurrentUserValue();
                       const email = (user?.email || this.loginForm.value.email || '').trim();
                       this.verifyingSession = false;
+                      this.setVerifyingOverlay(false);
                       this.router.navigate(['/tabs/verify-email'], { queryParams: { email, sent: '1' } });
                     }
                   });
@@ -167,10 +205,12 @@ onSkip() {
                   next: (retryUser) => {
                     if (retryUser?.email_verified_at) {
                       this.verifyingSession = false;
+                      this.setVerifyingOverlay(false);
                       this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
                     } else {
                       const email = (retryUser?.email || this.loginForm.value.email || '').trim();
                       this.verifyingSession = false;
+                      this.setVerifyingOverlay(false);
                       this.router.navigate(['/tabs/verify-email'], { queryParams: { email, sent: '1' } });
                     }
                   },
@@ -179,10 +219,12 @@ onSkip() {
                     const user = this.authService.getCurrentUserValue();
                     if (user?.email_verified_at) {
                       this.verifyingSession = false;
+                      this.setVerifyingOverlay(false);
                       this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
                     } else {
                       const email = (user?.email || this.loginForm.value.email || '').trim();
                       this.verifyingSession = false;
+                      this.setVerifyingOverlay(false);
                       this.router.navigate(['/tabs/verify-email'], { queryParams: { email, sent: '1' } });
                     }
                   }
@@ -194,6 +236,7 @@ onSkip() {
         error: (error) => {
           console.log('❌ Error completo del backend:', error);
           this.submitting = false;
+          this.setVerifyingOverlay(false);
 
           // Aplicar errores específicos a los campos correspondientes
           if (error.error && error.error.errors) {
@@ -218,6 +261,7 @@ onSkip() {
       });
     } catch (error) {
       this.submitting = false;
+      this.setVerifyingOverlay(false);
       this.showToastMessage('Error de reCAPTCHA. Error al verificar reCAPTCHA. Por favor, recarga la página e intenta nuevamente.');
     }
   }
