@@ -77,6 +77,17 @@ onSkip() {
     }, 3000);
   }
 
+  // Ionic lifecycle hook: when the view becomes active again (e.g., after logout)
+  ionViewWillEnter() {
+    // Reset any transient UI flags to avoid stuck loading states when navigating back from logout
+    this.submitting = false;
+    this.verifyingSession = false;
+    // Also clear any lingering toasts
+    this.showToast = false;
+    // Trigger change detection for immediate UI update
+    this.cdr.detectChanges();
+  }
+
   async onLogin() {
     if (this.loginForm.invalid) {
       this.markFormGroupTouched();

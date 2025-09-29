@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, throwError, firstValueFrom } from 'rxjs';
-import { catchError, tap } from 'rxjs/operators';
+import { catchError, tap, finalize } from 'rxjs/operators';
 import { LoginRequest, LoginResponse, User, AuthState, RegisterRequest, ForgotPasswordRequest, ResetPasswordRequest } from '../interfaces/auth.interfaces';
 import { AuthApiService } from './auth-api.service';
 import { SecurityService } from './security.service';
@@ -259,10 +259,10 @@ export class AuthService {
         console.log('✅ [AUTH SERVICE] Datos locales limpiados a pesar del error');
         return throwError(() => error);
       }),
-      tap(() => {
-        // Asegurar que el loading se resetee en cualquier caso
+      finalize(() => {
+        // Asegurar que el loading se resetea tanto en éxito como en error
         this.setLoading(false);
-        console.log('🔄 [AUTH SERVICE] Loading reseteado');
+        console.log('🔄 [AUTH SERVICE] Loading reseteado (finalize)');
       })
     );
   }
