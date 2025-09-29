@@ -6,6 +6,7 @@ import { ZXingScannerModule } from '@zxing/ngx-scanner';
 import { BarcodeFormat } from '@zxing/library';
 import { Router } from '@angular/router';
 import { ProductService } from '../../services/product.service';
+import { FavoritesService } from '../../services/favorites.service';
 import { Product, ProductUI } from '../../interfaces/product.interfaces';
 import { ProductUtils } from '../../utils/product.utils';
 
@@ -60,6 +61,7 @@ export class SearchPage {
   private productService = inject(ProductService);
   private cdr = inject(ChangeDetectorRef);
   private toastController = inject(ToastController);
+  private favorites = inject(FavoritesService);
 
   constructor() {
     window.addEventListener('online', () => {
@@ -207,6 +209,8 @@ export class SearchPage {
     this.productService.searchProducts(this.searchQuery).subscribe({
       next: (products: Product[]) => {
         this.products = ProductUtils.mapProductsToUI(products);
+        // Aplicar estado de favoritos a resultados
+        this.applyFavoritesToCurrentLists();
         this.hasMoreProducts = false;
         this.availableColors = Array.from(new Set(
           this.products.flatMap(p => (p.variants || []).map((v: any) => v.color)).filter(Boolean)
@@ -230,6 +234,8 @@ export class SearchPage {
     this.productService.getFeaturedProducts().subscribe({
       next: (products: Product[]) => {
         this.recommended = ProductUtils.mapProductsToUI(products);
+        // Sincronizar favoritos en recomendados
+        this.applyFavoritesToCurrentLists();
         this.cdr.detectChanges();
       },
       error: () => {
@@ -303,6 +309,14 @@ export class SearchPage {
 
   toggleFavorite(product: ProductUI) {
     product.isFavorite = !product.isFavorite;
+    try {
+      this.favorites.toggle({
+        id: product.id,
+        name: product.name,
+        price: Number(product.price || 0),
+        image: this.getProductImageUrl(product)
+      });
+    } catch {}
   }
 
   async doRefresh(event: any): Promise<void> {
@@ -334,5 +348,18 @@ export class SearchPage {
       });
       toast.present();
     }
+  }
+
+  // ==== Favoritos helpers ====
+  private applyFavoritesToList(list: ProductUI[]) {
+    try {
+      const ids = new Set(this.favorites.getAll().map(f => f.id));
+      list.forEach(p => p.isFavorite = ids.has(p.id));
+    } catch {}
+  }
+  private applyFavoritesToCurrentLists() {
+    if (this.products && this.products.length) this.applyFavoritesToList(this.products);
+    if (this.productsFiltered && this.productsFiltered.length) this.applyFavoritesToList(this.productsFiltered);
+    if (this.recommended && this.recommended.length) this.applyFavoritesToList(this.recommended);
   }
 }

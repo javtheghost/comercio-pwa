@@ -4,8 +4,8 @@
       <ion-icon name="arrow-back-outline"></ion-icon>
     </ion-button>
     <ion-title>Detalles del Producto</ion-title>
-    <ion-button fill="clear" slot="end">
-      <ion-icon name="heart-outline"></ion-icon>
+    <ion-button fill="clear" slot="end" (click)="toggleFavorite()" aria-label="Favorito">
+      <ion-icon [name]="product?.isFavorite ? 'heart' : 'heart-outline'" [color]="product?.isFavorite ? 'danger' : 'medium'"></ion-icon>
     </ion-button>
   </ion-toolbar>
 </ion-header>
@@ -16,12 +16,6 @@
       <!-- Product Image Section -->
       <div class="product-image-section">
         <img [src]="product.image" [alt]="product.name" class="product-image">
-        <ion-button
-          fill="clear"
-          class="favorite-btn"
-          (click)="toggleFavorite()">
-          <ion-icon [name]="product.isFavorite ? 'heart' : 'heart-outline'"></ion-icon>
-        </ion-button>
         <ion-badge
           *ngIf="product.discount"
           color="danger"

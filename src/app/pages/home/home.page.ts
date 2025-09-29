@@ -24,6 +24,8 @@ import {
   IonRefresherContent
 } from '@ionic/angular/standalone';
 import { ProductService } from '../../services/product.service';
+import { FavoritesService } from '../../services/favorites.service';
+import { Observable, Subscription } from 'rxjs';
 import { Product, ProductUI, Category, PaginatedResponse } from '../../interfaces/product.interfaces';
 import { ProductUtils } from '../../utils/product.utils';
 import { CartService } from '../../services/cart.service';
@@ -110,6 +112,9 @@ export class HomePage implements OnInit {
 
   // Control para evitar spam del toast offline
   private offlineToastActive = false;
+  // Favorites
+  favoritesCount$!: Observable<number>;
+  private favoritesSub?: Subscription;
 
   constructor(
     private router: Router,
@@ -118,12 +123,22 @@ export class HomePage implements OnInit {
     private cartService: CartService,
     private offlineCartService: OfflineCartService,
     private authService: AuthService,
-    private toastController: ToastController
+    private toastController: ToastController,
+    private favorites: FavoritesService
   ) {
   }
 
   ngOnInit() {
+    this.favoritesCount$ = this.favorites.count$();
 
+    // Sincronizar corazones cuando cambie la lista de favoritos
+    this.favoritesSub = this.favorites.getAll$().subscribe(() => {
+      this.applyFavoritesToCurrentProducts();
+    });
+  }
+
+  openFavorites() {
+    this.router.navigateByUrl('/tabs/favorites');
   }
 
   ionViewWillEnter() {
@@ -174,6 +189,7 @@ export class HomePage implements OnInit {
       console.warn('📴 [HOME] Offline - evitando llamada a getProductsPaginated');
       if (this.isCacheValid()) {
         this.loadFromCache();
+        this.applyFavoritesToCurrentProducts();
       } else {
         this.loading = false;
         this.error = false;
@@ -189,6 +205,8 @@ export class HomePage implements OnInit {
          console.log('🔍 Productos recibidos:', response.data);
 
          this.products = ProductUtils.mapProductsToUI(response.data);
+         // Aplicar estado de favoritos a los productos cargados
+         this.applyFavoritesToCurrentProducts?.();
          this.hasMoreProducts = response.current_page < response.last_page;
 
          // Debug: verificar categorías de productos
@@ -290,6 +308,14 @@ export class HomePage implements OnInit {
 
   toggleFavorite(product: ProductUI) {
     product.isFavorite = !product.isFavorite;
+    try {
+      this.favorites.toggle({
+        id: product.id,
+        name: product.name,
+        price: Number(product.price || 0),
+        image: this.getProductImageUrl(product)
+      });
+    } catch {}
   }
 
 
@@ -341,6 +367,7 @@ export class HomePage implements OnInit {
       if (this.isOffline()) {
         if (this.isCacheValid()) {
           this.loadFromCache();
+          this.applyFavoritesToCurrentProducts();
         } else {
           this.loading = false;
           this.cdr.detectChanges();
@@ -380,6 +407,7 @@ export class HomePage implements OnInit {
       next: (products: Product[]) => {
         console.log('🔍 Resultados de búsqueda:', products);
         this.products = ProductUtils.mapProductsToUI(products);
+        this.applyFavoritesToCurrentProducts();
         this.loading = false;
         this.cdr.detectChanges(); // Forzar detección de cambios
         this.logImageDebugInfo(); // Log image info after search
@@ -402,6 +430,7 @@ export class HomePage implements OnInit {
       if (this.isOffline()) {
         if (this.isCacheValid()) {
           this.loadFromCache();
+          this.applyFavoritesToCurrentProducts();
         } else {
           this.showOfflineToast('Sin conexión. No se pudo mostrar todo el catálogo.');
         }
@@ -422,6 +451,7 @@ export class HomePage implements OnInit {
         : this.products;
       if (source && source.length > 0) {
         this.products = source.filter(p => p.category?.id === categoryId);
+          this.applyFavoritesToCurrentProducts();
         this.loading = false;
         this.cdr.detectChanges();
       } else {
@@ -440,6 +470,7 @@ export class HomePage implements OnInit {
          // Validar que products sea un array válido
          if (products && Array.isArray(products)) {
            this.products = ProductUtils.mapProductsToUI(products);
+           this.applyFavoritesToCurrentProducts();
            console.log(`✅ ${products.length} productos cargados para la categoría ${categoryId}`);
 
            // Debug: verificar categorías de productos filtrados
@@ -615,7 +646,8 @@ export class HomePage implements OnInit {
         console.log('📦 Productos de página', this.currentPage, ':', response.data);
 
         // Convertir productos a UI y agregarlos a la lista existente
-        const newProducts = ProductUtils.mapProductsToUI(response.data);
+  const newProducts = ProductUtils.mapProductsToUI(response.data);
+  this.applyFavoritesToProducts(newProducts);
         this.products = [...this.products, ...newProducts];
 
         // Verificar si hay más páginas disponibles
@@ -837,6 +869,9 @@ export class HomePage implements OnInit {
     // Actualizar el estado de paginación basado en los productos cacheados
     this.updatePaginationState();
 
+    // Asegurar sincronía de favoritos al restaurar del caché
+    this.applyFavoritesToCurrentProducts?.();
+
     this.cdr.detectChanges();
   }
 
@@ -872,6 +907,34 @@ export class HomePage implements OnInit {
     HomePage.cachedProducts = [];
     HomePage.cachedCategories = [];
     HomePage.lastLoadTime = 0;
+  }
+
+  // ==== Favoritos helpers ====
+  private applyFavoritesToProducts(list: ProductUI[]): void {
+    try {
+      const ids = new Set(this.favorites.getAll().map(f => f.id));
+      list.forEach(p => p.isFavorite = ids.has(p.id));
+    } catch {}
+  }
+
+  private applyFavoritesToCurrentProducts(): void {
+    if (!this.products || this.products.length === 0) return;
+    this.applyFavoritesToProducts(this.products);
+
+    // Mantener el caché sincronizado
+    if (HomePage.cachedProducts && HomePage.cachedProducts.length > 0) {
+      try {
+        const ids = new Set(this.favorites.getAll().map(f => f.id));
+        HomePage.cachedProducts = HomePage.cachedProducts.map((p: ProductUI) => ({
+          ...p,
+          isFavorite: ids.has(p.id)
+        }));
+      } catch {}
+    }
+  }
+
+  ngOnDestroy() {
+    try { this.favoritesSub?.unsubscribe(); } catch {}
   }
 
   /**

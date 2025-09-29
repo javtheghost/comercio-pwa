@@ -79,6 +79,10 @@ export const routes: Routes = [
         component: ProductDetailPage
       },
       {
+        path: 'favorites',
+        loadComponent: () => import('./pages/favorites/favorites.page').then(m => m.FavoritesPage)
+      },
+      {
         path: 'login',
         component: LoginPage
       },

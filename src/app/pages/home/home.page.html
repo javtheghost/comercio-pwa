@@ -55,6 +55,15 @@
           [class]="'category-chip' + (isCategoryActive(category.id) ? ' active' : '')">
           {{ category.name }}
         </ion-chip>
+
+        <!-- Chip Favoritos: visible cuando hay al menos 1 favorito -->
+        <ion-chip
+          *ngIf="(favoritesCount$ | async)! > 0"
+          color="danger"
+          class="category-chip favorites-chip"
+          (click)="openFavorites()">
+          ❤ Favoritos
+        </ion-chip>
       </div>
     </div>
   </div>

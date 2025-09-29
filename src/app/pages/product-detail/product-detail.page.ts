@@ -2,7 +2,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NavController, ToastController } from '@ionic/angular';
 import { Location } from '@angular/common';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgIf } from '@angular/common';
 import {
   IonHeader,
   IonToolbar,
@@ -18,12 +18,14 @@ import { CartService, AddToCartRequest } from '../../services/cart.service';
 import { Product, ProductUI, ProductVariant, VariantInfo } from '../../interfaces/product.interfaces';
 import { ProductVariantSelectorComponent, VariantSelection } from '../../components/product-variant-selector/product-variant-selector.component';
 import { AddToCartToastComponent } from '../../components/add-to-cart-toast/add-to-cart-toast.component';
+import { FavoritesService } from '../../services/favorites.service';
 
 @Component({
   selector: 'app-product-detail',
   standalone: true,
   imports: [
     CommonModule,
+    NgIf,
     IonHeader,
     IonToolbar,
     IonTitle,
@@ -102,7 +104,8 @@ export class ProductDetailPage implements OnInit {
     private productService: ProductService,
     private cartService: CartService,
     private cdr: ChangeDetectorRef,
-    private toastController: ToastController
+    private toastController: ToastController,
+    private favorites: FavoritesService
   ) {
     console.log('🏗️ ProductDetailPage constructor ejecutado');
   }
@@ -151,7 +154,7 @@ export class ProductDetailPage implements OnInit {
 
         this.product = {
           ...product,
-          isFavorite: false, // Por defecto no favorito
+          isFavorite: this.favorites.isFavorite(product.id),
           originalPrice: product.compare_price,
           discount: this.calculateDiscount(product.price, product.compare_price),
           image: imageUrl,
@@ -195,6 +198,19 @@ export class ProductDetailPage implements OnInit {
         this.router.navigate(['/tabs/home']);
       }
     });
+  }
+
+  toggleFavorite() {
+    if (!this.product?.id) return;
+    this.favorites.toggle({
+      id: this.product.id,
+      name: this.product.name,
+      price: Number(this.product.price || 0),
+      image: this.product.image
+    });
+    // Reflect state locally for immediate UI feedback
+    this.product.isFavorite = !this.product.isFavorite;
+    this.cdr.detectChanges();
   }
 
   loadVariantInfo() {
@@ -496,12 +512,7 @@ export class ProductDetailPage implements OnInit {
     console.log('🎨 Color seleccionado:', color);
   }
 
-  toggleFavorite() {
-    if (this.product) {
-      this.product.isFavorite = !this.product.isFavorite;
-      console.log('❤️ Favorito cambiado:', this.product.isFavorite);
-    }
-  }
+  
 
   addToCart() {
     if (!this.product) {
