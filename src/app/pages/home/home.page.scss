@@ -159,6 +159,23 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
       flex-shrink: 0;
     }
   }
+
+  // Chip de Favoritos con énfasis inicial
+  .favorites-chip.new {
+    animation: fav-pop 0.5s ease, fav-glow 2.5s ease-in-out;
+  }
+
+  @keyframes fav-pop {
+    0% { transform: scale(0.85); }
+    60% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes fav-glow {
+    0% { box-shadow: 0 0 0 rgba(235, 68, 90, 0); }
+    20% { box-shadow: 0 0 16px rgba(235, 68, 90, 0.45); }
+    100% { box-shadow: 0 0 0 rgba(235, 68, 90, 0); }
+  }
 }
 
 // Contenedor principal

@@ -115,6 +115,9 @@ export class HomePage implements OnInit {
   // Favorites
   favoritesCount$!: Observable<number>;
   private favoritesSub?: Subscription;
+  favoritesNew = false; // resalta el chip cuando aparece por primera vez
+  private lastFavoritesCount = 0;
+  private favoritesCountSub?: Subscription;
 
   constructor(
     private router: Router,
@@ -134,6 +137,20 @@ export class HomePage implements OnInit {
     // Sincronizar corazones cuando cambie la lista de favoritos
     this.favoritesSub = this.favorites.getAll$().subscribe(() => {
       this.applyFavoritesToCurrentProducts();
+    });
+
+    // Detectar aparición inicial de Favoritos (de 0 a >0) y resaltar el chip
+    this.favoritesCountSub = this.favorites.count$().subscribe(count => {
+      if (this.lastFavoritesCount === 0 && count > 0) {
+        this.favoritesNew = true;
+        this.cdr.detectChanges();
+        // Quitar resaltado después de 3 segundos
+        setTimeout(() => {
+          this.favoritesNew = false;
+          this.cdr.detectChanges();
+        }, 3000);
+      }
+      this.lastFavoritesCount = count;
     });
   }
 
@@ -935,6 +952,7 @@ export class HomePage implements OnInit {
 
   ngOnDestroy() {
     try { this.favoritesSub?.unsubscribe(); } catch {}
+    try { this.favoritesCountSub?.unsubscribe(); } catch {}
   }
 
   /**

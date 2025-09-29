@@ -47,6 +47,16 @@
           Todas
         </ion-chip>
 
+        <!-- Chip Favoritos: visible cuando hay al menos 1 favorito, prioritario justo después de "Todas" -->
+        <ion-chip
+          *ngIf="(favoritesCount$ | async)! > 0"
+          color="danger"
+          class="category-chip favorites-chip"
+          [class.new]="favoritesNew"
+          (click)="openFavorites()">
+          ❤ Favoritos
+        </ion-chip>
+
         <!-- Categorías dinámicas -->
         <ion-chip
           *ngFor="let category of categories"
@@ -56,14 +66,6 @@
           {{ category.name }}
         </ion-chip>
 
-        <!-- Chip Favoritos: visible cuando hay al menos 1 favorito -->
-        <ion-chip
-          *ngIf="(favoritesCount$ | async)! > 0"
-          color="danger"
-          class="category-chip favorites-chip"
-          (click)="openFavorites()">
-          ❤ Favoritos
-        </ion-chip>
       </div>
     </div>
   </div>
