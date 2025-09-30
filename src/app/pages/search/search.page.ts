@@ -233,7 +233,8 @@ export class SearchPage {
   loadRecommended() {
     this.productService.getFeaturedProducts().subscribe({
       next: (products: Product[]) => {
-        this.recommended = ProductUtils.mapProductsToUI(products);
+        const list = Array.isArray(products) ? products : [];
+        this.recommended = ProductUtils.mapProductsToUI(list);
         // Sincronizar favoritos en recomendados
         this.applyFavoritesToCurrentLists();
         this.cdr.detectChanges();
