@@ -17,7 +17,7 @@ import { FavoritesService, FavoriteItem } from '../../services/favorites.service
         <ion-title>Favoritos</ion-title>
       </ion-toolbar>
     </ion-header>
-    <ion-content [fullscreen]="true">
+    <ion-content [fullscreen]="true" class="pad-bottom">
       <ion-list *ngIf="favorites.length > 0; else empty">
         <ion-item button detail *ngFor="let f of favorites" (click)="openProduct(f)">
           <ion-thumbnail slot="start">
@@ -27,7 +27,6 @@ import { FavoritesService, FavoriteItem } from '../../services/favorites.service
             <h3>{{ f.name || 'Producto' }}</h3>
             <p *ngIf="f.price">{{ f.price | currency:'MXN':'symbol':'1.2-2' }}</p>
           </ion-label>
-          <ion-icon name="chevron-forward-outline" slot="end"></ion-icon>
         </ion-item>
       </ion-list>
       <ng-template #empty>
@@ -40,6 +39,7 @@ import { FavoritesService, FavoriteItem } from '../../services/favorites.service
     </ion-content>
   `,
   styles: [`
+    .pad-bottom{ --padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 76px); }
     .empty{display:grid;place-items:center;padding:48px 16px;text-align:center;color:var(--ion-color-medium)}
     .empty ion-icon{font-size:48px;margin-bottom:8px}
   `]
