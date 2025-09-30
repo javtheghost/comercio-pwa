@@ -51,13 +51,31 @@
       <app-notification-toggle></app-notification-toggle>
 
       <!-- Botón de prueba de notificaciones -->
-      <ion-button expand="block" fill="outline" color="secondary" (click)="testNotification()" *ngIf="isAuthenticated">
-        🔔 Probar Notificación
+      <ion-button
+        expand="block"
+        fill="solid"
+        color="secondary"
+        class="test-notif-button"
+        (click)="testNotification()"
+        *ngIf="isAuthenticated"
+        [disabled]="isSendingTest">
+        <ion-icon name="notifications-outline" slot="start" *ngIf="!isSendingTest"></ion-icon>
+        <ion-spinner *ngIf="isSendingTest" name="crescent" class="button-spinner" slot="start"></ion-spinner>
+        <span *ngIf="!isSendingTest">Probar Notificación</span>
+        <span *ngIf="isSendingTest">Enviando…</span>
       </ion-button>
 
-      <ion-button expand="block" class="ion-margin-top" (click)="onLogout()" [disabled]="authLoading">
-        <ion-spinner *ngIf="authLoading" name="crescent" class="button-spinner"></ion-spinner>
+      <ion-button
+        expand="block"
+        class="ion-margin-top logout-button"
+        fill="solid"
+        color="danger"
+        (click)="onLogout()"
+        [disabled]="authLoading">
+        <ion-icon name="log-out-outline" slot="start" *ngIf="!authLoading"></ion-icon>
+        <ion-spinner *ngIf="authLoading" name="crescent" class="button-spinner" slot="start"></ion-spinner>
         <span *ngIf="!authLoading">Cerrar Sesión</span>
+        <span *ngIf="authLoading">Cerrando…</span>
       </ion-button>
     </ion-card-content>
   </ion-card>

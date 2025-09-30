@@ -56,6 +56,8 @@ export class NotificationService {
   // Claves por usuario para persistencia
   private readonly NOTIF_PREFIX = 'notifications_';
   private readonly NOTIF_DELETED_PREFIX = 'notifications_deleted_';
+  // Referencias de notificaciones locales por tipo para poder cerrarlas si llega el PUSH real
+  private localNotifsByType: Record<string, Notification> = {};
 
   constructor(private http: HttpClient, private securityService: SecurityService) {
     // Reintentar registro de suscripción pendiente cuando el usuario inicia sesión
@@ -526,6 +528,14 @@ export class NotificationService {
             icon: payload.icon,
             badge: payload.badge
           });
+          // Si mostramos una notificación local inmediata de ese tipo, cerrarla para evitar duplicado visual
+          try {
+            const nType = (payload?.data && payload.data.type) || undefined;
+            if (nType && this.localNotifsByType[nType]) {
+              this.localNotifsByType[nType].close();
+              delete this.localNotifsByType[nType];
+            }
+          } catch {}
         }
       });
     }
@@ -637,10 +647,6 @@ export class NotificationService {
    */
   async sendTestNotification(): Promise<void> {
     try {
-      // Asegurar una suscripción activa antes de enviar
-      const ensured = await this.ensureActiveSubscription();
-      console.log('🔐 Suscripción activa antes de prueba:', ensured);
-
       const payload: NotificationPayload = {
         title: 'Prueba de Notificación',
         body: 'Esta es una notificación de prueba desde tu app',
@@ -649,21 +655,71 @@ export class NotificationService {
           timestamp: new Date().toISOString()
         }
       };
+      // 1) Feedback inmediato: si hay permiso, mostrar sistema de notificación mediante el SW para apariencia consistente
+      if (Notification.permission === 'granted' && navigator.serviceWorker?.controller) {
+        try {
+          navigator.serviceWorker.controller.postMessage({
+            type: 'LOCAL_SHOW_NOTIFICATION',
+            payload: {
+              title: payload.title,
+              body: payload.body,
+              data: { ...payload.data, optimistic: true, immediate: true },
+              tag: payload.data.type
+            }
+          });
+        } catch {
+          // Fallback a notificación local en página si el postMessage falla
+          const local = this.showLocalNotification({
+            title: payload.title,
+            body: payload.body,
+            data: { ...payload.data, optimistic: true, immediate: true }
+          });
+          try { if (local && payload.data?.type) this.localNotifsByType[payload.data.type] = local; } catch {}
+        }
+      } else if (Notification.permission === 'granted') {
+        // Fallback si no hay controller
+        const local = this.showLocalNotification({
+          title: payload.title,
+          body: payload.body,
+          data: { ...payload.data, optimistic: true, immediate: true }
+        });
+        try { if (local && payload.data?.type) this.localNotifsByType[payload.data.type] = local; } catch {}
+      }
 
-      // Intentar siempre el endpoint del servidor primero
-      await firstValueFrom(this.http.post(`${this.API_URL}/webpush/test`, payload));
-      console.log('✅ Notificación de prueba enviada (WebPush real)');
+      // 2) Disparar en background: asegurar suscripción y enviar al servidor sin bloquear la UI
+      (async () => {
+        try {
+          const ensured = await this.ensureActiveSubscription();
+          console.log('🔐 Suscripción activa antes de prueba (bg):', ensured);
+        } catch {}
+        let gotPush = false;
+        try {
+          await firstValueFrom(this.http.post(`${this.API_URL}/webpush/test`, payload));
+          console.log('✅ Notificación de prueba enviada (WebPush real)');
+          gotPush = await this.waitForPush({ type: 'test', timeoutMs: 1200 });
+        } catch (e) {
+          console.warn('⚠️ Falla al invocar /webpush/test (bg):', e);
+        }
+        // Si llegó el push, cerrar la local inmediata (si existe)
+        if (gotPush) {
+          try {
+            const t = payload.data?.type;
+            if (t && this.localNotifsByType[t]) {
+              this.localNotifsByType[t].close();
+              delete this.localNotifsByType[t];
+            }
+          } catch {}
+        }
+      })();
     } catch (error) {
       console.error('❌ Error enviando notificación de prueba:', error);
-
-      // Fallback a notificación local si falla el envío
+      // Si algo falla muy temprano, intenta al menos mostrar una local
       if (Notification.permission === 'granted') {
         this.showLocalNotification({
           title: 'Prueba de Notificación',
           body: 'Esta es una notificación de prueba desde tu app',
-          data: { type: 'test' }
+          data: { type: 'test', optimistic: true }
         });
-        console.log('✅ Notificación local mostrada (fallback)');
       }
     }
   }
@@ -737,7 +793,7 @@ export class NotificationService {
   /**
    * Muestra una notificación local
    */
-  private showLocalNotification(payload: NotificationPayload): void {
+  private showLocalNotification(payload: NotificationPayload): Notification | null {
     if (Notification.permission === 'granted') {
       const notification = new Notification(payload.title, {
         body: payload.body,
@@ -763,38 +819,20 @@ export class NotificationService {
         notification.close();
       }, 5000);
 
-      // Agregar a la lista de notificaciones reales
-      this.addToRealNotifications(payload);
+      // Persistir usando el mecanismo con dedupe (optimista vs real)
+      this.saveNotificationToStorage(payload);
 
-      // Emitir evento global para actualizar badges inmediatamente
-      try {
-        window.dispatchEvent(new CustomEvent('notifications:updated'));
-      } catch {}
+      return notification;
     }
+    return null;
   }
 
   /**
    * Agrega una notificación real a la lista
    */
   private addToRealNotifications(payload: NotificationPayload): void {
-    try {
-      // Obtener la página de notificaciones si está disponible
-      const notificationsPage = (window as any).notificationsPage;
-      if (notificationsPage && typeof notificationsPage.addRealNotification === 'function') {
-        notificationsPage.addRealNotification({
-          title: payload.title,
-          message: payload.body,
-          type: payload.data?.type || 'system',
-          read: false,
-          data: payload.data
-        });
-      } else {
-        // Si no está disponible, guardar en localStorage directamente
-        this.saveNotificationToStorage(payload);
-      }
-    } catch (error) {
-      console.error('❌ Error agregando notificación real:', error);
-    }
+    // Unificar persistencia vía localStorage para permitir dedupe entre optimista y real
+    this.saveNotificationToStorage(payload);
   }
 
   /**
@@ -840,18 +878,54 @@ export class NotificationService {
       const user = await this.securityService.getSecureUser();
       const userId = user && typeof user.id === 'number' ? user.id : 'guest';
       const key = this.getNotificationsKey(userId);
+      const now = new Date();
+      const nowIso = now.toISOString();
       const notification = {
         id: 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
         title: payload.title,
         message: payload.body,
         type: payload.data?.type || 'system',
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso,
         read: false,
         data: payload.data
       };
 
       const existing = JSON.parse(localStorage.getItem(key) || '[]');
-      existing.unshift(notification);
+
+      // Dedupe/merge: si ya hay una notificación optimista reciente del mismo tipo, actualízala en lugar de duplicar
+      const windowMs = 15_000; // 15 segundos de ventana
+      const isOptimisticIncoming = !!payload.data?.optimistic;
+      let merged = false;
+      try {
+        for (const n of existing) {
+          if (!n) continue;
+          if (n.type !== notification.type) continue;
+          const nTime = new Date(n.timestamp).getTime();
+          if (!isFinite(nTime)) continue;
+          if (now.getTime() - nTime > windowMs) continue;
+          const isOptimisticExisting = !!(n.data && n.data.optimistic);
+          // Caso A: entra real (no optimista) y ya hay optimista -> actualizar la existente
+          if (!isOptimisticIncoming && isOptimisticExisting) {
+            n.title = notification.title;
+            n.message = notification.message;
+            n.timestamp = nowIso;
+            n.read = false;
+            n.data = { ...(n.data || {}), ...(notification.data || {}), optimistic: false };
+            merged = true;
+            break;
+          }
+          // Caso B: entra otra optimista muy rápido -> ignorar para no duplicar
+          if (isOptimisticIncoming && isOptimisticExisting) {
+            merged = true;
+            break;
+          }
+        }
+      } catch {}
+
+      if (!merged) {
+        existing.unshift(notification);
+      }
+
       localStorage.setItem(key, JSON.stringify(existing));
 
       console.log('✅ Notificación real guardada en localStorage');

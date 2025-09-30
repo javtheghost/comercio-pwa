@@ -50,9 +50,11 @@ export interface NotificationItem {
         <ion-icon name="notifications-outline" size="large" color="medium"></ion-icon>
         <h3>No hay notificaciones</h3>
         <p>Te notificaremos cuando tengas nuevas actualizaciones sobre tus órdenes, promociones y más</p>
-        <ion-button fill="outline" (click)="sendTestNotification()">
-          <ion-icon name="notifications" slot="start"></ion-icon>
-          Probar Notificación
+        <ion-button fill="outline" (click)="sendTestNotification()" [disabled]="isSendingTest">
+          <ion-icon name="notifications" slot="start" *ngIf="!isSendingTest"></ion-icon>
+          <ion-spinner name="crescent" *ngIf="isSendingTest"></ion-spinner>
+          <span *ngIf="!isSendingTest">Probar Notificación</span>
+          <span *ngIf="isSendingTest">Enviando…</span>
         </ion-button>
       </div>
 
@@ -209,6 +211,7 @@ export class NotificationsPage implements OnInit, OnDestroy {
   loading = false;
   showToast = false;
   toastMessage = '';
+  isSendingTest = false;
   showDeleteAlert = false;
   deleteAlertMessage = '';
   deleteAlertButtons: any[] = [];
@@ -374,6 +377,8 @@ export class NotificationsPage implements OnInit, OnDestroy {
 
   async sendTestNotification() {
     try {
+      if (this.isSendingTest) return;
+      this.isSendingTest = true;
       // Asegurar permisos antes de intentar enviar una prueba
       const hasPerms = await this.notificationService.checkPermissions();
       if (!hasPerms) {
@@ -384,6 +389,8 @@ export class NotificationsPage implements OnInit, OnDestroy {
       console.log('✅ Notificación de prueba enviada');
     } catch (error) {
       console.error('❌ Error enviando notificación de prueba:', error);
+    } finally {
+      this.isSendingTest = false;
     }
   }
 

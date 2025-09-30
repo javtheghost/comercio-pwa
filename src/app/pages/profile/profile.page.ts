@@ -33,6 +33,8 @@ export class ProfilePage implements OnInit, OnDestroy {
   orders: Order[] = [];
   ordersLoading = false;
   ordersError: string | null = null;
+  // Estado UI para evitar spam de envío de notificación de prueba
+  isSendingTest = false;
 
 
   private authSubscription: Subscription = new Subscription();
@@ -390,10 +392,14 @@ export class ProfilePage implements OnInit, OnDestroy {
 
   // Método para probar notificaciones
   async testNotification(): Promise<void> {
+    if (this.isSendingTest) return;
+    this.isSendingTest = true;
     try {
       await this.notificationService.sendTestNotification();
     } catch (error) {
       // Silenciar errores de notificación en consola
+    } finally {
+      this.isSendingTest = false;
     }
   }
 

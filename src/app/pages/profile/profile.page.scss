@@ -2,6 +2,29 @@
   --color: #ffffff;
 }
 
+// Botones modernos en Perfil
+.test-notif-button {
+  --border-radius: 10px;
+  --box-shadow: 0 6px 18px rgba(59, 130, 246, 0.25);
+  --background: var(--ion-color-secondary);
+  --background-activated: color-mix(in oklab, var(--ion-color-secondary) 90%, black 10%);
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.logout-button {
+  --border-radius: 10px;
+  --box-shadow: 0 6px 18px rgba(239, 68, 68, 0.25);
+  --background: var(--ion-color-danger);
+  --background-activated: color-mix(in oklab, var(--ion-color-danger) 90%, black 10%);
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+ion-button[disabled] {
+  opacity: 0.85;
+}
+
 .guest-content {
   text-align: center;
   padding: 20px 0;
