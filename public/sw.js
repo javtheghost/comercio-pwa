@@ -134,10 +134,12 @@ self.addEventListener('push', (event) => {
         icon: '/icons/icon-72x72.png'
       }
     ],
-    requireInteraction: false,
+    requireInteraction: true, // Mantener visible hasta que el usuario interactúe
+    renotify: true, // Re-notificar si llega otra con el mismo tag
     silent: false,
     vibrate: [200, 100, 200],
-    tag: 'general'
+    tag: 'general',
+    timestamp: Date.now()
   };
 
   // Si hay datos en el push event, usarlos
@@ -147,7 +149,7 @@ self.addEventListener('push', (event) => {
       console.log('📋 Push data:', pushData);
       
       // Combinar datos del push con configuración por defecto
-      notificationData = {
+      const base = {
         ...notificationData,
         ...pushData,
         data: {
@@ -155,11 +157,12 @@ self.addEventListener('push', (event) => {
           ...pushData.data
         }
       };
-      // Usar una etiqueta estable basada en el tipo para reemplazo/dedupe (p. ej. 'test', 'new_order')
-      try {
-        const inferredTag = pushData.tag || (pushData.data && pushData.data.type) || undefined;
-        if (inferredTag) notificationData.tag = inferredTag;
-      } catch (e) { /* noop */ }
+      // Generar un tag único cuando sea test/orden para evitar que el SO colapse banners
+      const attempt = pushData?.data?.attemptId || pushData?.data?.orderId || pushData?.data?.order_id || Date.now();
+      notificationData = {
+        ...base,
+        tag: `${(pushData?.data?.type || 'general')}-${attempt}`
+      };
     } catch (error) {
       console.error('❌ Error parseando push data:', error);
     }
@@ -285,32 +288,6 @@ self.addEventListener('message', (event) => {
   
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
-  }
-  // Mostrar notificación local inmediata solicitada por la app
-  if (event.data && event.data.type === 'LOCAL_SHOW_NOTIFICATION') {
-    const p = event.data.payload || {};
-    const payload = {
-      title: p.title || 'Notificación',
-      body: p.body || '',
-      icon: p.icon || '/icons/icon-192x192.png',
-      badge: p.badge || '/icons/icon-72x72.png',
-      data: p.data || {},
-      actions: p.actions || [],
-      requireInteraction: !!p.requireInteraction,
-      silent: !!p.silent,
-      vibrate: p.vibrate || [200, 100, 200],
-      tag: p.tag || (p.data && p.data.type) || 'general'
-    };
-    event.waitUntil(
-      self.registration.showNotification(payload.title, payload).then(() => {
-        // Informar a las ventanas para actualizar contadores inmediatamente
-        return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsList) => {
-          clientsList.forEach((client) => {
-            try { client.postMessage({ type: 'PUSH_RECEIVED', payload }); } catch (e) { /* noop */ }
-          });
-        });
-      })
-    );
   }
 });
 

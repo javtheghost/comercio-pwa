@@ -56,8 +56,8 @@ export class NotificationService {
   // Claves por usuario para persistencia
   private readonly NOTIF_PREFIX = 'notifications_';
   private readonly NOTIF_DELETED_PREFIX = 'notifications_deleted_';
-  // Referencias de notificaciones locales por tipo para poder cerrarlas si llega el PUSH real
-  private localNotifsByType: Record<string, Notification> = {};
+  // Referencias de notificaciones locales eliminadas por simplificación (preferimos SW.showNotification)
+  private readonly isEdge = typeof navigator !== 'undefined' && /Edg\//.test(navigator.userAgent);
 
   constructor(private http: HttpClient, private securityService: SecurityService) {
     // Reintentar registro de suscripción pendiente cuando el usuario inicia sesión
@@ -93,6 +93,14 @@ export class NotificationService {
         }
         // Nota: No borramos notificaciones persistentes; se mantienen por usuario
       });
+
+      // Exponer utilidades de depuración en ventana para diagnósticos rápidos
+      try {
+        (window as any).debugNotifications = () => this.debugStatus();
+        (window as any).triggerTestNotification = () => this.sendTestNotification();
+        (window as any).resetPush = () => this.resetAndResubscribe();
+        (window as any).showSystemNotif = () => this.showSystemNotificationTest();
+      } catch {}
     }
   }
 
@@ -262,7 +270,11 @@ export class NotificationService {
             } catch (retryError) {
               console.error('❌ Estrategia 1 falló:', retryError);
 
-              // Estrategia 2: Intentar sin userVisibleOnly
+              // Estrategia 2: Intentar sin userVisibleOnly (evitar en Edge)
+              if (this.isEdge) {
+                console.warn('ℹ️ Saltando intento sin userVisibleOnly en Edge');
+                return false;
+              }
               try {
                 console.log('🔄 Estrategia 2: Intentar sin userVisibleOnly...');
                 const altSubscription = await this.registration.pushManager.subscribe({
@@ -340,7 +352,10 @@ export class NotificationService {
         expirationTime,
         user_agent: navigator.userAgent,
         platform: 'web',
-        user_id: userId
+        user_id: userId,
+        origin: typeof location !== 'undefined' ? location.origin : undefined,
+        scope: (this.registration && this.registration.scope) || undefined,
+        subscribed_at: new Date().toISOString()
       };
 
       // Normalizar base y construir URLs seguras (evitar /api/api)
@@ -528,14 +543,7 @@ export class NotificationService {
             icon: payload.icon,
             badge: payload.badge
           });
-          // Si mostramos una notificación local inmediata de ese tipo, cerrarla para evitar duplicado visual
-          try {
-            const nType = (payload?.data && payload.data.type) || undefined;
-            if (nType && this.localNotifsByType[nType]) {
-              this.localNotifsByType[nType].close();
-              delete this.localNotifsByType[nType];
-            }
-          } catch {}
+          // Ya no cerramos locales: preferimos notificaciones mostradas desde SW
         }
       });
     }
@@ -647,43 +655,41 @@ export class NotificationService {
    */
   async sendTestNotification(): Promise<void> {
     try {
+      // Si no hay permisos todavía, solicitarlos en contexto de interacción de usuario
+      if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+        try {
+          await this.requestPermissionsManually();
+        } catch {}
+        // Si tras solicitar no están concedidos, dar feedback en-app y salir temprano
+  const perm: any = (Notification as any).permission;
+  if (perm !== 'granted') {
+          try {
+            await this.saveNotificationToStorage({
+              title: 'Permiso necesario',
+              body: 'Activa las notificaciones del navegador para ver alertas del sistema. Puedes permitirlas desde el candado en la barra de direcciones.',
+              data: { type: 'system', permissionNeeded: true }
+            });
+          } catch {}
+          return;
+        }
+      }
+      const attemptId = `t_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
       const payload: NotificationPayload = {
         title: 'Prueba de Notificación',
         body: 'Esta es una notificación de prueba desde tu app',
         data: {
           type: 'test',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          attemptId
         }
       };
-      // 1) Feedback inmediato: si hay permiso, mostrar sistema de notificación mediante el SW para apariencia consistente
-      if (Notification.permission === 'granted' && navigator.serviceWorker?.controller) {
-        try {
-          navigator.serviceWorker.controller.postMessage({
-            type: 'LOCAL_SHOW_NOTIFICATION',
-            payload: {
-              title: payload.title,
-              body: payload.body,
-              data: { ...payload.data, optimistic: true, immediate: true },
-              tag: payload.data.type
-            }
-          });
-        } catch {
-          // Fallback a notificación local en página si el postMessage falla
-          const local = this.showLocalNotification({
-            title: payload.title,
-            body: payload.body,
-            data: { ...payload.data, optimistic: true, immediate: true }
-          });
-          try { if (local && payload.data?.type) this.localNotifsByType[payload.data.type] = local; } catch {}
-        }
-      } else if (Notification.permission === 'granted') {
-        // Fallback si no hay controller
-        const local = this.showLocalNotification({
+      // 1) Feedback inmediato: si ya tenemos permiso, mostrar notificación local al instante (marcada como optimista)
+      if (Notification.permission === 'granted') {
+        this.showLocalNotification({
           title: payload.title,
           body: payload.body,
-          data: { ...payload.data, optimistic: true, immediate: true }
+          data: { ...payload.data, optimistic: true, immediate: true, attemptId }
         });
-        try { if (local && payload.data?.type) this.localNotifsByType[payload.data.type] = local; } catch {}
       }
 
       // 2) Disparar en background: asegurar suscripción y enviar al servidor sin bloquear la UI
@@ -700,16 +706,7 @@ export class NotificationService {
         } catch (e) {
           console.warn('⚠️ Falla al invocar /webpush/test (bg):', e);
         }
-        // Si llegó el push, cerrar la local inmediata (si existe)
-        if (gotPush) {
-          try {
-            const t = payload.data?.type;
-            if (t && this.localNotifsByType[t]) {
-              this.localNotifsByType[t].close();
-              delete this.localNotifsByType[t];
-            }
-          } catch {}
-        }
+        // Si llegó el push, no hacemos nada especial; la real aparecerá desde SW
       })();
     } catch (error) {
       console.error('❌ Error enviando notificación de prueba:', error);
@@ -775,8 +772,55 @@ export class NotificationService {
         await this.sendSubscriptionToServer(sub);
         console.log('✅ Suscripción creada (ensure)');
         return true;
-      } catch (e) {
+      } catch (e: any) {
         console.error('❌ Error creando suscripción en ensureActiveSubscription:', e);
+
+        // Estrategia de recuperación si es AbortError/Registration failed
+        const msg = String(e?.message || e?.name || '');
+        const isAbort = e?.name === 'AbortError' || /Registration failed|abort/i.test(msg);
+        if (isAbort) {
+          try {
+            console.log('🔄 Recuperación: limpiar y reintentar suscripción');
+            // 1) Eliminar suscripción colgada si existe
+            try {
+              const existing = await this.registration!.pushManager.getSubscription();
+              if (existing) {
+                await existing.unsubscribe();
+                console.log('🧹 Suscripción previa eliminada');
+              }
+            } catch {}
+            // 2) Pequeña espera
+            await new Promise(r => setTimeout(r, 800));
+            // 3) Reintento con Uint8Array explícito
+            const key = this.urlBase64ToUint8Array(this.vapidPublicKey);
+            const sub2 = await this.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+            await this.sendSubscriptionToServer(sub2);
+            console.log('✅ Suscripción creada tras reintento (ensure)');
+            return true;
+          } catch (e2: any) {
+            console.warn('⚠️ Reintento 1 falló:', e2);
+            // 4) Reintento alterno sin userVisibleOnly (algunos navegadores toleran esto) - evitar en Edge
+            if (this.isEdge) {
+              console.warn('ℹ️ Saltando reintento alterno sin userVisibleOnly en Edge');
+              // Activar modo desarrollo si estamos en localhost para usar locales
+              if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+                this.isDevelopmentMode = true;
+                return true;
+              }
+              return false;
+            }
+            try {
+              const key2 = this.urlBase64ToUint8Array(this.vapidPublicKey);
+              const sub3 = await (this.registration as any).pushManager.subscribe({ applicationServerKey: key2 });
+              await this.sendSubscriptionToServer(sub3);
+              console.log('✅ Suscripción creada con alternativa (ensure)');
+              return true;
+            } catch (e3: any) {
+              console.warn('⚠️ Reintento alterno también falló:', e3);
+            }
+          }
+        }
+
         // Activar modo desarrollo si estamos en localhost para usar notificaciones locales
         if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
           this.isDevelopmentMode = true;
@@ -791,40 +835,110 @@ export class NotificationService {
   }
 
   /**
+   * Fuerza un reset del Service Worker y resuscribe el Push, reenviando al servidor
+   */
+  public async resetAndResubscribe(): Promise<boolean> {
+    try {
+      console.log('🧹 Reiniciando SW y resuscribiendo...');
+      try {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) {
+          try { const sub = await reg.pushManager.getSubscription(); if (sub) await sub.unsubscribe(); } catch {}
+          await reg.unregister();
+          await new Promise(r => setTimeout(r, 500));
+        }
+      } catch {}
+
+      // Registrar de nuevo el SW
+      this.registration = await navigator.serviceWorker.register('/sw.js');
+      await new Promise(r => setTimeout(r, 300));
+
+      // Pedir permisos si hace falta
+      if (Notification.permission !== 'granted') {
+        const ok = await this.requestNotificationPermission();
+        if (!ok) {
+          console.warn('❌ No se concedieron permisos tras reset');
+          return false;
+        }
+      }
+
+      // Crear suscripción y enviarla al servidor
+      const sub = await this.registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: this.urlBase64ToUint8Array(this.vapidPublicKey!)
+      });
+      await this.sendSubscriptionToServer(sub);
+      console.log('✅ Resuscripción completada');
+      return true;
+    } catch (e) {
+      console.error('❌ Error en resetAndResubscribe:', e);
+      return false;
+    }
+  }
+
+  /**
+   * Muestra una notificación del sistema directamente (sin backend) usando el Service Worker.
+   * Útil para diagnosticar permisos/bloqueos a nivel navegador/SO.
+   */
+  public async showSystemNotificationTest(): Promise<boolean> {
+    try {
+      if (!this.isAvailable()) return false;
+      if (Notification.permission !== 'granted') {
+        const ok = await this.requestNotificationPermission();
+        if (!ok) return false;
+      }
+      if (!this.registration) {
+        this.registration = await navigator.serviceWorker.register('/sw.js');
+      }
+      const title = 'Prueba (Sistema)';
+      const options: NotificationOptions = {
+        body: 'Notificación mostrada directamente desde el Service Worker',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/icon-72x72.png',
+        data: { type: 'system_test' }
+      };
+      if (this.registration && (this.registration as any).showNotification) {
+        await (this.registration as any).showNotification(title, options);
+        return true;
+      } else {
+        new Notification(title, options);
+        return true;
+      }
+    } catch (e) {
+      console.warn('⚠️ No se pudo mostrar notificación de sistema directa:', e);
+      return false;
+    }
+  }
+
+  /**
    * Muestra una notificación local
    */
-  private showLocalNotification(payload: NotificationPayload): Notification | null {
+  private showLocalNotification(payload: NotificationPayload): void {
     if (Notification.permission === 'granted') {
-      const notification = new Notification(payload.title, {
+      const options: NotificationOptions = {
         body: payload.body,
         icon: payload.icon || '/icons/icon-192x192.png',
         badge: payload.badge || '/icons/icon-72x72.png',
         data: payload.data,
-        tag: 'real-notification'
-      });
-
-      // Manejar clic en la notificación
-      notification.onclick = () => {
-        console.log('👆 Notificación local clickeada');
-        notification.close();
-
-        // Enfocar la ventana
-        if (window.focus) {
-          window.focus();
-        }
+  // Nota: algunas definiciones TS no incluyen 'vibrate'; lo omitimos para compatibilidad
+        tag: (payload.data && (payload.data.attemptId || payload.data.type)) || 'local-notification'
       };
 
-      // Auto-cerrar después de 5 segundos
-      setTimeout(() => {
-        notification.close();
-      }, 5000);
+      // Preferir mostrar desde el Service Worker (más confiable en algunos navegadores)
+      try {
+        if (this.registration && typeof this.registration.showNotification === 'function') {
+          this.registration.showNotification(payload.title, options);
+        } else {
+          // Fallback al constructor de Notification
+          new Notification(payload.title, options);
+        }
+      } catch {
+        try { new Notification(payload.title, options); } catch {}
+      }
 
       // Persistir usando el mecanismo con dedupe (optimista vs real)
       this.saveNotificationToStorage(payload);
-
-      return notification;
     }
-    return null;
   }
 
   /**
@@ -833,6 +947,48 @@ export class NotificationService {
   private addToRealNotifications(payload: NotificationPayload): void {
     // Unificar persistencia vía localStorage para permitir dedupe entre optimista y real
     this.saveNotificationToStorage(payload);
+  }
+
+  /**
+   * Diagnóstico detallado del estado de notificaciones
+   */
+  public async debugStatus(): Promise<any> {
+    const result: any = {
+      available: this.isAvailable(),
+      permission: (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported',
+      apiUrl: this.API_URL,
+      vapid: !!this.vapidPublicKey,
+      webPushAvailable: this.webPushAvailable,
+      sw: {
+        supported: 'serviceWorker' in navigator,
+        registered: !!this.registration
+      }
+    };
+    try {
+      const reg = this.registration || (await navigator.serviceWorker.getRegistration());
+      result.sw.registered = !!reg;
+      if (reg) {
+        const sub = await reg.pushManager.getSubscription();
+        result.subscription = !!sub;
+        if (sub) {
+          result.subscriptionInfo = {
+            endpoint: sub.endpoint?.slice(0, 28) + '…',
+            expirationTime: (sub as any).expirationTime || null
+          };
+        }
+      }
+    } catch (e) {
+      result.error = String(e);
+    }
+    // Verificar endpoint VAPID rápidamente
+    try {
+      const vk = await firstValueFrom(this.http.get(`${this.API_URL}/webpush/vapid-public-key`));
+      result.vapidKeyFetch = { ok: true, data: vk };
+    } catch (e: any) {
+      result.vapidKeyFetch = { ok: false, status: e?.status, error: e?.message || e };
+    }
+    console.table(result);
+    return result;
   }
 
   /**
@@ -892,9 +1048,10 @@ export class NotificationService {
 
       const existing = JSON.parse(localStorage.getItem(key) || '[]');
 
-      // Dedupe/merge: si ya hay una notificación optimista reciente del mismo tipo, actualízala en lugar de duplicar
+      // Dedupe/merge: si hay una notificación optimista reciente del mismo "attemptId", actualizarla; si no, permitir múltiples
       const windowMs = 15_000; // 15 segundos de ventana
       const isOptimisticIncoming = !!payload.data?.optimistic;
+      const incomingAttempt = payload.data?.attemptId;
       let merged = false;
       try {
         for (const n of existing) {
@@ -904,8 +1061,9 @@ export class NotificationService {
           if (!isFinite(nTime)) continue;
           if (now.getTime() - nTime > windowMs) continue;
           const isOptimisticExisting = !!(n.data && n.data.optimistic);
-          // Caso A: entra real (no optimista) y ya hay optimista -> actualizar la existente
-          if (!isOptimisticIncoming && isOptimisticExisting) {
+          const existingAttempt = n?.data?.attemptId;
+          // Caso A: entra real (no optimista) y ya hay optimista del mismo attemptId -> actualizar la existente
+          if (!isOptimisticIncoming && isOptimisticExisting && existingAttempt && incomingAttempt && existingAttempt === incomingAttempt) {
             n.title = notification.title;
             n.message = notification.message;
             n.timestamp = nowIso;
@@ -914,8 +1072,9 @@ export class NotificationService {
             merged = true;
             break;
           }
-          // Caso B: entra otra optimista muy rápido -> ignorar para no duplicar
-          if (isOptimisticIncoming && isOptimisticExisting) {
+          // Caso B: entra otra optimista pero con distinto attemptId -> permitir para que el contador aumente
+          // Solo dedupe si es exactamente el mismo attemptId
+          if (isOptimisticIncoming && isOptimisticExisting && existingAttempt && incomingAttempt && existingAttempt === incomingAttempt) {
             merged = true;
             break;
           }
