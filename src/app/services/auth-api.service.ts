@@ -133,4 +133,28 @@ export class AuthApiService {
       withCredentials: true
     });
   }
+
+  /**
+   * Verifica el correo electrónico con el token de la URL
+   * @param token Token de verificación de email
+   * @param id ID del usuario
+   */
+  verifyEmail(id: string, hash: string, expires?: string, signature?: string): Observable<any> {
+    // Construir la URL con query params según Laravel
+    let url = `${this.baseUrl}/auth/email/verify/${id}/${hash}`;
+    const params: string[] = [];
+    
+    if (expires) params.push(`expires=${expires}`);
+    if (signature) params.push(`signature=${signature}`);
+    
+    if (params.length > 0) {
+      url += `?${params.join('&')}`;
+    }
+
+    console.log('📧 [AUTH API] Verificando email con URL:', url);
+
+    return this.http.get(url, {
+      withCredentials: true
+    });
+  }
 }

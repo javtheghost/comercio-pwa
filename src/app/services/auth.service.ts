@@ -196,37 +196,15 @@ export class AuthService {
             error: null
           });
 
-          // Obtener información completa del usuario con roles desde /auth/me
-          console.log('🚀 Llamando a getCurrentUser() después del registro...');
-          this.getCurrentUser().subscribe({
-            next: async (completeUser) => {
-              console.log('🔄 Usuario completo obtenido después del registro:', completeUser);
-              await this.securityService.setSecureUser(completeUser);
-              this.authStateSubject.next({
-                isAuthenticated: true,
-                user: completeUser,
-                token,
-                loading: false,
-                error: null
-              });
-
-              // Emitir evento para que el CartService pueda fusionar el carrito
-              console.log('🛒 Emitiendo evento de registro exitoso para fusión del carrito...');
-              console.log('🛒 Datos del evento:', { user: completeUser, token: token });
-
-              // Emitir evento con un pequeño delay para asegurar que el CartService esté listo
-              setTimeout(() => {
-                const event = new CustomEvent('userLoggedIn', {
-                  detail: { user: completeUser, token: token }
-                });
-                window.dispatchEvent(event);
-                console.log('✅ Evento userLoggedIn emitido correctamente después del registro');
-              }, 100);
-            },
-            error: (error) => {
-              console.error('❌ Error obteniendo usuario completo después del registro:', error);
-            }
-          });
+          // Emitir evento para que el CartService pueda fusionar el carrito
+          console.log('🛒 [AUTH SERVICE] Emitiendo evento de registro exitoso para fusión del carrito...');
+          setTimeout(() => {
+            const event = new CustomEvent('userLoggedIn', {
+              detail: { user, token }
+            });
+            window.dispatchEvent(event);
+            console.log('✅ [AUTH SERVICE] Evento userLoggedIn emitido correctamente después del registro');
+          }, 100);
         } else {
           this.setError(response.message || 'Registration failed');
         }
@@ -322,6 +300,62 @@ export class AuthService {
   // Reenviar correo de verificación
   async resendVerificationEmail(): Promise<void> {
     await firstValueFrom(this.authApiService.resendVerificationEmail());
+  }
+
+  // Verificar email con token
+  verifyEmail(id: string, hash: string, expires?: string, signature?: string): Observable<any> {
+    console.log('📧 [AUTH SERVICE] Verificando email...');
+    return this.authApiService.verifyEmail(id, hash, expires, signature).pipe(
+      tap(async (response) => {
+        console.log('✅ [AUTH SERVICE] Email verificado exitosamente:', response);
+        
+        // Si la respuesta incluye token y usuario, iniciar sesión automáticamente
+        if (response.data?.token && response.data?.user) {
+          console.log('🔑 [AUTH SERVICE] Iniciando sesión automática después de verificar email');
+          const { token, user } = response.data;
+          
+          // Guardar token y usuario
+          await this.securityService.setSecureToken(token);
+          await this.securityService.setSecureUser(user);
+          
+          // Actualizar estado
+          this.authStateSubject.next({
+            isAuthenticated: true,
+            user,
+            token,
+            loading: false,
+            error: null
+          });
+          
+          // Emitir evento para que el CartService pueda fusionar el carrito
+          console.log('🛒 [AUTH SERVICE] Emitiendo evento de login después de verificar email');
+          setTimeout(() => {
+            const event = new CustomEvent('userLoggedIn', {
+              detail: { user, token }
+            });
+            window.dispatchEvent(event);
+            console.log('✅ [AUTH SERVICE] Evento userLoggedIn emitido correctamente');
+          }, 100);
+          
+          console.log('✅ [AUTH SERVICE] Sesión iniciada automáticamente');
+        } else {
+          // Si no viene token, solo actualizar el estado del usuario actual
+          console.log('🔄 [AUTH SERVICE] Actualizando estado del usuario verificado');
+          this.getCurrentUser().subscribe({
+            next: (user) => {
+              console.log('✅ [AUTH SERVICE] Usuario actualizado después de verificación');
+            },
+            error: (error) => {
+              console.error('❌ [AUTH SERVICE] Error actualizando usuario:', error);
+            }
+          });
+        }
+      }),
+      catchError((error) => {
+        console.error('❌ [AUTH SERVICE] Error verificando email:', error);
+        return throwError(() => error);
+      })
+    );
   }
 
   isAuthenticated(): boolean {
@@ -458,6 +492,50 @@ export class AuthService {
     });
   }
 
+  /**
+   * Limpiar sesión local sin llamar a la API
+   * Usado cuando otra tab ya cerró la sesión
+   */
+  clearLocalSession(): void {
+    console.log('🧹 [AUTH SERVICE] Limpiando sesión local (sin llamar API)...');
+    this.clearAuthData();
+    
+    // Disparar evento de logout
+    try {
+      window.dispatchEvent(new CustomEvent('userLoggedOut'));
+    } catch (error) {
+      console.error('Error disparando evento userLoggedOut:', error);
+    }
+  }
+
+  /**
+   * Verificar estado de autenticación actual
+   * Útil para sincronizar entre tabs
+   */
+  async checkAuthStatus(): Promise<boolean> {
+    try {
+      const token = this.securityService.getTokenSync();
+      const user = await this.securityService.getSecureUser();
+
+      if (token && user) {
+        this.authStateSubject.next({
+          isAuthenticated: true,
+          user,
+          token,
+          loading: false,
+          error: null
+        });
+        return true;
+      } else {
+        this.clearAuthData();
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ [AUTH SERVICE] Error verificando estado de auth:', error);
+      this.clearAuthData();
+      return false;
+    }
+  }
 
   /**
    * Método público para activar notificaciones manualmente

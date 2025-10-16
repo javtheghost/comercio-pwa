@@ -170,21 +170,37 @@ self.addEventListener('push', (event) => {
 
   // Mostrar la notificación
   event.waitUntil(
-    self.registration.showNotification(notificationData.title, notificationData)
-      .then(() => {
+    (async () => {
+      try {
+        // Si el payload trae un unread_count, intentar actualizar el app badge (si está soportado)
+        const unreadCount = (notificationData && notificationData.data && notificationData.data.unread_count) || (notificationData && notificationData.unread_count) || null;
+        if (typeof unreadCount === 'number' && Number.isFinite(unreadCount)) {
+          try {
+            if (self.registration && typeof self.registration.setAppBadge === 'function') {
+              await self.registration.setAppBadge(unreadCount);
+              console.log('🔖 Service Worker: app badge seteado a', unreadCount);
+            }
+          } catch (e) {
+            console.warn('⚠️ No se pudo setear app badge desde SW:', e);
+          }
+        }
+
+        await self.registration.showNotification(notificationData.title, notificationData);
         console.log('✅ Notificación mostrada:', notificationData.title);
+
         // Informar a las ventanas abiertas para actualizar badges/listas
         return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsList) => {
           clientsList.forEach((client) => {
             try {
-              client.postMessage({ type: 'PUSH_RECEIVED', payload: notificationData });
+              // Incluir unreadCount si está en el payload para que la pestaña actualice el badge inmediatamente
+              client.postMessage({ type: 'PUSH_RECEIVED', payload: notificationData, unreadCount: unreadCount });
             } catch (e) { /* noop */ }
           });
         });
-      })
-      .catch((error) => {
-        console.error('❌ Error mostrando notificación:', error);
-      })
+      } catch (error) {
+        console.error('❌ Error mostrando notificación o actualizando badge:', error);
+      }
+    })()
   );
 });
 
@@ -204,6 +220,25 @@ self.addEventListener('notificationclick', (event) => {
     urlToOpen = notificationData.url;
   } else if (notificationData.type) {
     switch (notificationData.type) {
+      case 'cart_abandoned':
+        // 🛒 CARRITO ABANDONADO - Abrir carrito y guardar cart_id
+        urlToOpen = '/tabs/cart';
+        // Enviar cart_id a la app para que lo cargue
+        event.waitUntil(
+          clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsList) => {
+            clientsList.forEach((client) => {
+              try {
+                client.postMessage({
+                  type: 'CART_ABANDONED_CLICK',
+                  cartId: notificationData.cart_id,
+                  data: notificationData
+                });
+                console.log('✅ cart_id enviado a la app:', notificationData.cart_id);
+              } catch (e) { console.error('Error posting message:', e); }
+            });
+          })
+        );
+        break;
       case 'new_order':
         urlToOpen = `/order-confirmation?orderId=${notificationData.order_id || ''}`;
         break;

@@ -5,69 +5,15 @@ import { IonicModule, ToastController } from '@ionic/angular';
 import { Subscription, firstValueFrom, timeout } from 'rxjs';
 import { OrderService, Order } from '../../services/order.service';
 import { NotificationService } from '../../services/notification.service';
+import { firstValueFrom as rxFirst } from 'rxjs';
 
 @Component({
   selector: 'app-order-detail',
   standalone: true,
   imports: [IonicModule, CommonModule],
-  template: `
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Orden #{{ order?.order_number || orderId }}</ion-title>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content>
-      <ng-container *ngIf="loading">
-        <div class="loading-container">
-          <ion-spinner name="crescent"></ion-spinner>
-          <p>Cargando orden...</p>
-        </div>
-      </ng-container>
-
-      <ng-container *ngIf="!loading && order">
-        <ion-list>
-          <ion-item>
-            <ion-label>
-              <h2>Estado</h2>
-              <p>{{ orderService.getOrderStatusText(order.status) }} • {{ orderService.getPaymentStatusText(order.payment_status) }}</p>
-            </ion-label>
-          </ion-item>
-          <ion-item>
-            <ion-label>
-              <h2>Total</h2>
-              <p>{{ order.total_amount | currency:'MXN':'symbol' }}</p>
-            </ion-label>
-          </ion-item>
-        </ion-list>
-
-        <ion-list>
-          <ion-item *ngFor="let item of order.items">
-            <ion-label>
-              <h3>{{ item.product?.name || 'Producto' }}</h3>
-              <p>Cantidad: {{ item.quantity }} • {{ item.total_price | currency:'MXN':'symbol' }}</p>
-            </ion-label>
-          </ion-item>
-        </ion-list>
-      </ng-container>
-
-      <ng-container *ngIf="!loading && !order">
-        <div class="loading-container">
-          <ion-icon name="alert-circle-outline" color="medium"></ion-icon>
-          <p>No se encontró la orden.</p>
-        </div>
-      </ng-container>
-    </ion-content>
-  `,
-  styles: [`
-    .loading-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
-    }
-  `]
+  templateUrl: './order-detail.page.html',
+  // Nota: styleUrls estándar; si el builder mostró error transitorio 'no se encontró', se debe a caché.
+  styleUrls: ['./order-detail.page.scss']
 })
 export class OrderDetailPage implements OnInit, OnDestroy {
   orderId!: number;
@@ -92,7 +38,23 @@ export class OrderDetailPage implements OnInit, OnDestroy {
         return;
       }
       this.orderId = idNum;
-      this.loadOrder();
+      // 1) Intentar obtener la orden desde el estado de navegación
+      const nav = this.router.getCurrentNavigation();
+      const passedOrder: any = nav?.extras?.state?.['order'];
+      if (passedOrder && passedOrder.id === this.orderId) {
+        this.order = passedOrder;
+      } else {
+        // 2) Intentar desde el BehaviorSubject (lista ya cargada)
+        try {
+          const cached = (this.orderService as any).ordersSubject?.value || [];
+          if (Array.isArray(cached)) {
+            const match = cached.find((o: any) => o?.id === this.orderId);
+            if (match) this.order = match;
+          }
+        } catch {}
+      }
+      // 3) Hacer fetch (si ya tenemos la orden, será un refresh silencioso)
+      this.loadOrder(!this.order); // si ya hay order, no mostrar loading visible
       // Marcar como leídas notificaciones relacionadas a esta orden
       this.notificationService.markNotificationsReadByOrderId(this.orderId);
     });
@@ -102,8 +64,8 @@ export class OrderDetailPage implements OnInit, OnDestroy {
     this.routeSub?.unsubscribe();
   }
 
-  private async loadOrder(): Promise<void> {
-    this.loading = true;
+  private async loadOrder(showLoader: boolean = true): Promise<void> {
+    if (showLoader) this.loading = true;
     try {
       const resp = await firstValueFrom(
         this.orderService.getOrder(this.orderId).pipe(timeout({ first: 12000 }))
@@ -142,7 +104,42 @@ export class OrderDetailPage implements OnInit, OnDestroy {
       await toast.present();
       // Mantener en la pantalla y mostrar estado vacío; no forzar navegación
     } finally {
-      this.loading = false;
+      if (showLoader) this.loading = false; else this.loading = false; // aseguramos apagado
+    }
+  }
+
+  async onCancelOrder(): Promise<void> {
+    if (!this.order || this.order.status !== 'pending') return;
+    // Evitar doble click
+    const prevStatus = this.order.status;
+    this.order = { ...this.order, status: 'processing' } as any; // estado temporal
+    try {
+      const resp = await firstValueFrom(
+        this.orderService.cancelOrder(this.orderId).pipe(timeout({ first: 10000 }))
+      );
+      if (resp?.success) {
+        this.order = { ...this.order!, status: 'cancelled' } as any;
+        this.orderService.updateOrderInList(this.order as any);
+        const toast = await this.toastController.create({
+          message: 'Orden cancelada',
+          duration: 2500,
+          color: 'success',
+          position: 'top'
+        });
+        await toast.present();
+      } else {
+        throw new Error(resp?.message || 'Error cancelando');
+      }
+    } catch (e: any) {
+      // Revertir si falló
+      if (this.order) (this.order as any).status = prevStatus;
+      const toast = await this.toastController.create({
+        message: e?.message || 'Error cancelando orden',
+        duration: 3000,
+        color: 'danger',
+        position: 'top'
+      });
+      await toast.present();
     }
   }
 }

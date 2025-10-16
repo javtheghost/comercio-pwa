@@ -168,9 +168,9 @@
   </div>
 </ion-content>
 
-<!-- Modal de éxito de registro -->
-<div class="success-modal-overlay" *ngIf="showSuccessModal" (click)="closeSuccessModal()">
-  <div class="success-modal" (click)="$event.stopPropagation()">
+<!-- Modal de éxito de registro - NO SE PUEDE CERRAR -->
+<div class="success-modal-overlay" *ngIf="showSuccessModal">
+  <div class="success-modal">
     <div class="success-modal-content">
       <div class="success-icon">
         <ion-icon name="checkmark-circle" class="check-icon"></ion-icon>

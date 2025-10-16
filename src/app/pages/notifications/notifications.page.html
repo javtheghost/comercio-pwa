@@ -1,0 +1,130 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      <ion-icon name="notifications-outline" class="header-icon"></ion-icon>
+      Notificaciones
+      <ion-badge *ngIf="hasUnreadNotifications()" color="danger" class="unread-badge">
+        {{ getUnreadCount() }}
+      </ion-badge>
+    </ion-title>
+    
+    <ion-buttons slot="end" *ngIf="!loading && notifications.length > 0">
+      <ion-button 
+        *ngIf="hasUnreadNotifications()"
+        (click)="markAllAsRead()"
+        class="header-action-btn mark-read-btn">
+        <ion-icon name="checkmark-done-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+      
+      <ion-button 
+        (click)="confirmDeleteAll()"
+        class="header-action-btn delete-all-btn">
+        <ion-icon name="trash-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <!-- Pull to refresh -->
+  <ion-refresher slot="fixed" (ionRefresh)="handleRefresh($event)">
+    <ion-refresher-content
+      pullingIcon="chevron-down-circle-outline"
+      refreshingSpinner="circles">
+    </ion-refresher-content>
+  </ion-refresher>
+
+  <!-- Loading state -->
+  <div *ngIf="loading" class="loading-container">
+    <ion-spinner name="crescent" color="primary"></ion-spinner>
+    <p>Cargando notificaciones...</p>
+  </div>
+
+  <!-- Empty state -->
+  <div *ngIf="!loading && notifications.length === 0" class="empty-state">
+    <div class="empty-icon-wrapper">
+      <ion-icon name="notifications-off-outline" size="large"></ion-icon>
+    </div>
+    <h3>No hay notificaciones</h3>
+    <p>Te notificaremos cuando tengas actualizaciones sobre tus órdenes, promociones y más</p>
+    <ion-button 
+      expand="block"
+      fill="outline" 
+      (click)="sendTestNotification()" 
+      [disabled]="isSendingTest"
+      class="test-btn">
+      <ion-icon name="notifications" slot="start" *ngIf="!isSendingTest"></ion-icon>
+      <ion-spinner name="crescent" *ngIf="isSendingTest"></ion-spinner>
+      <span *ngIf="!isSendingTest">Probar Notificación</span>
+      <span *ngIf="isSendingTest">Enviando…</span>
+    </ion-button>
+  </div>
+
+  <!-- Notifications list -->
+  <ion-list *ngIf="!loading && notifications.length > 0" class="notifications-list">
+    <ion-item-sliding 
+      *ngFor="let notification of notifications"
+      (ionDrag)="onUserInteracting()"
+      (ionSwipe)="onUserInteracting()">
+      <ion-item
+        [class.unread]="!notification.read"
+        (click)="openNotification(notification)"
+        button
+        detail="false"
+        class="notification-item">
+
+        <div class="icon-wrapper" slot="start" [attr.data-type]="notification.type">
+          <!-- ✅ Siempre usar icono de Ionicons basado en el tipo -->
+          <!-- Las notificaciones push usan los iconos de la PWA, no iconos personalizados del backend -->
+          <ion-icon
+            [name]="getNotificationIcon(notification.type)"
+            [color]="getNotificationColor(notification.type)">
+          </ion-icon>
+        </div>
+
+        <ion-label>
+          <h3 class="notification-title">{{ notification.title }}</h3>
+          <p class="notification-message">{{ notification.message }}</p>
+          <p class="timestamp">
+            <ion-icon name="time-outline"></ion-icon>
+            {{ formatTimestamp(notification.timestamp) }}
+          </p>
+        </ion-label>
+
+        <div slot="end" class="notification-end">
+          <ion-badge
+            *ngIf="!notification.read"
+            color="primary"
+            class="new-badge">
+            Nuevo
+          </ion-badge>
+          <ion-icon name="chevron-forward-outline" class="chevron"></ion-icon>
+        </div>
+      </ion-item>
+
+      <ion-item-options side="end">
+        <ion-item-option color="danger" (click)="deleteNotification(notification)" expandable>
+          <ion-icon name="trash" slot="icon-only"></ion-icon>
+        </ion-item-option>
+      </ion-item-options>
+    </ion-item-sliding>
+  </ion-list>
+
+  <!-- Toast for feedback -->
+  <ion-toast
+    [isOpen]="showToast"
+    [message]="toastMessage"
+    [duration]="2000"
+    [position]="'top'"
+    (didDismiss)="showToast = false">
+  </ion-toast>
+
+  <!-- Alert for confirmation -->
+  <ion-alert
+    [isOpen]="showDeleteAlert"
+    header="Eliminar notificaciones"
+    [message]="deleteAlertMessage"
+    [buttons]="deleteAlertButtons"
+    (didDismiss)="showDeleteAlert = false">
+  </ion-alert>
+</ion-content>

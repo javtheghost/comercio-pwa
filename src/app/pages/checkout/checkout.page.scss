@@ -5,6 +5,144 @@
   padding-bottom: 80px; // Espacio para las tabs
 }
 
+// Layout adjustments
+.address-card, .payment-card, .summary-card {
+  margin-bottom: 20px;
+}
+
+.address-mode-switch {
+  margin-bottom: 16px;
+  ion-segment {
+    --background: var(--ion-color-light-shade);
+  }
+}
+
+.saved-addresses {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+/* Address cards now share exact pattern with payment-option */
+.address-item {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--ion-color-medium);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: border-color .25s, background .25s, box-shadow .25s, transform .15s;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+
+  &:hover { box-shadow: 0 3px 6px rgba(var(--ion-color-primary-rgb), .15); }
+  &:active { transform: scale(.985); }
+
+  &.selected {
+    background: #eef5ff;
+    border-color: var(--ion-color-primary);
+    box-shadow: 0 4px 10px rgba(var(--ion-color-primary-rgb), .18);
+  }
+
+  .address-radio ion-icon { font-size: 20px; margin-top: 4px; }
+
+  .address-content {
+    flex: 1;
+    .address-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .address-text { margin: 0; font-size: 13px; line-height: 1.3; color: #000; }
+    .address-phone { margin: 4px 0 0 0; font-size: 12px; color: #000; opacity: .7; display: flex; align-items: center; gap: 4px; }
+  }
+  .address-check {
+    font-size: 22px;
+    align-self: center;
+  }
+}
+
+.help-text { margin-top: 4px; font-size: 12px; }
+
+.no-addresses-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0 12px;
+  p { margin: 0; font-size: 14px; color: var(--ion-color-medium); }
+  ion-icon { font-size: 24px; }
+}
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+@media (max-width: 599px) {
+  .form-grid { grid-template-columns: 1fr; }
+}
+
+.payment-option {
+  border: 2px solid var(--ion-color-primary);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #eef5ff;
+  position: relative;
+  &.selected { box-shadow: 0 4px 10px rgba(var(--ion-color-primary-rgb), .18); }
+  .payment-left { display: flex; align-items: flex-start; gap: 12px; }
+  .payment-icon { font-size: 32px; color: var(--ion-color-primary); }
+  .payment-info {
+    strong { color: #111; font-weight: 600; }
+    p { margin: 2px 0 0; font-size: 13px; color: #111; }
+  }
+  .payment-selected { font-size: 26px; }
+}
+
+/* Fuerza extra por si ionic aplica color contrast automático */
+.payment-card .payment-option .payment-info strong,
+.payment-card .payment-option .payment-info p,
+.payment-card .payment-option strong,
+.payment-card .payment-option p,
+.payment-card .payment-option ion-label,
+.payment-card .payment-option ion-label * {
+  color: #111 !important;
+  --ion-color-contrast: #111;
+}
+
+/* Dark mode: usar una ligera capa translúcida para mantener contraste */
+@media (prefers-color-scheme: dark) {
+  .payment-option {
+    background: rgba(var(--ion-color-primary-rgb), 0.12);
+    .payment-info strong { color: var(--ion-color-light); }
+  }
+}
+
+.order-summary.compact {
+  .summary-item { padding: 10px 0; }
+  .item-info h4 { font-size: 15px; color: #000; }
+  .item-info p { font-size: 12px; color: #000; font-weight: 500; }
+}
+
+/* Fuerza adicional para el nombre del producto (h4) si algún estilo global lo vuelve claro */
+.summary-card .order-summary .summary-item .item-info h4,
+.summary-card ion-card-content .order-summary .summary-item .item-info h4 {
+  color: #111 !important;
+  font-weight: 600;
+  text-shadow: none !important;
+  filter: none !important;
+}
+
+/* Unificar fondo de la tarjeta resumen similar a los otros cuadros */
+.summary-card ion-card-content {
+  background: #eef5ff;
+  border: 2px solid var(--ion-color-primary);
+  border-radius: 14px;
+  padding: 18px 18px 6px;
+}
+
 // Estilos para las tabs en checkout
 app-tabs {
   position: fixed;
@@ -33,6 +171,7 @@ app-tabs {
     margin: 0;
   }
 }
+.loading-container.small { padding: 24px 0 8px; }
 .payment-method-description {
   padding: 16px;
   color: var(--ion-color-medium);
@@ -133,6 +272,42 @@ app-tabs {
   }
 }
 
+/* Estilos botón guardar dirección */
+.save-address-action {
+  margin: 20px 0 6px;
+
+  ion-button {
+    --border-radius: 14px;
+    --padding-start: 18px;
+    --padding-end: 18px;
+    font-weight: 600;
+    letter-spacing: .3px;
+    position: relative;
+    overflow: hidden;
+    --background: linear-gradient(135deg, var(--ion-color-primary) 0%, var(--ion-color-primary-shade) 55%, var(--ion-color-primary-tint) 100%);
+    --background-hover: linear-gradient(135deg, var(--ion-color-primary-shade) 0%, var(--ion-color-primary) 60%, var(--ion-color-primary-tint) 100%);
+    --color: #fff;
+    box-shadow: 0 4px 12px rgba(var(--ion-color-primary-rgb), .35);
+    transition: box-shadow .25s, transform .18s, filter .25s;
+
+    &:hover:not([disabled]) { box-shadow: 0 6px 16px rgba(var(--ion-color-primary-rgb), .45); filter: brightness(1.03); }
+    &:active:not([disabled]) { transform: translateY(1px) scale(.985); }
+    &[disabled] { opacity: .55; filter: grayscale(.25); box-shadow: none; }
+
+    ion-icon[name="save-outline"] { font-size: 20px; animation: pulse-save 2s infinite; }
+    ion-spinner { margin-right: 4px; }
+  }
+
+  .save-hint { text-align: center; margin-top: 6px; font-size: 11px; color: var(--ion-color-medium); }
+  .save-hint.secondary-hint { font-size: 10.5px; opacity: .75; line-height: 1.25; margin-top: 4px; }
+}
+
+@keyframes pulse-save {
+  0% { transform: scale(1); opacity: .9; }
+  50% { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); opacity: .9; }
+}
+
 .empty-cart {
   text-align: center;
   padding: 40px 16px;
@@ -214,6 +389,9 @@ app-tabs {
     font-style: italic;
   }
 }
+
+// Override legacy (some removed sections) safeguards
+.payment-method-description { display: none; }
 
 @keyframes checkmark-appear {
   0% {

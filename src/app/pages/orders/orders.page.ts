@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -6,7 +6,7 @@ import { IonicModule, ToastController, LoadingController, AlertController } from
 import { OrderService, Order, OrderFilters } from '../../services/order.service';
 import { AuthService } from '../../services/auth.service';
 import { User } from '../../interfaces/auth.interfaces';
-import { Subscription, firstValueFrom } from 'rxjs';
+import { Subscription, firstValueFrom, timeout, catchError, of } from 'rxjs';
 
 @Component({
   selector: 'app-orders',
@@ -36,6 +36,12 @@ export class OrdersPage implements OnInit, OnDestroy {
   selectedPaymentStatus = 'all';
 
   private authSubscription: Subscription = new Subscription();
+  // Cuando llega un query param de estado antes de que el usuario esté listo
+  private pendingFilterApply = false;
+  private loadInFlight = false;
+  private loadingSafetyTimer: any = null;
+  private ordersSubscription: Subscription = new Subscription();
+  private debugSeq = 0;
 
   constructor(
     private orderService: OrderService,
@@ -44,7 +50,8 @@ export class OrdersPage implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private toastController: ToastController,
     private loadingController: LoadingController,
-    private alertController: AlertController
+    private alertController: AlertController,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
@@ -66,13 +73,32 @@ export class OrdersPage implements OnInit, OnDestroy {
     this.route.queryParams.subscribe(params => {
       if (params['status']) {
         this.selectedStatus = params['status'];
-        this.applyFilters();
+        if (this.user) {
+          this.applyFilters();
+        } else {
+          // Aplazar hasta que tengamos usuario
+            this.pendingFilterApply = true;
+        }
+      }
+    });
+
+    // Suscribirse al stream de órdenes para reflejar cambios aunque la carga principal falle
+    this.ordersSubscription = this.orderService.orders$.subscribe(list => {
+      if (Array.isArray(list) && list.length && !this.orders.length) {
+        console.log('📥 [ORDERS] Stream service -> adoptando', list.length, 'órdenes');
+        this.orders = list;
+        this.loading = false;
+        this.totalOrders = list.length;
+        this.totalPages = 1;
+        this.currentPage = 1;
+        this.cdr.markForCheck();
       }
     });
   }
 
   ngOnDestroy() {
     this.authSubscription.unsubscribe();
+    this.ordersSubscription.unsubscribe();
   }
 
   private loadUserData(): void {
@@ -83,7 +109,13 @@ export class OrdersPage implements OnInit, OnDestroy {
         if (authState.isAuthenticated && authState.user) {
           console.log('👤 [ORDERS] Usuario cargado:', authState.user);
           this.user = authState.user;
-          this.loadOrders();
+          if (this.pendingFilterApply) {
+            console.log('⏩ [ORDERS] Aplicando filtros pendientes tras cargar usuario');
+            this.pendingFilterApply = false;
+            this.applyFilters();
+          } else {
+            this.loadOrders();
+          }
         }
       },
       error: (error) => {
@@ -95,42 +127,110 @@ export class OrdersPage implements OnInit, OnDestroy {
 
   async loadOrders(): Promise<void> {
     if (!this.user) {
+      // Asegurar que no dejamos loading colgado si se llamó antes de tiempo
+      this.loading = false;
+      return;
+    }
+    // Evitar llamadas simultáneas que pueden pisar estados
+    if (this.loadInFlight) {
+      console.log('⏳ [ORDERS] Carga ya en curso, se ignora nueva llamada.');
       return;
     }
 
     this.loading = true;
     this.error = null;
+    this.loadInFlight = true;
+
+    // Safety timeout para nunca dejar spinner infinito si algo se queda colgado
+    clearTimeout(this.loadingSafetyTimer);
+    this.loadingSafetyTimer = setTimeout(() => {
+      if (this.loading) {
+        console.warn('⏱️ [ORDERS] Timeout de seguridad forzó cierre de loading.');
+        this.loading = false;
+      }
+    }, 12000);
 
     try {
 
-      const response = await firstValueFrom(this.orderService.getUserOrders(this.user.id, {
-        ...this.filters,
-        page: this.currentPage
-      }));
+      const queryDesc = JSON.stringify({ ...this.filters, page: this.currentPage });
+      console.log(`🚀 [ORDERS] (req ${++this.debugSeq}) Fetch inicial getUserOrders ->`, queryDesc);
+      let response: any = await firstValueFrom(
+        this.orderService.getUserOrders(this.user.id, { ...this.filters, page: this.currentPage })
+          .pipe(timeout({ first: 10000 }))
+      ).catch(err => {
+        console.warn('⚠️ [ORDERS] Timeout / error en primera llamada, intentando fallback getOrders()', err);
+        return null as any;
+      });
 
-      if (response && response.success) {
-        console.log('✅ [ORDERS] Órdenes cargadas:', response.data);
-
-        // La API devuelve { data: { customer: {...}, orders: {...} } }
-        const ordersData = response.data?.orders;
-        if (ordersData) {
-          this.orders = ordersData.data || [];
-          this.currentPage = ordersData.current_page || 1;
-          this.totalPages = ordersData.last_page || 1;
-          this.totalOrders = ordersData.total || 0;
-        } else {
-          this.orders = [];
-          this.currentPage = 1;
-          this.totalPages = 1;
-          this.totalOrders = 0;
+      if (!response) {
+        // Fallback directo usando getOrders general si existe customer_id implícito
+        try {
+          const fallback: any = await firstValueFrom(
+            this.orderService.getOrders({
+              customer_id: this.user.id,
+              sort_by: this.filters.sort_by,
+              sort_order: this.filters.sort_order,
+              per_page: this.filters.per_page,
+              page: this.currentPage
+            } as any).pipe(catchError(() => of(null)))
+          );
+          if (fallback && (fallback as any).success) {
+            console.log('🛟 [ORDERS] Fallback getOrders() exitoso');
+            response = fallback; // reutilizar flujo normal
+          }
+        } catch (fallbackErr) {
+          console.error('❌ [ORDERS] Fallback getOrders() también falló', fallbackErr);
         }
+      }
 
-        // Actualizar lista local en el servicio
-        this.orderService.updateOrdersList(this.orders);
+      // Normalizar múltiples posibles estructuras
+      // Posibles shapes:
+      // A) { success, data: { orders: { data: [], current_page, last_page, total } } }
+      // B) { success, data: { data: [], current_page, last_page, total } }
+      // C) { success, data: { orders: { data: [...] } } } sin meta
+      // D) { success, data: { orders: [...] } }
+      // E) { success, data: [...] }
+      // F) { success, data: { customer: {...}, orders: {...} } }
 
-      } else {
+      if (!response || response.success === false) {
         throw new Error(response?.message || 'Error cargando órdenes');
       }
+
+      const raw = response.data;
+      let ordersData: any = null;
+
+      if (raw?.orders?.data) {
+        ordersData = raw.orders; // caso A o F (orders con meta)
+      } else if (Array.isArray(raw?.orders)) {
+        ordersData = { data: raw.orders, current_page: 1, last_page: 1, total: raw.orders.length };
+      } else if (Array.isArray(raw?.data)) {
+        ordersData = { data: raw.data, current_page: raw.current_page || 1, last_page: raw.last_page || 1, total: raw.total || raw.data.length };
+      } else if (raw?.data?.data && Array.isArray(raw.data.data)) {
+        // nested data.data pattern
+        ordersData = raw.data; // treat as meta container
+      } else if (Array.isArray(raw)) {
+        ordersData = { data: raw, current_page: 1, last_page: 1, total: raw.length };
+      }
+
+      if (!ordersData) {
+        console.warn('⚠️ [ORDERS] No se identificó estructura estándar de órdenes. Raw:', raw);
+        ordersData = { data: [], current_page: 1, last_page: 1, total: 0 };
+      }
+
+      this.orders = Array.isArray(ordersData.data) ? ordersData.data : [];
+      this.currentPage = ordersData.current_page || 1;
+      this.totalPages = ordersData.last_page || 1;
+      this.totalOrders = ordersData.total || this.orders.length;
+
+      console.log('✅ [ORDERS] Normalizado -> items:', this.orders.length, 'page:', this.currentPage, '/', this.totalPages);
+
+      // Si después de normalizar seguimos con cero y no hay error explícito, clarificar en logs
+      if (!this.orders.length) {
+        console.log('ℹ️ [ORDERS] Lista vacía tras carga. Esto puede ser correcto (sin órdenes) o un problema de backend.');
+      }
+
+      // Actualizar lista local en el servicio
+      this.orderService.updateOrdersList(this.orders);
 
     } catch (error: any) {
       console.error('❌ [ORDERS] Error cargando órdenes:', error);
@@ -156,11 +256,20 @@ export class OrdersPage implements OnInit, OnDestroy {
 
     } finally {
       this.loading = false;
+      this.loadInFlight = false;
+      clearTimeout(this.loadingSafetyTimer);
+      this.cdr.markForCheck();
     }
   }
 
   applyFilters(): void {
     console.log('🔍 [ORDERS] Aplicando filtros...');
+
+    if (!this.user) {
+      console.log('⏳ [ORDERS] Usuario aún no disponible; filtros se aplicarán luego');
+      this.pendingFilterApply = true;
+      return;
+    }
 
     // Limpiar filtros
     this.filters = {
@@ -188,7 +297,6 @@ export class OrdersPage implements OnInit, OnDestroy {
 
   async refreshOrders(event?: any): Promise<void> {
     console.log('🔄 [ORDERS] Refrescando órdenes...');
-
     await this.loadOrders();
 
     if (event) {
@@ -225,7 +333,8 @@ export class OrdersPage implements OnInit, OnDestroy {
 
   viewOrder(order: Order): void {
     console.log('👁️ [ORDERS] Viendo orden:', order.id);
-    this.router.navigate(['/tabs/orders', order.id]);
+    // Pasar la orden actual en el estado de navegación para mostrar detalle inmediato
+    this.router.navigate(['/tabs/orders', order.id], { state: { order } });
   }
 
   async cancelOrder(order: Order): Promise<void> {

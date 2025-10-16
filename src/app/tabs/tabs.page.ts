@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrateg
 import { Router, NavigationEnd } from '@angular/router';
 import { NavController } from '@ionic/angular';
 import { IonIcon, IonRouterOutlet, IonBadge } from '@ionic/angular/standalone';
+import { CommonModule, NgIf } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { CartService, Cart } from '../services/cart.service';
 import { NotificationService } from '../services/notification.service';
@@ -11,7 +12,7 @@ import { TabNavigationService } from '../services/tab-navigation.service';
 @Component({
   selector: 'app-tabs',
   standalone: true,
-  imports: [IonIcon, IonRouterOutlet, IonBadge],
+  imports: [IonIcon, IonRouterOutlet, IonBadge, CommonModule, NgIf],
   template: `
     <div class="custom-tab-bar">
       <button (click)="navigate('/tabs/home')" [class.active]="isActive('/tabs/home')">
@@ -25,18 +26,14 @@ import { TabNavigationService } from '../services/tab-navigation.service';
       <button (click)="navigate('/tabs/notifications')" [class.active]="isActive('/tabs/notifications')" class="notifications-button">
         <div class="notifications-icon-container">
           <ion-icon name="notifications-outline"></ion-icon>
-          @if (unreadNotificationsCount > 0) {
-            <ion-badge color="danger" class="notifications-badge">{{ unreadNotificationsCount }}</ion-badge>
-          }
+          <ion-badge *ngIf="unreadNotificationsCount > 0" color="danger" class="notifications-badge">{{ unreadNotificationsCount }}</ion-badge>
         </div>
         <span>Notificaciones</span>
       </button>
       <button (click)="navigate('/tabs/cart')" [class.active]="isActive('/tabs/cart')" class="cart-button">
         <div class="cart-icon-container">
           <ion-icon name="cart-outline"></ion-icon>
-          @if (cartItemsCount > 0) {
-            <ion-badge color="danger" class="cart-badge">{{ cartItemsCount }}</ion-badge>
-          }
+          <ion-badge *ngIf="cartItemsCount > 0" color="danger" class="cart-badge">{{ cartItemsCount }}</ion-badge>
         </div>
         <span>Carrito</span>
       </button>
@@ -45,7 +42,7 @@ import { TabNavigationService } from '../services/tab-navigation.service';
         <span>Cuenta</span>
       </button>
     </div>
-    @if (!inline) { <ion-router-outlet></ion-router-outlet> }
+  <ion-router-outlet *ngIf="!inline"></ion-router-outlet>
   `,
   styleUrls: ['./tabs.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -192,6 +189,15 @@ export class TabsPage implements OnInit, OnDestroy {
       }
       this.currentTabIndex = newIndex;
     }
+    // Corrección específica: si estamos en una ruta "profunda" (detalle de producto u orden) y el usuario pulsa Home,
+    // queremos que la animación sea como regresar (back) aunque el índice de la pestaña siga la lógica normal.
+    try {
+      const currentUrl = this.router.url || '';
+      const isDeepDetail = /\/tabs\/(product|orders)\//.test(currentUrl); // product/:id o orders/:id
+      if (path === '/tabs/home' && isDeepDetail) {
+        direction = 'back';
+      }
+    } catch {}
     // Aria/focus: si hay un elemento enfocado dentro de una vista que va a ocultarse, hacer blur
     try {
       (document.activeElement as HTMLElement)?.blur?.();

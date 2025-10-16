@@ -1,5 +1,12 @@
 <ion-content class="verify-content">
-  <div class="verify-container">
+  <!-- Mostrar solo loader cuando se está verificando desde el link del email -->
+  <div class="verifying-loader" *ngIf="isVerifyingFromLink">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Verificando tu correo...</p>
+  </div>
+
+  <!-- Contenido normal solo cuando NO se está verificando desde link -->
+  <div class="verify-container" *ngIf="!isVerifyingFromLink">
     <div class="icon-wrapper">
       <ion-icon name="mail-unread-outline"></ion-icon>
     </div>

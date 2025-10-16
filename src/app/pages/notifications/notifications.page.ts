@@ -1,6 +1,6 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule, NgIf, NgFor } from '@angular/common';
-import { IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonLabel, IonIcon, IonBadge, IonButton, IonSpinner, IonRefresher, IonRefresherContent, IonItemSliding, IonItemOptions, IonItemOption, IonAlert, IonToast } from '@ionic/angular/standalone';
+import { IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonLabel, IonIcon, IonBadge, IonButton, IonButtons, IonSpinner, IonRefresher, IonRefresherContent, IonItemSliding, IonItemOptions, IonItemOption, IonAlert, IonToast } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { notifications, checkmarkCircle, time, cart, gift, alertCircle, trash, close } from 'ionicons/icons';
 import { NotificationService } from '../../services/notification.service';
@@ -12,199 +12,41 @@ export interface NotificationItem {
   id: string;
   title: string;
   message: string;
-  type: 'order' | 'promotion' | 'system' | 'test';
-  timestamp: Date;
+  type: 'order' | 'promotion' | 'system' | 'test' | 'cart_abandoned' | 'order_created' | 'order_confirmed' | 'order_shipped' | 'order_delivered' | 'order_cancelled' | 'cart_reminder' | 'cart_expiring' | 'product_available' | 'product_on_sale' | 'favorite_on_sale' | 'coupon' | 'flash_sale' | 'payment_success' | 'payment_failed' | 'review_request' | 'new_login' | 'birthday' | 'anniversary' | 'price_drop';
+  timestamp: Date | string; // Puede ser Date o string ISO
   read: boolean;
   data?: any;
+  icon?: string; // ✅ Icono de la notificación (URL o path)
+  url?: string; // ✅ URL de destino al hacer click
 }
 
 @Component({
   selector: 'app-notifications',
   standalone: true,
-  imports: [CommonModule, NgIf, NgFor, IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonLabel, IonIcon, IonBadge, IonButton, IonSpinner, IonRefresher, IonRefresherContent, IonItemSliding, IonItemOptions, IonItemOption, IonAlert, IonToast],
-  template: `
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Notificaciones</ion-title>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content>
-      <!-- Pull to refresh -->
-      <ion-refresher slot="fixed" (ionRefresh)="handleRefresh($event)">
-        <ion-refresher-content
-          pullingIcon="chevron-down-circle-outline"
-          refreshingSpinner="circles"
-          style="--color: var(--ion-color-primary); --refresher-icon-color: var(--ion-color-primary);">
-        </ion-refresher-content>
-      </ion-refresher>
-
-      <!-- Loading state -->
-      <div *ngIf="loading" class="loading-container">
-        <ion-spinner name="crescent"></ion-spinner>
-        <p>Cargando notificaciones...</p>
-      </div>
-
-      <!-- Empty state -->
-      <div *ngIf="!loading && notifications.length === 0" class="empty-state">
-        <ion-icon name="notifications-outline" size="large" color="medium"></ion-icon>
-        <h3>No hay notificaciones</h3>
-        <p>Te notificaremos cuando tengas nuevas actualizaciones sobre tus órdenes, promociones y más</p>
-        <ion-button fill="outline" (click)="sendTestNotification()" [disabled]="isSendingTest">
-          <ion-icon name="notifications" slot="start" *ngIf="!isSendingTest"></ion-icon>
-          <ion-spinner name="crescent" *ngIf="isSendingTest"></ion-spinner>
-          <span *ngIf="!isSendingTest">Probar Notificación</span>
-          <span *ngIf="isSendingTest">Enviando…</span>
-        </ion-button>
-      </div>
-
-      <!-- Notifications list -->
-      <ion-list *ngIf="!loading && notifications.length > 0">
-        <ion-item-sliding *ngFor="let notification of notifications">
-          <ion-item
-            [class.unread]="!notification.read"
-            (click)="openNotification(notification)"
-            button>
-
-            <ion-icon
-              [name]="getNotificationIcon(notification.type)"
-              [color]="getNotificationColor(notification.type)"
-              slot="start">
-            </ion-icon>
-
-            <ion-label>
-              <h3>{{ notification.title }}</h3>
-              <p>{{ notification.message }}</p>
-              <p class="timestamp">{{ formatTimestamp(notification.timestamp) }}</p>
-            </ion-label>
-
-            <ion-badge
-              *ngIf="!notification.read"
-              color="primary"
-              slot="end">
-              Nuevo
-            </ion-badge>
-          </ion-item>
-
-          <ion-item-options side="end">
-            <ion-item-option color="danger" (click)="deleteNotification(notification)">
-              <ion-icon name="trash" slot="icon-only"></ion-icon>
-            </ion-item-option>
-          </ion-item-options>
-        </ion-item-sliding>
-      </ion-list>
-
-      <!-- Action buttons -->
-      <div *ngIf="!loading && notifications.length > 0" class="action-buttons-container">
-        <ion-button
-          *ngIf="hasUnreadNotifications()"
-          fill="clear"
-          (click)="markAllAsRead()">
-          <ion-icon name="checkmark-circle" slot="start"></ion-icon>
-          Marcar todas como leídas
-        </ion-button>
-
-        <ion-button
-          fill="clear"
-          color="danger"
-          (click)="confirmDeleteAll()">
-          <ion-icon name="trash" slot="start"></ion-icon>
-          Eliminar todas
-        </ion-button>
-      </div>
-
-      <!-- Toast for feedback -->
-      <ion-toast
-        [isOpen]="showToast"
-        [message]="toastMessage"
-        [duration]="2000"
-        (didDismiss)="showToast = false">
-      </ion-toast>
-
-      <!-- Alert for confirmation -->
-      <ion-alert
-        [isOpen]="showDeleteAlert"
-        header="Eliminar notificaciones"
-        [message]="deleteAlertMessage"
-        [buttons]="deleteAlertButtons"
-        (didDismiss)="showDeleteAlert = false">
-      </ion-alert>
-    </ion-content>
-  `,
-  styles: [`
-    .loading-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
-      text-align: center;
-    }
-
-    .loading-container ion-spinner {
-      margin-bottom: 1rem;
-    }
-
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 3rem 2rem;
-      text-align: center;
-      height: 60vh;
-    }
-
-    .empty-state ion-icon {
-      margin-bottom: 1rem;
-      font-size: 4rem;
-    }
-
-    .empty-state h3 {
-      margin: 1rem 0 0.5rem 0;
-      color: var(--ion-color-medium);
-    }
-
-    .empty-state p {
-      color: var(--ion-color-medium);
-      margin-bottom: 2rem;
-    }
-
-    .unread {
-      --background: var(--ion-color-light);
-      border-left: 4px solid var(--ion-color-primary);
-    }
-
-    .timestamp {
-      font-size: 0.8rem;
-      color: var(--ion-color-medium);
-      margin-top: 0.25rem;
-    }
-
-    .action-buttons-container {
-      padding: 1rem;
-      text-align: center;
-      display: flex;
-      justify-content: center;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-
-    ion-item {
-      --padding-start: 16px;
-      --padding-end: 16px;
-    }
-
-    ion-label h3 {
-      font-weight: 500;
-      margin-bottom: 4px;
-    }
-
-    ion-label p {
-      font-size: 14px;
-      color: var(--ion-color-medium);
-    }
-  `]
+  imports: [
+    CommonModule,
+    IonHeader,
+    IonToolbar,
+    IonTitle,
+    IonContent,
+    IonList,
+    IonItem,
+    IonLabel,
+    IonIcon,
+    IonBadge,
+    IonButton,
+    IonButtons,
+    IonSpinner,
+    IonRefresher,
+    IonRefresherContent,
+    IonItemSliding,
+    IonItemOptions,
+    IonItemOption,
+    IonAlert,
+    IonToast
+  ],
+  templateUrl: './notifications.page.html',
+  styleUrls: ['./notifications.page.scss']
 })
 export class NotificationsPage implements OnInit, OnDestroy {
   notifications: NotificationItem[] = [];
@@ -223,8 +65,16 @@ export class NotificationsPage implements OnInit, OnDestroy {
   private currentUserId: number | 'guest' = 'guest';
   private authSub?: Subscription;
   private globalNotifListener?: any;
+  // ✅ Flag para controlar si se debe actualizar la UI automáticamente
+  private shouldAutoUpdate = true;
 
-  constructor(private notificationService: NotificationService, private authService: AuthService, private router: Router) {
+  constructor(
+    private notificationService: NotificationService, 
+    private authService: AuthService, 
+    private router: Router,
+    private cdr: ChangeDetectorRef,
+    private ngZone: NgZone
+  ) {
     addIcons({ notifications, checkmarkCircle, time, cart, gift, alertCircle, trash, close });
   }
 
@@ -244,10 +94,19 @@ export class NotificationsPage implements OnInit, OnDestroy {
     this.loadNotifications();
     // Exponer el método públicamente para el servicio de notificaciones
     (window as any).notificationsPage = this;
-
-    // Escuchar eventos globales de actualizaciones
-    this.globalNotifListener = () => this.loadNotifications();
+    
+    // ✅ Listener automático para notificaciones en tiempo real
+    // Solo actualiza la UI si hay cambios REALES detectados
+    this.globalNotifListener = () => {
+      this.ngZone.runOutsideAngular(() => {
+        if (this.shouldAutoUpdate) {
+          this.checkAndUpdateIfChanged();
+        }
+      });
+    };
     window.addEventListener('notifications:updated', this.globalNotifListener);
+    
+    console.log('👁️ [NOTIFICATIONS PAGE] Notificaciones automáticas activadas');
   }
 
   ngOnDestroy() {
@@ -258,6 +117,10 @@ export class NotificationsPage implements OnInit, OnDestroy {
     if (this.globalNotifListener) {
       window.removeEventListener('notifications:updated', this.globalNotifListener);
     }
+
+    // ✅ Reactivar auto-actualización para otros componentes
+    this.shouldAutoUpdate = true;
+    console.log('👋 [NOTIFICATIONS PAGE] Página cerrada');
   }
 
   async loadNotifications() {
@@ -282,15 +145,169 @@ export class NotificationsPage implements OnInit, OnDestroy {
   }
 
   async handleRefresh(event: any) {
-    await this.loadNotifications();
-    event.target.complete();
+    try {
+      console.log('🔄 Forzando resincronización desde backend...');
+      
+      // ✅ Reactivar auto-actualización temporalmente para este refresh manual
+      this.shouldAutoUpdate = true;
+      
+      // ✅ Forzar sincronización desde el backend para actualizar iconos
+      await this.notificationService.forceBackendSync();
+      
+      // Esperar un momento para que se actualice localStorage
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Recargar notificaciones desde localStorage (ahora con iconos actualizados)
+      await this.loadNotifications();
+      
+      console.log('✅ Resincronización completada');
+    } catch (error) {
+      console.error('❌ Error en resincronización:', error);
+    } finally {
+      event.target.complete();
+    }
   }
 
-  markAsRead(notification: NotificationItem) {
+  /**
+   * ✅ Verificar si hay cambios en las notificaciones antes de actualizar la UI
+   * Esto evita renders innecesarios cuando no hay cambios
+   */
+  private checkAndUpdateIfChanged(): void {
+    try {
+      // ✅ Obtener datos RAW de localStorage sin modificaciones
+      const key = this.getNotificationsKey();
+      const rawData = localStorage.getItem(key);
+      
+      if (!rawData) {
+        console.log('⏭️ [NOTIFICATIONS PAGE] No hay datos en localStorage');
+        return;
+      }
+
+      const savedNotifications = JSON.parse(rawData);
+      
+      // 🔍 DEBUG: Ver qué estamos comparando
+      console.log('🔍 [DEBUG CHANGE DETECTION]', {
+        enPantalla: this.notifications.length,
+        enLocalStorage: savedNotifications.length,
+        idsEnPantalla: this.notifications.map(n => n.id).slice(0, 3),
+        idsEnStorage: savedNotifications.map((n: any) => n.id).slice(0, 3)
+      });
+      
+      // ✅ Comparar con las que ya están en pantalla
+      if (this.hasNotificationsChanged(savedNotifications)) {
+        console.log('🔄 [NOTIFICATIONS PAGE] Cambios detectados, actualizando UI...');
+        
+        // ✅ Volver a entrar a la zona de Angular para actualizar UI
+        this.ngZone.run(() => {
+          this.loadNotifications();
+        });
+      } else {
+        console.log('⏭️ [NOTIFICATIONS PAGE] Sin cambios, saltando actualización');
+        // ✅ NO detectar cambios si no hay modificaciones
+        // Al estar fuera de la zona de Angular, no se triggerea re-render
+      }
+    } catch (error) {
+      console.error('❌ [NOTIFICATIONS PAGE] Error verificando cambios:', error);
+    }
+  }
+
+  /**
+   * ✅ Comparar si las notificaciones han cambiado
+   * Compara cantidad y IDs para detectar cambios
+   */
+  private hasNotificationsChanged(newNotifications: NotificationItem[]): boolean {
+    console.log('🔎 [CHANGE DETECTION] Iniciando comparación...');
+    
+    // Si la cantidad es diferente, definitivamente hay cambios
+    if (newNotifications.length !== this.notifications.length) {
+      console.log('📊 [CHANGE DETECTION] ❌ Cantidad diferente:', {
+        anterior: this.notifications.length,
+        nueva: newNotifications.length
+      });
+      return true;
+    }
+
+    // Si no hay notificaciones en pantalla, no hay cambios
+    if (this.notifications.length === 0 && newNotifications.length === 0) {
+      console.log('📊 [CHANGE DETECTION] ✅ Ambas listas vacías, sin cambios');
+      return false;
+    }
+
+    // Si la cantidad es igual, comparar IDs
+    const currentIds = new Set(this.notifications.map(n => n.id));
+    const newIds = new Set(newNotifications.map(n => n.id));
+
+    // Verificar si hay IDs nuevos
+    for (const id of newIds) {
+      if (!currentIds.has(id)) {
+        console.log('🆕 [CHANGE DETECTION] Notificación nueva detectada:', id);
+        return true;
+      }
+    }
+
+    // Verificar si hay IDs eliminados
+    for (const id of currentIds) {
+      if (!newIds.has(id)) {
+        console.log('🗑️ [CHANGE DETECTION] Notificación eliminada detectada:', id);
+        return true;
+      }
+    }
+
+    // Verificar cambios en el estado de lectura (solo backendId)
+    for (const newNotif of newNotifications) {
+      const currentNotif = this.notifications.find(n => n.id === newNotif.id);
+      if (currentNotif && currentNotif.read !== newNotif.read) {
+        console.log('👁️ [CHANGE DETECTION] Estado de lectura cambió:', newNotif.id);
+        return true;
+      }
+    }
+
+    // ✅ IMPORTANTE: Comparar usando backendId si está disponible
+    const currentBackendIds = new Set(
+      this.notifications.map(n => (n as any).backendId).filter(id => id)
+    );
+    const newBackendIds = new Set(
+      newNotifications.map(n => (n as any).backendId).filter(id => id)
+    );
+
+    if (currentBackendIds.size !== newBackendIds.size) {
+      console.log('📊 [CHANGE DETECTION] Cantidad de backendIds diferente');
+      return true;
+    }
+
+    // No hay cambios detectados
+    console.log('✅ [CHANGE DETECTION] Sin cambios reales detectados');
+    return false;
+  }
+
+  /**
+   * ✅ Detectar cuando el usuario está interactuando con las notificaciones
+   * Pausa la auto-actualización de la UI para evitar interrupciones
+   */
+  onUserInteracting(): void {
+    console.log('👆 [NOTIFICATIONS PAGE] Usuario interactuando, pausando auto-actualización UI');
+    this.shouldAutoUpdate = false;
+    
+    // Reactivar después de 3 segundos de inactividad
+    setTimeout(() => {
+      if (!this.shouldAutoUpdate) {
+        console.log('⏱️ [NOTIFICATIONS PAGE] 3s sin interacción, reactivando auto-actualización');
+        this.shouldAutoUpdate = true;
+      }
+    }, 3000);
+  }
+
+  async markAsRead(notification: NotificationItem) {
     if (!notification.read) {
       notification.read = true;
-      this.saveNotifications(); // Guardar cambios
+      this.saveNotifications(); // Guardar cambios localmente
       console.log('✅ Notificación marcada como leída:', notification.id);
+      
+      // Si es una notificación del backend, sincronizar
+      const backendId = (notification as any).backendId;
+      if (backendId) {
+        await this.notificationService.markBackendNotificationAsRead(backendId);
+      }
     }
   }
 
@@ -299,6 +316,20 @@ export class NotificationsPage implements OnInit, OnDestroy {
     const data = notification.data || {};
     const orderId = data.orderId ?? data.order_id;
     const url: string | undefined = data.url;
+    
+    // ✅ Si es notificación de carrito abandonado, guardar cart_id
+    if (notification.type === 'cart_abandoned') {
+      const cartId = data.cart_id;
+      if (cartId) {
+        localStorage.setItem('abandoned_cart_id', cartId.toString());
+        console.log('🛒 Cart ID guardado para recuperación:', cartId);
+      }
+      
+      // Navegar al carrito (ruta completa con /tabs/)
+      this.router.navigate(['/tabs/cart']);
+      return;
+    }
+    
     if (orderId) {
       this.router.navigate(['/order-confirmation'], { queryParams: { orderId } });
       return;
@@ -309,12 +340,24 @@ export class NotificationsPage implements OnInit, OnDestroy {
     }
   }
 
-  markAllAsRead() {
-    this.notifications.forEach(notification => {
-      notification.read = true;
-    });
-    this.saveNotifications(); // Guardar cambios
-    console.log('✅ Todas las notificaciones marcadas como leídas');
+  async markAllAsRead() {
+    try {
+      // Marcar localmente
+      this.notifications.forEach(notification => {
+        notification.read = true;
+      });
+      this.saveNotifications();
+      console.log('✅ Todas las notificaciones marcadas como leídas');
+      
+      // Sincronizar con backend
+      try {
+        await this.notificationService.markAllBackendNotificationsAsRead();
+      } catch (backendError) {
+        console.warn('⚠️ No se pudo sincronizar con backend:', backendError);
+      }
+    } catch (error) {
+      console.error('❌ Error marcando notificaciones:', error);
+    }
   }
 
   hasUnreadNotifications(): boolean {
@@ -323,19 +366,61 @@ export class NotificationsPage implements OnInit, OnDestroy {
 
   getNotificationIcon(type: string): string {
     switch (type) {
+      // Órdenes
       case 'new_order':
-        return 'cart';
-      case 'order_status':
-        return 'notifications';
+      case 'order_created':
+      case 'order_confirmed':
       case 'order':
         return 'cart';
+      case 'order_status':
+      case 'order_updated':
+        return 'sync-circle';
+      case 'order_shipped':
+        return 'airplane';
+      case 'order_delivered':
+        return 'checkmark-done-circle';
+      case 'order_cancelled':
+        return 'close-circle';
+      
+      // Carrito
+      case 'cart_abandoned':
+        return 'cart-outline';
+      case 'cart_expiring':
+        return 'time-outline';
+      case 'price_drop':
+        return 'trending-down';
+      
+      // Productos
+      case 'product_on_sale':
+      case 'favorite_on_sale':
+        return 'pricetag';
+      case 'product_available':
+        return 'notifications-circle';
+      case 'low_stock':
+        return 'warning';
+      
+      // Promociones
       case 'promotion':
         return 'gift';
+      case 'coupon':
+        return 'ticket';
+      case 'flash_sale':
+        return 'flash';
+      
+      // Pagos
+      case 'payment_success':
+        return 'checkmark-circle';
+      case 'payment_failed':
+        return 'alert-circle';
+      
+      // Sistema
       case 'system':
         return 'notifications';
       case 'test':
         return 'checkmark-circle';
+      
       default:
+        console.warn('⚠️ Tipo de notificación desconocido:', type);
         return 'alert-circle';
     }
   }
@@ -359,19 +444,43 @@ export class NotificationsPage implements OnInit, OnDestroy {
     }
   }
 
-  formatTimestamp(timestamp: Date): string {
-    const now = new Date();
-    const diff = now.getTime() - timestamp.getTime();
-    const minutes = Math.floor(diff / (1000 * 60));
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  formatTimestamp(timestamp: Date | string): string {
+    try {
+      const now = new Date();
+      // ✅ Asegurar que timestamp sea un objeto Date válido
+      const timestampDate = timestamp instanceof Date ? timestamp : new Date(timestamp);
+      
+      // ✅ Validar que la fecha es válida
+      if (isNaN(timestampDate.getTime())) {
+        console.warn('⚠️ Timestamp inválido:', timestamp);
+        return 'Fecha inválida';
+      }
+      
+      const diff = now.getTime() - timestampDate.getTime();
+      const minutes = Math.floor(diff / (1000 * 60));
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-    if (minutes < 60) {
-      return `Hace ${minutes} min`;
-    } else if (hours < 24) {
-      return `Hace ${hours} h`;
-    } else {
-      return `Hace ${days} días`;
+      if (minutes < 1) {
+        return 'Ahora';
+      } else if (minutes < 60) {
+        return `Hace ${minutes} min`;
+      } else if (hours < 24) {
+        return `Hace ${hours} h`;
+      } else if (days === 1) {
+        return 'Ayer';
+      } else if (days < 7) {
+        return `Hace ${days} días`;
+      } else {
+        // Para fechas más antiguas, mostrar formato completo
+        return timestampDate.toLocaleDateString('es-ES', { 
+          day: 'numeric', 
+          month: 'short' 
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error formateando timestamp:', error, timestamp);
+      return 'Fecha inválida';
     }
   }
 
@@ -394,14 +503,20 @@ export class NotificationsPage implements OnInit, OnDestroy {
     }
   }
 
-  deleteNotification(notification: NotificationItem) {
+  async deleteNotification(notification: NotificationItem) {
     const index = this.notifications.findIndex(n => n.id === notification.id);
     if (index > -1) {
       this.notifications.splice(index, 1);
-      this.saveNotifications(); // Guardar cambios
+      this.saveNotifications(); // Guardar cambios localmente
       this.addToDeletedList(notification.id); // Marcar como eliminada permanentemente
       this.showToastMessage('Notificación eliminada');
       console.log('✅ Notificación eliminada:', notification.id);
+      
+      // Si es una notificación del backend, eliminarla también allí
+      const backendId = (notification as any).backendId;
+      if (backendId) {
+        await this.notificationService.deleteBackendNotification(backendId);
+      }
     }
   }
 
@@ -423,16 +538,19 @@ export class NotificationsPage implements OnInit, OnDestroy {
     this.showDeleteAlert = true;
   }
 
-  deleteAllNotifications() {
+  async deleteAllNotifications() {
     // Marcar todas las notificaciones como eliminadas
     this.notifications.forEach(notification => {
       this.addToDeletedList(notification.id);
     });
 
     this.notifications = [];
-    this.saveNotifications(); // Guardar cambios
+    this.saveNotifications(); // Guardar cambios localmente
     this.showToastMessage('Todas las notificaciones han sido eliminadas');
     console.log('✅ Todas las notificaciones eliminadas');
+    
+    // Eliminar todas del backend
+    await this.notificationService.deleteAllBackendNotifications();
   }
 
   private showToastMessage(message: string) {
@@ -458,12 +576,78 @@ export class NotificationsPage implements OnInit, OnDestroy {
         }
       }
       if (saved) {
-        const notifications = JSON.parse(saved);
-        // Convertir timestamps de string a Date
-        return notifications.map((n: any) => ({
-          ...n,
-          timestamp: new Date(n.timestamp)
-        }));
+        let notifications = JSON.parse(saved);
+        
+        // ✅ LIMPIAR DUPLICADOS por backendId
+        const seen = new Map<number, boolean>();
+        const uniqueNotifications: any[] = [];
+        
+        for (const notif of notifications) {
+          const backendId = notif.backendId;
+          if (backendId && seen.has(backendId)) {
+            console.log('🗑️ [DEBUG] Duplicado encontrado y eliminado:', {
+              id: notif.id,
+              backendId: backendId,
+              title: notif.title
+            });
+            continue; // Saltar duplicado
+          }
+          
+          if (backendId) {
+            seen.set(backendId, true);
+          }
+          uniqueNotifications.push(notif);
+        }
+        
+        // Si se eliminaron duplicados, guardar la versión limpia
+        if (notifications.length !== uniqueNotifications.length) {
+          console.log(`🧹 [DEBUG] Limpiados ${notifications.length - uniqueNotifications.length} duplicados`);
+          localStorage.setItem(key, JSON.stringify(uniqueNotifications));
+          notifications = uniqueNotifications;
+        }
+        
+        console.log('📋 [DEBUG] Notificaciones cargadas de localStorage:', JSON.stringify(notifications.slice(0, 2), null, 2));
+        
+        // ✅ MANTENER timestamps como strings ISO, NO convertir a Date objects
+        return notifications.map((n: any) => {
+          let timestamp = n.timestamp;
+          
+          console.log('🔍 [DEBUG] Procesando timestamp:', {
+            id: n.id,
+            timestamp: timestamp,
+            tipo: typeof timestamp
+          });
+          
+          // Si timestamp es un objeto Date serializado, extraer el valor
+          if (timestamp && typeof timestamp === 'object' && timestamp.$date) {
+            timestamp = timestamp.$date;
+          }
+          
+          // Si no hay timestamp válido, usar fecha actual como ISO string
+          if (!timestamp || timestamp === 'undefined' || timestamp === undefined) {
+            console.error('❌ [DEBUG] Timestamp missing:', n.id);
+            return { ...n, timestamp: new Date().toISOString() };
+          }
+          
+          // Validar que sea una fecha válida
+          const dateObj = new Date(timestamp);
+          if (isNaN(dateObj.getTime())) {
+            console.error('❌ [DEBUG] Timestamp inválido:', {
+              id: n.id,
+              timestamp: timestamp,
+              tipo: typeof timestamp
+            });
+            return { ...n, timestamp: new Date().toISOString() };
+          }
+          
+          // ✅ Mantener como string ISO (NO convertir a Date object)
+          // Esto evita que JSON.stringify lo serialice incorrectamente después
+          const validTimestamp = typeof timestamp === 'string' 
+            ? timestamp 
+            : dateObj.toISOString();
+          
+          return { ...n, timestamp: validTimestamp };
+        });
       }
     } catch (error) {
       console.error('❌ Error cargando notificaciones guardadas:', error);
@@ -541,5 +725,15 @@ export class NotificationsPage implements OnInit, OnDestroy {
   private getDeletedKey(): string {
     const id = this.currentUserId ?? 'guest';
     return `${this.DELETED_PREFIX}${id}`;
+  }
+
+  // Helper para obtener contador de no leídas
+  getUnreadCount(): number {
+    return this.notifications.filter(n => !n.read).length;
+  }
+
+  // TrackBy para mejor rendimiento en la lista
+  trackByNotificationId(index: number, notification: NotificationItem): string {
+    return notification.id;
   }
 }

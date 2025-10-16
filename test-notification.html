@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba de Notificación - Carrito Abandonado</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            color: #333;
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .step {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #667eea;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .success {
+            background: #10b981;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+        .code {
+            background: #1e293b;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+        }
+        .warning {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 5px solid #f59e0b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛒 Prueba de Notificación - Carrito Abandonado</h1>
+        
+        <div class="warning">
+            ⚠️ <strong>IMPORTANTE:</strong> Debes estar logueado en la aplicación para que funcione esta prueba.
+        </div>
+
+        <div class="step">
+            <h3>📋 Paso 1: Verifica que estés logueado</h3>
+            <p>Haz clic en el botón para verificar:</p>
+            <button onclick="checkLogin()">Verificar Login</button>
+            <div id="loginStatus"></div>
+        </div>
+
+        <div class="step">
+            <h3>🧪 Paso 2: Crear notificación de prueba</h3>
+            <p>Este botón creará una notificación de carrito abandonado en tu localStorage:</p>
+            <button onclick="createTestNotification()">Crear Notificación de Prueba</button>
+            <div id="notificationStatus" class="success"></div>
+        </div>
+
+        <div class="step">
+            <h3>🔄 Paso 3: Recargar la aplicación</h3>
+            <p>Haz clic para ir a la página de notificaciones y ver el resultado:</p>
+            <button onclick="goToNotifications()">Ir a Notificaciones</button>
+        </div>
+
+        <div class="step">
+            <h3>✅ Paso 4: Verificar el resultado</h3>
+            <p>Deberías ver:</p>
+            <ul>
+                <li>✅ Una notificación con fondo <strong>naranja</strong></li>
+                <li>✅ Icono de <strong>carrito</strong> con animación bounce</li>
+                <li>✅ Título: "¡Tu carrito te espera! 🛒"</li>
+                <li>✅ Mensaje con cupón CART10-TEST</li>
+                <li>✅ Al hacer clic, te lleva al carrito</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <h3>🔍 Ver datos guardados</h3>
+            <button onclick="showStoredData()">Ver localStorage</button>
+            <div id="storageData" class="code" style="display:none; margin-top:10px;"></div>
+        </div>
+    </div>
+
+    <script>
+        function checkLogin() {
+            const user = JSON.parse(localStorage.getItem('user'));
+            const statusDiv = document.getElementById('loginStatus');
+            
+            if (user && user.id) {
+                statusDiv.innerHTML = `
+                    <div class="success" style="display:block; margin-top:10px;">
+                        ✅ <strong>Logueado correctamente</strong><br>
+                        Usuario: ${user.first_name || 'Usuario'} ${user.last_name || ''}<br>
+                        ID: ${user.id}<br>
+                        Email: ${user.email || 'N/A'}
+                    </div>
+                `;
+            } else {
+                statusDiv.innerHTML = `
+                    <div style="background:#fee; color:#c00; padding:15px; border-radius:8px; margin-top:10px;">
+                        ❌ <strong>NO estás logueado</strong><br>
+                        Por favor, ve a la aplicación y loguéate primero:<br>
+                        <a href="http://localhost:4200/tabs/login" target="_blank" style="color:#c00;">
+                            Ir a Login →
+                        </a>
+                    </div>
+                `;
+            }
+        }
+
+        function createTestNotification() {
+            const user = JSON.parse(localStorage.getItem('user'));
+            
+            if (!user || !user.id) {
+                alert('❌ Debes estar logueado primero. Haz clic en "Verificar Login"');
+                return;
+            }
+
+            const userId = user.id;
+            const storageKey = `app_notifications_${userId}`;
+            
+            // Obtener notificaciones existentes
+            const notifs = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            
+            // Crear notificación de prueba
+            const testNotification = {
+                id: 'cart_test_' + Date.now(),
+                type: 'cart_abandoned',
+                title: '¡Tu carrito te espera! 🛒',
+                message: 'Completa tu compra ahora y obtén 10% de descuento con el código CART10-TEST',
+                timestamp: new Date().toISOString(),
+                read: false,
+                data: {
+                    cart_id: 999,
+                    discount: '10%',
+                    coupon_code: 'CART10-TEST',
+                    url: '/cart'
+                }
+            };
+            
+            // Agregar al inicio del array
+            notifs.unshift(testNotification);
+            
+            // Guardar
+            localStorage.setItem(storageKey, JSON.stringify(notifs));
+            
+            // Mostrar éxito
+            const statusDiv = document.getElementById('notificationStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = `
+                ✅ <strong>¡Notificación creada exitosamente!</strong><br>
+                ID: ${testNotification.id}<br>
+                Cart ID: 999<br>
+                Cupón: CART10-TEST<br>
+                <br>
+                Ahora haz clic en "Ir a Notificaciones" para verla.
+            `;
+            
+            console.log('✅ Notificación creada:', testNotification);
+        }
+
+        function goToNotifications() {
+            window.open('http://localhost:4200/tabs/notifications', '_blank');
+        }
+
+        function showStoredData() {
+            const user = JSON.parse(localStorage.getItem('user'));
+            const dataDiv = document.getElementById('storageData');
+            
+            if (!user || !user.id) {
+                alert('❌ Debes estar logueado primero');
+                return;
+            }
+
+            const storageKey = `app_notifications_${user.id}`;
+            const notifs = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            const cartId = localStorage.getItem('abandoned_cart_id');
+            
+            dataDiv.style.display = 'block';
+            dataDiv.innerHTML = `
+<strong>📊 DATOS EN LOCALSTORAGE:</strong>
+
+Usuario ID: ${user.id}
+Storage Key: ${storageKey}
+Total Notificaciones: ${notifs.length}
+Cart ID guardado: ${cartId || 'ninguno'}
+
+<strong>Última notificación:</strong>
+${JSON.stringify(notifs[0], null, 2)}
+            `;
+        }
+
+        // Auto-verificar login al cargar
+        window.onload = function() {
+            checkLogin();
+        };
+    </script>
+</body>
+</html>

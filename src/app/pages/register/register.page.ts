@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule, NgIf } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NavController } from '@ionic/angular';
@@ -18,7 +18,6 @@ import { RegisterRequest } from '../../interfaces/auth.interfaces';
   standalone: true,
   imports: [
     CommonModule,
-    NgIf,
     ReactiveFormsModule,
     IonContent,
     IonIcon,
@@ -112,32 +111,23 @@ export class RegisterPage implements OnInit {
         next: (response) => {
           this.loading = false;
           this.showSuccessModal = true;
-          // Cerrar el modal y redirigir después de 3 segundos
+          
+          // Obtener datos del usuario desde la respuesta del registro
+          const user = this.authService.getCurrentUserValue();
+          const email = user?.email || this.registerForm.value.email || '';
+          
+          console.log('✅ [REGISTER] Registro exitoso, redirigiendo a verify-email');
+          
+          // Redirigir después de 2 segundos para que vea el mensaje
           setTimeout(() => {
             this.closeSuccessModal();
-            this.authService.getCurrentUser().subscribe({
-              next: (freshUser) => {
-                if (freshUser?.email_verified_at) {
-                  this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
-                } else {
-                  const email = freshUser?.email || this.registerForm.value.email || '';
-                  // Register -> VerifyEmail: izquierda->derecha (back)
-                  this.navCtrl.navigateRoot(['/tabs/verify-email'], { animationDirection: 'back' });
-                  this.router.navigate([], { queryParams: { email, sent: '1' }, queryParamsHandling: 'merge' });
-                }
-              },
-              error: () => {
-                const user = this.authService.getCurrentUserValue();
-                if (user?.email_verified_at) {
-                  this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
-                } else {
-                  const email = user?.email || this.registerForm.value.email || '';
-                  this.navCtrl.navigateRoot(['/tabs/verify-email'], { animationDirection: 'back' });
-                  this.router.navigate([], { queryParams: { email, sent: '1' }, queryParamsHandling: 'merge' });
-                }
-              }
+            // Siempre redirigir a verify-email después del registro
+            // (el usuario necesita verificar su email)
+            this.navCtrl.navigateRoot(['/tabs/verify-email'], { 
+              queryParams: { email, sent: '1' },
+              animationDirection: 'forward'
             });
-          }, 3000);
+          }, 2000);
         },
         error: (error) => {
           this.loading = false;

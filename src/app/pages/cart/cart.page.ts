@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { CurrencyPipe } from '@angular/common';
+import { CommonModule, CurrencyPipe, NgForOf, NgIf } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subscription, Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonButton, IonIcon, IonList, IonThumbnail, IonSpinner, IonText, ToastController, IonRefresher, IonRefresherContent } from '@ionic/angular/standalone';
@@ -13,7 +13,7 @@ import { environment } from '../../../environments/environment';
 @Component({
   selector: 'app-cart',
   standalone: true,
-  imports: [CurrencyPipe, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonButton, IonIcon, IonList, IonThumbnail, IonSpinner, IonText, IonRefresher, IonRefresherContent],
+  imports: [CommonModule, NgIf, NgForOf, CurrencyPipe, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonButton, IonIcon, IonList, IonThumbnail, IonSpinner, IonText, IonRefresher, IonRefresherContent],
   templateUrl: './cart.page.html',
   styleUrls: ['./cart.page.scss']
 })
@@ -60,6 +60,13 @@ export class CartPage implements OnInit, OnDestroy {
     this.subscribeToOfflineCart();
     this.setupQuantityDebounce();
     this.setupInputDebounce();
+  }
+
+  /**
+   * trackBy function for ngFor to improve rendering performance
+   */
+  trackByItemId(index: number, item: any): number {
+    return item?.id ?? index;
   }
 
   ngOnDestroy() {

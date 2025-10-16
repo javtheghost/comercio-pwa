@@ -19,6 +19,10 @@ export class VerifyEmailPage implements OnInit, OnDestroy {
   toastMessage = '';
   email: string | undefined;
   unauthenticated = false;
+  verifying = false;
+  verificationSuccess = false;
+  verificationError = false;
+  isVerifyingFromLink = false; // Nueva flag para ocultar contenido durante verificación
 
   private visHandler?: () => void;
   private authSub?: Subscription;
@@ -31,46 +35,106 @@ export class VerifyEmailPage implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    const user = this.authService.getCurrentUserValue();
-    // Caso autenticado
-    if (this.authService.isAuthenticated()) {
-      this.email = user?.email || undefined;
-      // Si ya está verificado, salir
-      if (user?.email_verified_at) {
-        // Al estar verificado, transición izquierda->derecha (back)
-        this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
+    console.log('📧 [VERIFY EMAIL] Página iniciada');
+    
+    // Capturar parámetros de la URL para verificación automática
+    this.route.queryParamMap.subscribe((params) => {
+      const id = params.get('id');
+      const hash = params.get('hash');
+      const expires = params.get('expires') || undefined;
+      const signature = params.get('signature') || undefined;
+      const emailParam = params.get('email') || undefined;
+      const sent = params.get('sent');
+
+      console.log('📧 [VERIFY EMAIL] Query params:', { id, hash, expires, signature, emailParam, sent });
+
+      // Si tenemos id y hash, es un link de verificación del email
+      if (id && hash) {
+        console.log('✅ [VERIFY EMAIL] Detectado link de verificación, procesando...');
+        this.isVerifyingFromLink = true; // Ocultar contenido, solo mostrar loader
+        this.verifyEmailWithToken(id, hash, expires, signature);
         return;
       }
-      // Estado podría estar desactualizado; refrescar inmediatamente
-      this.refreshStatus();
-    } else {
-      // Caso NO autenticado: permitir mostrar instrucciones usando query params
-      this.unauthenticated = true;
-      this.route.queryParamMap.subscribe((params) => {
-        const emailParam = params.get('email') || undefined;
-        const sent = params.get('sent');
+
+      // Caso normal: mostrar instrucciones de que se envió el email
+      const user = this.authService.getCurrentUserValue();
+      
+      if (this.authService.isAuthenticated()) {
+        this.email = user?.email || emailParam || undefined;
+        
+        // Si ya está verificado, redirigir a home
+        if (user?.email_verified_at) {
+          console.log('✅ [VERIFY EMAIL] Usuario ya verificado, redirigiendo a home');
+          this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
+          return;
+        }
+        
+        // Usuario autenticado pero no verificado: mostrar pantalla de "revisa tu email"
+        console.log('📧 [VERIFY EMAIL] Usuario autenticado pero no verificado, mostrando instrucciones');
+        this.unauthenticated = false;
+        if (sent === '1') {
+          this.show('Te enviamos un correo de verificación. Revisa tu bandeja.');
+        }
+      } else {
+        // No autenticado: mostrar instrucciones básicas
+        console.log('⚠️ [VERIFY EMAIL] Usuario no autenticado, mostrando instrucciones básicas');
+        this.unauthenticated = true;
         if (emailParam) this.email = emailParam;
         if (sent === '1') {
           this.show('Te enviamos un correo de verificación. Revisa tu bandeja.');
         }
-      });
-    }
+      }
+    });
 
-    // Suscribirse a cambios de autenticación para actualizar UI y navegar si se verifica
+    // Suscribirse a cambios de autenticación
     this.authSub = this.authService.authState$.subscribe(state => {
       this.unauthenticated = !state.isAuthenticated;
       this.email = state.user?.email || this.email;
-      if (state.user?.email_verified_at) {
-        this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
+      if (state.user?.email_verified_at && !this.verifying) {
+        console.log('✅ [VERIFY EMAIL] Usuario verificado detectado, redirigiendo a home');
+        setTimeout(() => {
+          this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
+        }, 1500);
       }
     });
-    // Al volver a la app (por ejemplo, tras tocar el enlace del correo), refrescar estado
+
+    // Al volver a la app, refrescar estado
     this.visHandler = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && !this.verifying) {
         this.refreshStatus();
       }
     };
     document.addEventListener('visibilitychange', this.visHandler);
+  }
+
+  /**
+   * Verifica el email usando el token de la URL
+   */
+  private verifyEmailWithToken(id: string, hash: string, expires?: string, signature?: string): void {
+    console.log('🔄 [VERIFY EMAIL] Verificando email con token...');
+    this.verifying = true;
+    this.loading = true;
+
+    this.authService.verifyEmail(id, hash, expires, signature).subscribe({
+      next: (response) => {
+        console.log('✅ [VERIFY EMAIL] Email verificado exitosamente:', response);
+        
+        // Redirigir INMEDIATAMENTE a home sin mostrar mensaje ni pantalla
+        // No cambiar flags para que el loader siga visible durante la redirección
+        console.log('🚀 [VERIFY EMAIL] Redirigiendo a home inmediatamente...');
+        this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
+      },
+      error: (error) => {
+        console.error('❌ [VERIFY EMAIL] Error verificando email:', error);
+        this.verifying = false;
+        this.loading = false;
+        this.verificationError = true;
+        this.isVerifyingFromLink = false; // Mostrar contenido con error
+        
+        const errorMsg = error?.error?.message || 'No se pudo verificar el email. El link puede haber expirado.';
+        this.show(errorMsg);
+      }
+    });
   }
 
   ngOnDestroy(): void {

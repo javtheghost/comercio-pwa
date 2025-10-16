@@ -21,6 +21,10 @@ export const routes: Routes = [
     pathMatch: 'full'
   },
   {
+    path: 'verify-email',
+    component: VerifyEmailPage
+  },
+  {
     path: 'checkout',
     component: CheckoutPage,
     canActivate: [AuthGuard, VerifiedGuard]

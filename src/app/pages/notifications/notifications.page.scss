@@ -1,0 +1,444 @@
+// Notifications Page Styles
+
+ion-header {
+  ion-toolbar {
+    --background: white;
+    --color: var(--ion-color-dark);
+    --border-width: 0 0 1px 0;
+    --border-color: rgba(0, 0, 0, 0.1);
+    
+    .header-icon {
+      vertical-align: middle;
+      margin-right: 8px;
+      font-size: 1.3rem;
+    }
+
+    .unread-badge {
+      margin-left: 8px;
+      vertical-align: middle;
+      --padding-start: 6px;
+      --padding-end: 6px;
+      font-size: 0.75rem;
+      animation: pulse 2s infinite;
+    }
+  }
+
+  .header-action-btn {
+    font-size: 1.4rem;
+    
+    ion-icon {
+      font-size: 1.4rem;
+    }
+
+    // Botón de marcar todo como leído (azul)
+    &.mark-read-btn {
+      --color: #3880ff; // Azul de Ionic
+      
+      &:hover {
+        --color: #3171e0; // Azul más oscuro al hover
+      }
+    }
+
+    // Botón de eliminar todo (rojo)
+    &.delete-all-btn {
+      --color: #eb445a; // Rojo de Ionic
+      
+      &:hover {
+        --color: #cf3c4f; // Rojo más oscuro al hover
+      }
+    }
+  }
+}
+
+ion-content {
+  --background: #f6f7fb;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+  gap: 1rem;
+
+  p {
+    color: var(--ion-color-medium);
+    margin: 0;
+  }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  min-height: 60vh;
+
+  .empty-icon-wrapper {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e0e7ff 0%, #f3e7ff 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
+
+    ion-icon {
+      font-size: 4rem;
+      color: #667eea;
+    }
+  }
+
+  h3 {
+    margin: 0 0 0.75rem 0;
+    color: var(--ion-color-dark);
+    font-size: 1.4rem;
+    font-weight: 600;
+  }
+
+  p {
+    color: var(--ion-color-medium);
+    margin: 0 0 2rem 0;
+    max-width: 280px;
+    line-height: 1.5;
+    font-size: 0.95rem;
+  }
+
+  .test-btn {
+    max-width: 240px;
+    --border-radius: 24px;
+    --border-width: 2px;
+    --border-color: #667eea;
+    --color: #667eea;
+    font-weight: 600;
+    height: 44px;
+    
+    &:hover {
+      --background: rgba(102, 126, 234, 0.05);
+    }
+  }
+}
+
+.notifications-list {
+  background: transparent;
+  padding: 12px;
+
+  ion-item-sliding {
+    margin-bottom: 12px;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    transition: transform 0.2s, box-shadow 0.2s;
+
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+
+  .notification-item {
+    --background: white;
+    --padding-start: 16px;
+    --padding-end: 16px;
+    --inner-padding-end: 8px;
+    --min-height: 88px;
+    border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+
+    &.unread {
+      --background: linear-gradient(to right, #f0f4ff 0%, #ffffff 100%);
+      border-left: 4px solid #667eea;
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        animation: shimmer 2s infinite;
+      }
+    }
+
+    .icon-wrapper {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 12px;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+
+      // Órdenes creadas/confirmadas (Morado/Azul)
+      &[data-type="new_order"],
+      &[data-type="order"],
+      &[data-type="order_created"],
+      &[data-type="order_confirmed"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        ion-icon { 
+          color: #ffffff !important; 
+          --ionicon-stroke-width: 40px;
+          font-size: 1.4rem; 
+          filter: brightness(1.2);
+        }
+      }
+
+      // Órdenes actualizadas (Verde agua)
+      &[data-type="order_status"],
+      &[data-type="order_updated"] {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        ion-icon { color: white !important; font-size: 1.4rem; }
+      }
+
+      // Órdenes enviadas (Azul cielo)
+      &[data-type="order_shipped"] {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        ion-icon { color: white !important; font-size: 1.4rem; }
+      }
+
+      // Órdenes entregadas (Verde brillante)
+      &[data-type="order_delivered"] {
+        background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+        ion-icon { color: white !important; font-size: 1.4rem; }
+      }
+
+      // Órdenes canceladas (Rojo)
+      &[data-type="order_cancelled"] {
+        background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+        ion-icon { color: white !important; font-size: 1.4rem; }
+      }
+
+      // 🛒 CARRITO ABANDONADO (Naranja llamativo)
+      &[data-type="cart_abandoned"] {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%);
+        ion-icon { 
+          color: white !important; 
+          font-size: 1.5rem;
+          animation: bounce 2s infinite;
+        }
+      }
+
+      // Carrito expirando (Amarillo advertencia)
+      &[data-type="cart_expiring"] {
+        background: linear-gradient(135deg, #f7b733 0%, #fc4a1a 100%);
+        ion-icon { color: white !important; font-size: 1.4rem; }
+      }
+
+      // Precio bajó (Verde con flecha)
+      &[data-type="price_drop"] {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        ion-icon { color: white !important; font-size: 1.4rem; }
+      }
+
+      // Productos en oferta (Rosa/Rojo)
+      &[data-type="product_on_sale"],
+      &[data-type="favorite_on_sale"] {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        ion-icon { color: white !important; font-size: 1.4rem; }
+      }
+
+      // Producto disponible (Verde notificación)
+      &[data-type="product_available"] {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        ion-icon { color: white !important; font-size: 1.4rem; }
+      }
+
+      // Stock bajo (Amarillo advertencia)
+      &[data-type="low_stock"] {
+        background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+        ion-icon { color: #2d3436 !important; font-size: 1.4rem; }
+      }
+
+      // Promociones (Rosa/Amarillo)
+      &[data-type="promotion"] {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        ion-icon { color: white !important; font-size: 1.4rem; }
+      }
+
+      // Cupón (Dorado)
+      &[data-type="coupon"] {
+        background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+        ion-icon { color: white !important; font-size: 1.4rem; }
+      }
+
+      // Venta flash (Rojo brillante con animación)
+      &[data-type="flash_sale"] {
+        background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%);
+        ion-icon { 
+          color: white !important; 
+          font-size: 1.4rem;
+          animation: pulse 1.5s infinite;
+        }
+      }
+
+      // Pagos exitosos (Verde)
+      &[data-type="payment_success"] {
+        background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+        ion-icon { color: white !important; font-size: 1.4rem; }
+      }
+
+      // Pagos fallidos (Rojo)
+      &[data-type="payment_failed"] {
+        background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+        ion-icon { color: white !important; font-size: 1.4rem; }
+      }
+
+      // Sistema
+      &[data-type="system"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        ion-icon { color: white !important; font-size: 1.4rem; }
+      }
+
+      // Test
+      &[data-type="test"] {
+        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+        ion-icon { color: #8b4513 !important; font-size: 1.4rem; }
+      }
+
+      &[data-type="system"] {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        ion-icon { color: #555 !important; font-size: 1.4rem; }
+      }
+    }
+
+    ion-label {
+      margin: 8px 0;
+
+      .notification-title {
+        font-weight: 600;
+        font-size: 1rem;
+        margin: 0 0 4px 0;
+        color: var(--ion-color-dark);
+        line-height: 1.3;
+      }
+
+      .notification-message {
+        font-size: 0.9rem;
+        color: var(--ion-color-medium-shade);
+        margin: 0 0 6px 0;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .timestamp {
+        font-size: 0.75rem;
+        color: var(--ion-color-medium);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+
+        ion-icon {
+          font-size: 0.85rem;
+        }
+      }
+    }
+
+    .notification-end {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 8px;
+
+      .new-badge {
+        --padding-start: 10px;
+        --padding-end: 10px;
+        --padding-top: 4px;
+        --padding-bottom: 4px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        animation: bounce-in 0.5s;
+      }
+
+      .chevron {
+        font-size: 1.1rem;
+        color: var(--ion-color-medium-tint);
+      }
+    }
+  }
+
+  ion-item-options {
+    ion-item-option {
+      font-weight: 600;
+      
+      ion-icon {
+        font-size: 1.5rem;
+      }
+    }
+  }
+}
+
+// Animations
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+// Animación de rebote para carrito abandonado
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-8px);
+  }
+  60% {
+    transform: translateY(-4px);
+  }
+}
+
+// Responsive
+@media (min-width: 600px) {
+  .notifications-list {
+    padding: 16px 24px;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .empty-state {
+    .test-btn {
+      max-width: 300px;
+    }
+  }
+
+  ion-header {
+    .action-toolbar {
+      .action-buttons {
+        max-width: 700px;
+        margin: 0 auto;
+
+        .action-btn {
+          max-width: 200px;
+        }
+      }
+    }
+  }
+}

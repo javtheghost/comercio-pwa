@@ -38,195 +38,132 @@
     <!-- Checkout Form -->
     @if (!loading && cart && !isCartEmpty()) {
 
-      <!-- Resumen del Pedido -->
-      <ion-card>
-        <ion-card-header>
-          <ion-card-title>Resumen del Pedido</ion-card-title>
-        </ion-card-header>
-        <ion-card-content>
-          <div class="order-summary">
-            @for (item of cart.items; track item.product_id) {
-              <div class="summary-item">
-                <div class="item-info">
-                  <h4>{{ item.product_name }}</h4>
-                  <p>Cantidad: {{ item.quantity }}</p>
-                  <p>Precio unitario: ${{ item.unit_price }}</p>
-                </div>
-                <div class="item-total">
-                  ${{ item.total_price }}
-                </div>
-              </div>
-            }
-
-            <ion-item-divider></ion-item-divider>
-
-            <div class="summary-totals">
-              <div class="total-line">
-                <span>Subtotal:</span>
-                <span>${{ getSubtotal() | number:'1.2-2' }}</span>
-              </div>
-              <div class="total-line">
-                <span>IVA ({{ getVatRatePercent() }}%):</span>
-                <span>${{ getTax() | number:'1.2-2' }}</span>
-              </div>
-              <div class="total-line">
-                <span>Envío:</span>
-                <span>${{ getShipping() | number:'1.2-2' }}</span>
-              </div>
-              <div class="total-line total-final">
-                <span><strong>Total:</strong></span>
-                <span><strong>${{ getTotal() | number:'1.2-2' }}</strong></span>
-              </div>
-            </div>
-          </div>
-        </ion-card-content>
-      </ion-card>
-
-      <!-- Dirección de Envío -->
-      <ion-card>
+      <!-- Dirección y Método (layout stacked) -->
+      <ion-card class="address-card">
         <ion-card-header>
           <ion-card-title>Dirección de Envío</ion-card-title>
+          <ion-card-subtitle>Selecciona o ingresa la dirección de entrega</ion-card-subtitle>
         </ion-card-header>
         <ion-card-content>
-          <!-- Opción para usar direcciones existentes -->
           @if (userAddresses.length > 0) {
-            <div class="address-options">
-              <ion-item>
-                <ion-radio-group [(ngModel)]="useExistingAddress" (ionChange)="onAddressSelectionChange()">
-                  <ion-radio slot="start" [value]="true"></ion-radio>
-                  <ion-label>Usar dirección guardada</ion-label>
-                </ion-radio-group>
-              </ion-item>
+            <div class="address-mode-switch">
+              <ion-segment [(ngModel)]="addressMode" (ionChange)="onAddressModeChange()">
+                <ion-segment-button value="existing">
+                  <ion-label>Guardadas</ion-label>
+                </ion-segment-button>
+                <ion-segment-button value="new">
+                  <ion-label>Nueva</ion-label>
+                </ion-segment-button>
+              </ion-segment>
+            </div>
+          }
 
-              <ion-item>
-                <ion-radio-group [(ngModel)]="useExistingAddress" (ionChange)="onAddressSelectionChange()">
-                  <ion-radio slot="start" [value]="false"></ion-radio>
-                  <ion-label>Usar nueva dirección</ion-label>
-                </ion-radio-group>
-              </ion-item>
-
-              <!-- Selector de direcciones existentes -->
-              @if (useExistingAddress) {
-                <div class="existing-addresses">
-                  <ion-item>
-                    <ion-label position="stacked">Seleccionar dirección *</ion-label>
-                    <ion-select
-                      [(ngModel)]="selectedAddressId"
-                      (ionChange)="onAddressSelectionChange()"
-                      placeholder="Elige una dirección"
-                      interface="popover">
-                      @for (address of userAddresses; track address.id) {
-                        <ion-select-option [value]="address.id">
-                          {{ address.first_name }} {{ address.last_name }} - {{ formatAddress(address) }}
-                        </ion-select-option>
+          <!-- Direcciones guardadas -->
+          @if (addressMode === 'existing' && userAddresses.length > 0) {
+            <div class="saved-addresses">
+              @for (address of userAddresses; track address.id) {
+                <div class="address-item" (click)="selectedAddressId = address.id ?? null; onExistingAddressSelected()" [class.selected]="selectedAddressId === address.id">
+                  <div class="address-radio">
+                    <ion-icon name="radio-button-on" *ngIf="selectedAddressId === address.id" color="primary"></ion-icon>
+                    <ion-icon name="radio-button-off" *ngIf="selectedAddressId !== address.id" color="medium"></ion-icon>
+                  </div>
+                  <div class="address-content">
+                    <div class="address-header">
+                      <strong>{{ address.first_name }} {{ address.last_name }}</strong>
+                      @if (address.is_default) {
+                        <ion-badge color="success">Predeterminada</ion-badge>
                       }
-                    </ion-select>
-                  </ion-item>
-
-                  <!-- Mostrar dirección seleccionada -->
-                  @if (selectedAddressId) {
-                    <div class="selected-address-preview">
-                      <ion-item>
-                        <ion-label>
-                          <h3>Dirección seleccionada:</h3>
-                          <p>{{ getSelectedAddressText() }}</p>
-                        </ion-label>
-                      </ion-item>
                     </div>
+                    <p class="address-text">{{ formatAddress(address) }}</p>
+                    <p class="address-phone">📞 {{ address.phone }}</p>
+                  </div>
+                  @if (selectedAddressId === address.id) {
+                    <ion-icon name="checkmark-circle" class="address-check" color="success"></ion-icon>
                   }
+                </div>
+              }
+            </div>
+            @if (!selectedAddressId) {
+              <div class="help-text">
+                <ion-text color="medium">Selecciona una dirección para continuar.</ion-text>
+              </div>
+            }
+          }
+
+          <!-- Formulario nueva dirección -->
+          @if (addressMode === 'new' || userAddresses.length === 0) {
+            @if (userAddresses.length === 0) {
+              <div class="no-addresses-hint">
+                <ion-icon name="location-outline" color="medium"></ion-icon>
+                <p>No tienes direcciones guardadas. Ingresa una nueva.</p>
+              </div>
+            }
+            <div class="new-address-form">
+              <div class="form-grid">
+                <ion-item>
+                  <ion-label position="stacked">Nombre *</ion-label>
+                  <ion-input [(ngModel)]="shippingAddress.firstName" (ionInput)="onAddressFieldChange()" placeholder="Nombre" required></ion-input>
+                </ion-item>
+                <ion-item>
+                  <ion-label position="stacked">Apellido *</ion-label>
+                  <ion-input [(ngModel)]="shippingAddress.lastName" (ionInput)="onAddressFieldChange()" placeholder="Apellido" required></ion-input>
+                </ion-item>
+              </div>
+              <ion-item>
+                <ion-label position="stacked">Dirección *</ion-label>
+                <ion-textarea auto-grow="true" [(ngModel)]="shippingAddress.address" (ionInput)="onAddressFieldChange()" placeholder="Calle, número, colonia" required></ion-textarea>
+              </ion-item>
+              <div class="form-grid">
+                <ion-item>
+                  <ion-label position="stacked">Ciudad *</ion-label>
+                  <ion-input [(ngModel)]="shippingAddress.city" (ionInput)="onAddressFieldChange()" placeholder="Ciudad" required></ion-input>
+                </ion-item>
+                <ion-item>
+                  <ion-label position="stacked">Estado *</ion-label>
+                  <ion-input [(ngModel)]="shippingAddress.state" (ionInput)="onAddressFieldChange()" placeholder="Estado" required></ion-input>
+                </ion-item>
+              </div>
+              <div class="form-grid">
+                <ion-item>
+                  <ion-label position="stacked">Código Postal *</ion-label>
+                  <ion-input [(ngModel)]="shippingAddress.zipCode" (ionInput)="onAddressFieldChange()" placeholder="C.P." inputmode="numeric" required></ion-input>
+                </ion-item>
+                <ion-item>
+                  <ion-label position="stacked">Teléfono *</ion-label>
+                  <ion-input [(ngModel)]="shippingAddress.phone" (ionInput)="onAddressFieldChange()" placeholder="Teléfono" type="tel" required></ion-input>
+                </ion-item>
+              </div>
+              <div class="save-address-action">
+                <ion-button expand="block" fill="outline" color="primary" (click)="saveNewAddress()" [disabled]="savingAddress || !isNewAddressBasicFilled()">
+                  <ion-icon name="save-outline" slot="start"></ion-icon>
+                  <ion-spinner *ngIf="savingAddress" name="crescent" slot="start"></ion-spinner>
+                  <span *ngIf="!savingAddress">Guardar dirección</span>
+                  <span *ngIf="savingAddress">Guardando...</span>
+                </ion-button>
+                <div class="save-hint" *ngIf="!savingAddress && isNewAddressBasicFilled() && !addressErrors.length">
+                  Puedes guardar esta dirección para usarla después
+                </div>
+                <div class="save-hint secondary-hint" *ngIf="!savingAddress">
+                  (Si continúas con "Confirmar Pedido" sin guardar la dirección, se usará sólo para esta compra y no se guardará en Mis Direcciones.)
+                </div>
+              </div>
+              @if (showAddressErrors && addressErrors.length) {
+                <div class="address-errors">
+                  <ion-list lines="none">
+                    @for (err of addressErrors; track err) {
+                      <ion-item color="danger" class="error-item">
+                        <ion-icon name="alert-circle" slot="start"></ion-icon>
+                        <ion-label>{{ err }}</ion-label>
+                      </ion-item>
+                    }
+                  </ion-list>
                 </div>
               }
             </div>
           }
 
-          <!-- Formulario de nueva dirección -->
-          @if (!useExistingAddress || userAddresses.length === 0) {
-            <div class="new-address-form">
-              <ion-item>
-                <ion-label position="stacked">Nombre *</ion-label>
-                <ion-input
-                  [(ngModel)]="shippingAddress.firstName"
-                  placeholder="Ingresa tu nombre"
-                  required>
-                </ion-input>
-              </ion-item>
-
-              <ion-item>
-                <ion-label position="stacked">Apellido *</ion-label>
-                <ion-input
-                  [(ngModel)]="shippingAddress.lastName"
-                  placeholder="Ingresa tu apellido"
-                  required>
-                </ion-input>
-              </ion-item>
-
-              <ion-item>
-                <ion-label position="stacked">Dirección *</ion-label>
-                <ion-textarea
-                  [(ngModel)]="shippingAddress.address"
-                  placeholder="Calle, número, colonia"
-                  required>
-                </ion-textarea>
-              </ion-item>
-
-              <ion-item>
-                <ion-label position="stacked">Ciudad *</ion-label>
-                <ion-input
-                  [(ngModel)]="shippingAddress.city"
-                  placeholder="Ciudad"
-                  required>
-                </ion-input>
-              </ion-item>
-
-              <ion-item>
-                <ion-label position="stacked">Estado *</ion-label>
-                <ion-input
-                  [(ngModel)]="shippingAddress.state"
-                  placeholder="Estado"
-                  required>
-                </ion-input>
-              </ion-item>
-
-              <ion-item>
-                <ion-label position="stacked">Código Postal *</ion-label>
-                <ion-input
-                  [(ngModel)]="shippingAddress.zipCode"
-                  placeholder="Código postal"
-                  type="number"
-                  required>
-                </ion-input>
-              </ion-item>
-
-              <ion-item>
-                <ion-label position="stacked">Teléfono *</ion-label>
-                <ion-input
-                  [(ngModel)]="shippingAddress.phone"
-                  placeholder="Número de teléfono"
-                  type="tel"
-                  required>
-                </ion-input>
-              </ion-item>
-            </div>
-          }
-
-          <!-- Estado vacío si no hay direcciones -->
-          @if (userAddresses.length === 0 && !addressesLoading) {
-            <div class="no-addresses">
-              <ion-item>
-                <ion-label>
-                  <div class="empty-content">
-                    <ion-icon name="location-outline" size="large" color="medium"></ion-icon>
-                    <h3>No tienes direcciones guardadas</h3>
-                    <p>Completa el formulario para agregar una nueva dirección</p>
-                  </div>
-                </ion-label>
-              </ion-item>
-            </div>
-          }
-
-          <!-- Loading de direcciones -->
           @if (addressesLoading) {
-            <div class="loading-container">
+            <div class="loading-container small">
               <ion-spinner name="crescent"></ion-spinner>
               <p>Cargando direcciones...</p>
             </div>
@@ -235,47 +172,69 @@
       </ion-card>
 
       <!-- Método de Pago -->
-      <ion-card>
+      <ion-card class="payment-card">
         <ion-card-header>
           <ion-card-title>Método de Pago</ion-card-title>
+          <ion-card-subtitle>Actualmente sólo disponible efectivo</ion-card-subtitle>
         </ion-card-header>
-        <p class="payment-method-description">Selecciona el método de pago</p>
-
         <ion-card-content>
-          <ion-radio-group [(ngModel)]="paymentMethod">
-            <ion-item>
-              <ion-radio slot="start" value="cash"></ion-radio>
-              <ion-label>
-                <div class="payment-method-item">
-                  <div class="payment-method-header">
-                    <span>Pago en Efectivo (Contra Entrega)</span>
-                    @if (paymentMethod === 'cash') {
-                      <ion-icon 
-                        name="checkmark-circle" 
-                        color="success" 
-                        class="payment-check">
-                      </ion-icon>
-                    }
-                  </div>
-                  <p class="payment-description">Paga cuando recibas tu pedido</p>
-                </div>
-              </ion-label>
-            </ion-item>
-          </ion-radio-group>
+          <div class="payment-option selected">
+            <div class="payment-left">
+              <ion-icon name="cash-outline" class="payment-icon"></ion-icon>
+              <div class="payment-info">
+                <strong>Efectivo (Contra Entrega)</strong>
+                <p>Paga cuando llegue tu pedido</p>
+              </div>
+            </div>
+            <ion-icon name="checkmark-circle" color="success" class="payment-selected"></ion-icon>
+          </div>
         </ion-card-content>
       </ion-card>
 
-      <!-- Botón de Procesar Orden -->
-      <div class="checkout-actions">
-        <ion-button
-          expand="block"
-          size="large"
-          [disabled]="!isFormValid() || loading"
-          (click)="processOrder()">
-          <ion-icon name="card" slot="start"></ion-icon>
-          Procesar Orden - ${{ getTotal() | number:'1.2-2' }}
-        </ion-button>
-      </div>
+      <!-- Resumen del Pedido -->
+      <ion-card class="summary-card">
+        <ion-card-header>
+          <ion-card-title>Resumen</ion-card-title>
+          <ion-card-subtitle>{{ getTotalItems() }} artículos</ion-card-subtitle>
+        </ion-card-header>
+        <ion-card-content>
+          <div class="order-summary compact">
+            @for (item of cart.items; track item.product_id) {
+              <div class="summary-item">
+                <div class="item-info">
+                  <h4>{{ item.product_name }}</h4>
+                  <p>x{{ item.quantity }} · ${{ item.unit_price }}</p>
+                </div>
+                <div class="item-total">${{ item.total_price }}</div>
+              </div>
+            }
+            <div class="summary-totals">
+              <div class="total-line">
+                <span>Subtotal</span>
+                <span>${{ getSubtotal() | number:'1.2-2' }}</span>
+              </div>
+              <div class="total-line">
+                <span>IVA ({{ getVatRatePercent() }}%)</span>
+                <span>${{ getTax() | number:'1.2-2' }}</span>
+              </div>
+              <div class="total-line">
+                <span>Envío</span>
+                <span>${{ getShipping() | number:'1.2-2' }}</span>
+              </div>
+              <div class="total-line total-final">
+                <span>Total</span>
+                <span>${{ getTotal() | number:'1.2-2' }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="checkout-actions">
+            <ion-button expand="block" size="large" [disabled]="!isFormValid() || loading" (click)="processOrder()">
+              <ion-icon name="bag-check-outline" slot="start"></ion-icon>
+              Confirmar Pedido - ${{ getTotal() | number:'1.2-2' }}
+            </ion-button>
+          </div>
+        </ion-card-content>
+      </ion-card>
     }
 
     <!-- Carrito Vacío -->

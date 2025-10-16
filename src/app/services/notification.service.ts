@@ -10,6 +10,7 @@ import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
 import { Capacitor } from '@capacitor/core';
 import { environment } from '../../environments/environment';
 import { SecurityService } from './security.service';
+import { NotificationsApiService, UserNotification } from './notifications-api.service';
 
 export interface NotificationToken {
   token: string;
@@ -58,11 +59,31 @@ export class NotificationService {
   private readonly NOTIF_DELETED_PREFIX = 'notifications_deleted_';
   // Referencias de notificaciones locales eliminadas por simplificación (preferimos SW.showNotification)
   private readonly isEdge = typeof navigator !== 'undefined' && /Edg\//.test(navigator.userAgent);
+  
+  // ✅ Polling automático para sincronizar notificaciones
+  private syncInterval: any = null;
+  private readonly SYNC_INTERVAL_MS = 10000; // 10 segundos (era 30s)
 
-  constructor(private http: HttpClient, private securityService: SecurityService) {
+  constructor(
+    private http: HttpClient, 
+    private securityService: SecurityService,
+    private notificationsApi: NotificationsApiService
+  ) {
+    console.log('🏗️ [NotificationService] Constructor ejecutado');
+    
+    // ✅ IMPORTANTE: Verificar si el usuario YA está logueado al cargar
+    this.checkAndStartAutoSync();
+    
     // Reintentar registro de suscripción pendiente cuando el usuario inicia sesión
     if (typeof window !== 'undefined') {
       window.addEventListener('userLoggedIn', () => {
+        console.log('👤 [NotificationService] Evento userLoggedIn recibido');
+        // Sincronizar notificaciones desde backend
+        this.syncNotificationsFromBackend();
+        
+        // ✅ Iniciar polling automático cuando el usuario hace login
+        this.startAutoSync();
+        
         if (this.pendingSubscription) {
           console.log('🔄 Reintentando registro de suscripción pendiente tras login...');
           // Guardar referencia local y limpiar para evitar loops
@@ -91,6 +112,10 @@ export class NotificationService {
         } catch (e) {
           console.warn('⚠️ Error limpiando suscripción tras logout (no crítico):', e);
         }
+        
+        // ✅ Detener polling automático cuando el usuario hace logout
+        this.stopAutoSync();
+        
         // Nota: No borramos notificaciones persistentes; se mantienen por usuario
       });
 
@@ -100,6 +125,8 @@ export class NotificationService {
         (window as any).triggerTestNotification = () => this.sendTestNotification();
         (window as any).resetPush = () => this.resetAndResubscribe();
         (window as any).showSystemNotif = () => this.showSystemNotificationTest();
+        (window as any).testLocalNotif = () => this.testShowLocalNotification();
+        (window as any).syncNotifications = () => this.syncNotificationsFromBackend();
       } catch {}
     }
   }
@@ -109,6 +136,27 @@ export class NotificationService {
    */
   async initializePushNotifications(): Promise<void> {
     try {
+      // ✅ MODO DESARROLLO: Registrar SW pero sin push subscription en localhost
+      const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      
+      if (isLocalhost) {
+        console.log('🔧 Modo desarrollo detectado: usando notificaciones locales vía Service Worker (sin push)');
+        this.isDevelopmentMode = true;
+        
+        // IMPORTANTE: Registrar Service Worker de todos modos para que showNotification() funcione
+        if ('serviceWorker' in navigator) {
+          try {
+            this.registration = await navigator.serviceWorker.ready;
+            console.log('✅ Service Worker registrado en modo desarrollo');
+          } catch (error) {
+            console.warn('⚠️ No se pudo obtener Service Worker en localhost:', error);
+          }
+        }
+        
+        // No continuar con push subscription, solo retornar
+        return;
+      }
+
       // Verificar si estamos en un navegador
       if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
         console.warn('⚠️ Service Worker no soportado en este entorno');
@@ -136,7 +184,24 @@ export class NotificationService {
       this.setupNotificationListeners();
     } catch (error) {
       console.error('❌ Error inicializando push notifications:', error);
+      // Activar modo desarrollo como fallback
+      this.isDevelopmentMode = true;
+      console.log('🔧 Fallback: activado modo desarrollo');
       // No lanzar el error para evitar crashes en la app
+    } finally {
+      // ✅ Iniciar auto-sync independientemente del resultado de push
+      // Esto asegura que las notificaciones se sincronicen incluso sin push activo
+      try {
+        const user = await this.securityService.getSecureUser();
+        if (user && typeof user.id === 'number') {
+          console.log('✅ Usuario autenticado, iniciando auto-sync');
+          this.startAutoSync();
+        } else {
+          console.log('ℹ️ Usuario no autenticado, auto-sync se iniciará tras login');
+        }
+      } catch (e) {
+        console.warn('⚠️ No se pudo verificar usuario para auto-sync:', e);
+      }
     }
   }
 
@@ -516,8 +581,16 @@ export class NotificationService {
 
     // Listener para mensajes del service worker (web)
     if (typeof window !== 'undefined') {
-      window.addEventListener('message', (event) => {
+      window.addEventListener('message', async (event) => {
         if (!event.data) return;
+        // Si el Service Worker incluye un unreadCount, actualizar el app badge inmediatamente
+        try {
+          const unreadCount = (event.data && (event.data.unreadCount ?? event.data.payload?.data?.unread_count)) || null;
+          if (typeof unreadCount === 'number' && Number.isFinite(unreadCount)) {
+            const uid = await this.getCurrentUserId();
+            try { await this.updateAppBadgeFromLocal(uid); } catch (e) { /* noop */ }
+          }
+        } catch (e) { /* noop */ }
         // Click en notificación
         if (event.data.type === 'NOTIFICATION_CLICK') {
           // Persistir por si la app no estaba en primer plano cuando llegó el push
@@ -546,6 +619,18 @@ export class NotificationService {
           // Ya no cerramos locales: preferimos notificaciones mostradas desde SW
         }
       });
+    }
+  }
+
+  /**
+   * Helper rápido para obtener el userId o 'guest'
+   */
+  private async getCurrentUserId(): Promise<number | 'guest'> {
+    try {
+      const user = await this.securityService.getSecureUser();
+      return (user && typeof user.id === 'number') ? user.id : 'guest';
+    } catch {
+      return 'guest';
     }
   }
 
@@ -655,6 +740,35 @@ export class NotificationService {
    */
   async sendTestNotification(): Promise<void> {
     try {
+      // ✅ MODO DESARROLLO: Solo mostrar notificación local sin push
+      if (this.isDevelopmentMode || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+        console.log('🔧 Modo desarrollo: enviando notificación de prueba local (sin push)');
+        
+        // Solicitar permisos si no están concedidos
+        if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+          const result = await Notification.requestPermission();
+          if (result !== 'granted') {
+            console.warn('⚠️ Permisos no concedidos');
+            return;
+          }
+        }
+        
+        // Mostrar notificación local directamente
+        this.showLocalNotification({
+          title: '🧪 Prueba de Notificación',
+          body: 'Esta es una notificación de prueba desde tu app (modo desarrollo)',
+          data: {
+            type: 'test',
+            timestamp: new Date().toISOString(),
+            developmentMode: true
+          }
+        });
+        
+        console.log('✅ Notificación de prueba enviada (local)');
+        return;
+      }
+
+      // MODO PRODUCCIÓN: Flujo completo con push
       // Si no hay permisos todavía, solicitarlos en contexto de interacción de usuario
       if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
         try {
@@ -726,6 +840,12 @@ export class NotificationService {
    */
   private async ensureActiveSubscription(): Promise<boolean> {
     try {
+      // ✅ MODO DESARROLLO: No crear suscripción push en localhost
+      if (this.isDevelopmentMode || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+        console.log('🔧 Modo desarrollo: saltando ensureActiveSubscription (no se requiere push)');
+        return false;
+      }
+
       if (!this.isAvailable()) {
         console.warn('⚠️ Push no disponible, no se puede asegurar suscripción');
         return false;
@@ -911,33 +1031,113 @@ export class NotificationService {
   }
 
   /**
+   * Método público para probar showLocalNotification directamente
+   * SOLO PARA DEBUGGING
+   */
+  public testShowLocalNotification(): void {
+    console.log('🧪 [TEST] Llamando showLocalNotification directamente...');
+    this.showLocalNotification({
+      title: '🧪 Test Directo',
+      body: 'Esta notificación se llamó directamente desde testShowLocalNotification()',
+      data: { type: 'debug_test' }
+    });
+  }
+
+  /**
    * Muestra una notificación local
    */
-  private showLocalNotification(payload: NotificationPayload): void {
-    if (Notification.permission === 'granted') {
-      const options: NotificationOptions = {
-        body: payload.body,
-        icon: payload.icon || '/icons/icon-192x192.png',
-        badge: payload.badge || '/icons/icon-72x72.png',
-        data: payload.data,
-  // Nota: algunas definiciones TS no incluyen 'vibrate'; lo omitimos para compatibilidad
-        tag: (payload.data && (payload.data.attemptId || payload.data.type)) || 'local-notification'
-      };
+  private showLocalNotification(payload: NotificationPayload, saveToStorage: boolean = true): void {
+    console.log('🔔 [showLocalNotification] Llamada recibida:', {
+      permission: Notification.permission,
+      title: payload.title,
+      body: payload.body,
+      saveToStorage: saveToStorage,
+      hasRegistration: !!this.registration,
+      isLocalhost: location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+    });
 
-      // Preferir mostrar desde el Service Worker (más confiable en algunos navegadores)
+    if (Notification.permission !== 'granted') {
+      console.warn('⚠️ [showLocalNotification] Permisos NO concedidos. Estado:', Notification.permission);
+      return;
+    }
+
+    // ✅ Generar tag único para evitar deduplicación de Windows
+    // Windows agrupa notificaciones con el mismo tag y solo muestra la primera
+    const uniqueTag = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const finalTag = payload.data?.attemptId 
+      ? `notif_${payload.data.attemptId}` 
+      : uniqueTag;
+
+    const options: NotificationOptions = {
+      body: payload.body,
+      icon: payload.icon || '/icons/icon-192x192.png',
+      badge: payload.badge || '/icons/icon-72x72.png',
+      data: payload.data,
+      tag: finalTag,  // Tag único para evitar deduplicación
+      requireInteraction: false,
+      silent: false
+    };
+
+    console.log('✅ [showLocalNotification] Permisos OK, mostrando notificación... Tag:', finalTag);
+
+    // En localhost/desarrollo: SIEMPRE usar new Notification() directamente
+    // Es más simple y confiable para desarrollo local
+    const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    
+    if (isLocalhost) {
+      try {
+        console.log('🔧 [showLocalNotification] Modo localhost: usando new Notification() directo');
+        const notification = new Notification(payload.title, options);
+        
+        // Agregar eventos para debugging
+        notification.onclick = (event) => {
+          console.log('🖱️ Notificación clickeada:', event);
+          event.preventDefault();
+          window.focus();
+          notification.close();
+        };
+        
+        notification.onshow = () => {
+          console.log('✅ [showLocalNotification] Notificación MOSTRADA exitosamente');
+        };
+        
+        notification.onerror = (error) => {
+          console.error('❌ [showLocalNotification] Error en notificación:', error);
+        };
+        
+        console.log('📱 [showLocalNotification] Notificación creada:', notification);
+      } catch (error) {
+        console.error('❌ [showLocalNotification] Error crítico creando notificación:', error);
+      }
+    } else {
+      // En producción: preferir Service Worker para que funcione en background
       try {
         if (this.registration && typeof this.registration.showNotification === 'function') {
+          console.log('📱 [showLocalNotification] Usando Service Worker registration');
           this.registration.showNotification(payload.title, options);
+          console.log('✅ [showLocalNotification] Notificación mostrada vía SW');
         } else {
-          // Fallback al constructor de Notification
+          console.log('📱 [showLocalNotification] Fallback: usando new Notification()');
           new Notification(payload.title, options);
+          console.log('✅ [showLocalNotification] Notificación mostrada vía constructor');
         }
-      } catch {
-        try { new Notification(payload.title, options); } catch {}
+      } catch (error) {
+        console.error('❌ [showLocalNotification] Error:', error);
+        try { 
+          new Notification(payload.title, options);
+        } catch (fallbackError) {
+          console.error('❌ [showLocalNotification] Fallback también falló:', fallbackError);
+        }
       }
+    }
 
-      // Persistir usando el mecanismo con dedupe (optimista vs real)
+    // ✅ Persistir SOLO si saveToStorage es true
+    // Cuando viene del backend sync, ya está guardada, no duplicar
+    if (saveToStorage) {
+      console.log('💾 [showLocalNotification] Guardando en localStorage...');
       this.saveNotificationToStorage(payload);
+    } else {
+      console.log('⏭️ [showLocalNotification] Saltando guardado (ya está en localStorage)');
     }
   }
 
@@ -1043,7 +1243,8 @@ export class NotificationService {
         type: payload.data?.type || 'system',
         timestamp: nowIso,
         read: false,
-        data: payload.data
+        data: payload.data,
+        icon: payload.icon || '/icons/icon-192x192.png' // ✅ Guardar el icono
       };
 
       const existing = JSON.parse(localStorage.getItem(key) || '[]');
@@ -1093,8 +1294,51 @@ export class NotificationService {
       try {
         window.dispatchEvent(new CustomEvent('notifications:updated'));
       } catch {}
+
+      // Actualizar badge del sistema si es soportado
+      try {
+        this.updateAppBadgeFromLocal(userId);
+      } catch (e) { /* noop */ }
     } catch (error) {
       console.error('❌ Error guardando notificación en localStorage:', error);
+    }
+  }
+
+  /**
+   * Actualiza el badge de la app basado en las notificaciones no leídas en localStorage
+   */
+  private async updateAppBadgeFromLocal(userId: number | 'guest'): Promise<void> {
+    try {
+      const key = this.getNotificationsKey(userId);
+      const raw = localStorage.getItem(key) || '[]';
+      const list = JSON.parse(raw) as Array<any>;
+      const unread = list.filter(n => !n.read).length;
+
+      // Intentar usar la API de Badging en navegador
+      try {
+        if (typeof navigator !== 'undefined' && typeof (navigator as any).setAppBadge === 'function') {
+          if (unread > 0) {
+            await (navigator as any).setAppBadge(unread);
+            console.log('🔖 Navigator: setAppBadge ->', unread);
+          } else if (typeof (navigator as any).clearAppBadge === 'function') {
+            await (navigator as any).clearAppBadge();
+            console.log('🔖 Navigator: clearAppBadge');
+          }
+        } else if (typeof this.registration !== 'undefined' && this.registration && typeof (this.registration as any).setAppBadge === 'function') {
+          // Fallback: intentar usar registration.setAppBadge desde contexto de la página
+          if (unread > 0) {
+            await (this.registration as any).setAppBadge(unread);
+            console.log('🔖 Registration: setAppBadge ->', unread);
+          } else if (typeof (this.registration as any).clearAppBadge === 'function') {
+            await (this.registration as any).clearAppBadge();
+            console.log('🔖 Registration: clearAppBadge');
+          }
+        }
+      } catch (e) {
+        console.warn('⚠️ No se pudo actualizar app badge desde la app:', e);
+      }
+    } catch (e) {
+      console.warn('⚠️ updateAppBadgeFromLocal fallo:', e);
     }
   }
 
@@ -1154,10 +1398,32 @@ export class NotificationService {
    */
   async sendOrderNotification(orderData: any): Promise<void> {
     try {
+      // ✅ MODO DESARROLLO: Saltar push y usar solo notificaciones locales
+      if (this.isDevelopmentMode || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+        console.log('🔧 Modo desarrollo: mostrando solo notificación local');
+        const orderIdRaw = (orderData && (orderData.id ?? orderData.orderId));
+        const orderNumberVal = (orderData && (orderData.order_number ?? orderData.orderNumber)) ?? `#${orderIdRaw}`;
+        this.showLocalNotification({
+          title: '¡Orden Confirmada!',
+          body: `Tu pedido ${orderNumberVal} ha sido confirmado`,
+          data: { type: 'new_order', orderId: orderIdRaw, orderNumber: orderNumberVal }
+        });
+        return;
+      }
+
+      // Paso 0: solicitar permiso si aún está en 'default' (mejora UX para asegurar fallback local visible)
+      try {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+          const perm = await Notification.requestPermission();
+          try { console.debug('[ORDER-NOTIF] Permiso tras request:', perm); } catch {}
+        }
+      } catch {}
       // Asegurar suscripción activa registrada en el servidor (reduce 422 por falta de destino)
       try {
         await this.ensureActiveSubscription();
-      } catch {}
+      } catch (e) {
+        console.warn('⚠️ No se pudo asegurar suscripción, continuando con notificación local:', e);
+      }
 
       // Normalizar ID y número de orden desde distintas formas posibles
       const orderIdRaw = (orderData && (orderData.id ?? orderData.orderId));
@@ -1211,18 +1477,25 @@ export class NotificationService {
         to_user_id: userId,
         notification_type: 'order_created'
       };
-      // Enviar al servidor primero (preferir WebPush real)
+      // Mostrar notificación local inmediata (optimista) si tenemos permiso, antes de esperar push real
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try {
+          this.showLocalNotification({ ...payload, body: `Tu pedido ${payload.data.orderNumber} está confirmado.` });
+          try { console.debug('[ORDER-NOTIF] Notificación local optimista mostrada'); } catch {}
+        } catch {}
+      }
+
+      // Enviar al servidor (preferir WebPush real). Si llega push se verá duplicado? Evitamos duplicado con dedupe en saveNotificationToStorage.
       try {
         // Log de depuración (no contiene secretos)
         try { console.debug('📤 Enviando order-notification:', bodyForServer); } catch {}
         await firstValueFrom(this.http.post(`${this.API_URL}/webpush/order-notification`, bodyForServer));
         this.webPushAvailable = true;
         console.log('✅ Notificación de orden enviada al servidor');
-        // Si no llega push en breve, mostrar fallback local para no dejar al usuario sin feedback visual
-        const gotPush = await this.waitForPush({ type: 'new_order', orderId: idNum, timeoutMs: 4000 });
-        if (!gotPush && Notification.permission === 'granted') {
-          console.log('⏱️ No llegó push a tiempo, mostrando notificación local de cortesía');
-          this.showLocalNotification(payload);
+        // Ya mostramos optimista; aun así podemos esperar push para actualizar (pero sin forzar doble). Reducimos timeout.
+        const gotPush = await this.waitForPush({ type: 'new_order', orderId: idNum, timeoutMs: 2500 });
+        if (!gotPush) {
+          try { console.debug('[ORDER-NOTIF] No llegó push (timeout). Nos quedamos con la local optimista.'); } catch {}
         }
       } catch (err: any) {
         const status = err?.status;
@@ -1232,39 +1505,26 @@ export class NotificationService {
         if (status === 404) {
           // Endpoint no existe: marcar como no disponible y caer a local sin ruido rojo
           this.webPushAvailable = false;
-          console.warn('ℹ️ WebPush order-notification no disponible (404). Usando notificación local.');
-          this.showLocalNotification({
-            title: '¡Orden Confirmada!',
-            body: `Tu pedido ${orderData.orderNumber || `#${orderData.id}`} ha sido confirmado`,
-            data: { type: 'new_order', orderId: orderData.id, orderNumber: orderData.orderNumber }
-          });
-          console.log('✅ Notificación local de orden mostrada (fallback)');
+          console.warn('ℹ️ WebPush order-notification no disponible (404). Ya se mostró (o se intentó) la local optimista.');
           return;
         }
-        // Otros errores: warning y fallback local si es posible
-        console.warn('⚠️ Error enviando notificación de orden al servidor. Mostrando local.', err?.message || err);
-        if (Notification.permission === 'granted') {
-          this.showLocalNotification({
-            title: '¡Orden Confirmada!',
-            body: `Tu pedido ${orderData.orderNumber || `#${orderData.id}`} ha sido confirmado`,
-            data: { type: 'new_order', orderId: orderData.id, orderNumber: orderData.orderNumber }
-          });
-          console.log('✅ Notificación local de orden mostrada (fallback)');
-        }
+        // Otros errores: warning (local ya se intentó al inicio si había permiso)
+        console.warn('⚠️ Error enviando notificación de orden al servidor.', err?.message || err);
         return;
       }
     } catch (error) {
       console.warn('⚠️ Error general en sendOrderNotification:', (error as any)?.message || error);
-
-      // Fallback a notificación local
-      if (Notification.permission === 'granted') {
-        this.showLocalNotification({
-          title: '¡Orden Confirmada!',
-          body: `Tu pedido ${orderData.orderNumber || `#${orderData.id}`} ha sido confirmado`,
-          data: { type: 'new_order', orderId: orderData.id, orderNumber: orderData.orderNumber }
-        });
-        console.log('✅ Notificación local de orden mostrada (fallback)');
-      }
+      // Si no se había mostrado (permiso quizá se concedió tras request), intentamos ahora
+      try {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          this.showLocalNotification({
+            title: '¡Orden Confirmada!',
+            body: `Tu pedido ${orderData.orderNumber || `#${orderData.id}`} ha sido confirmado`,
+            data: { type: 'new_order', orderId: orderData.id, orderNumber: orderData.orderNumber }
+          });
+          console.log('✅ Notificación local de orden mostrada tras error global');
+        }
+      } catch {}
     }
   }
 
@@ -1508,6 +1768,397 @@ export class NotificationService {
     } catch (error) {
       console.error('❌ Error solicitando permisos de Capacitor:', error);
       return false;
+    }
+  }
+
+  /**
+   * Sincronizar notificaciones desde el backend
+   * Se llama automáticamente al iniciar sesión
+   */
+  private async syncNotificationsFromBackend(): Promise<void> {
+    try {
+      const now = new Date().toLocaleTimeString();
+      console.log(`🔄 [SYNC] [${now}] Iniciando sincronización...`);
+      
+      const user = await this.securityService.getSecureUser();
+      if (!user || typeof user.id !== 'number') {
+        console.warn('⚠️ [SYNC] No se puede sincronizar, usuario no autenticado');
+        return;
+      }
+
+      console.log(`🔄 [SYNC] Usuario autenticado (ID: ${user.id}), solicitando notificaciones al backend...`);
+
+      this.notificationsApi.getNotifications(50, false).subscribe({
+        next: (response) => {
+          if (response.success && Array.isArray(response.data)) {
+            const backendNotifications = response.data;
+            const userId = user.id;
+            const key = this.getNotificationsKey(userId);
+
+            console.log('📋 [NOTIFICATIONS] Notificaciones recibidas del backend:', backendNotifications.length);
+            console.log('🔍 [DEBUG] Primera notificación:', JSON.stringify(backendNotifications[0], null, 2));
+
+            // ✅ BACKEND ES LA FUENTE DE VERDAD - NO hacer merge, reemplazar completamente
+            const localNotifications = backendNotifications.map(notif => {
+              // Intentar crear fecha desde created_at
+              let timestamp = new Date(notif.created_at);
+              
+              // ✅ Si la fecha es inválida, usar fecha actual como fallback
+              if (isNaN(timestamp.getTime())) {
+                console.warn('⚠️ [NOTIFICATIONS] Fecha inválida, usando fecha actual:', {
+                  id: notif.id,
+                  created_at: notif.created_at
+                });
+                timestamp = new Date();
+              }
+              
+              // ✅ IMPORTANTE: Tomar el icono directamente de notif.data.icon
+              // El backend ya debe estar enviando el icono en este campo
+              const notifData = notif.data as any;
+              const icon = notifData?.icon || notifData?.image || this.getDefaultIconForType(notif.type);
+              const url = notifData?.url || '/';
+              
+              console.log('🎨 [NOTIFICATIONS] Icono de notificación:', {
+                id: notif.id,
+                type: notif.type,
+                backendIcon: notifData?.icon,
+                finalIcon: icon
+              });
+              
+              return {
+                id: `backend_${notif.id}`, // Prefijo para distinguir de las push locales
+                backendId: notif.id, // Guardar ID del backend para operaciones posteriores
+                type: notif.type,
+                title: notif.title,
+                message: notif.message,
+                data: notif.data, // ✅ Mantener data original del backend
+                read: notif.read,
+                timestamp: timestamp.toISOString(),
+                icon: icon, // ✅ Icono extraído de data.icon o fallback
+                url: url // ✅ URL extraída de data.url o fallback
+              };
+            });
+
+            // Obtener notificaciones anteriores para detectar nuevas Y evitar duplicados
+            const previousNotifications = JSON.parse(localStorage.getItem(key) || '[]');
+            const previousIds = new Set(previousNotifications.map((n: any) => n.backendId));
+
+            // ✅ FILTRAR DUPLICADOS: Si ya existe una con el mismo backendId, mantener la más reciente
+            const uniqueNotifications = new Map<number, any>();
+            
+            // Primero agregar las del backend (más recientes)
+            localNotifications.forEach(notif => {
+              if (notif.backendId) {
+                uniqueNotifications.set(notif.backendId, notif);
+              }
+            });
+            
+            // Convertir Map a Array
+            const dedupedNotifications = Array.from(uniqueNotifications.values());
+
+            // ✅ REEMPLAZAR completamente localStorage con notificaciones únicas
+            localStorage.setItem(key, JSON.stringify(dedupedNotifications));
+
+            console.log(`✅ [NOTIFICATIONS] ${dedupedNotifications.length} notificaciones únicas sincronizadas desde backend`);
+            if (localNotifications.length !== dedupedNotifications.length) {
+              console.log(`🗑️ [NOTIFICATIONS] ${localNotifications.length - dedupedNotifications.length} duplicados eliminados`);
+            }
+            console.log('🔍 [DEBUG] Muestra de notificación guardada:', JSON.stringify(dedupedNotifications[0], null, 2));
+
+            // 🔔 Mostrar notificación push local para notificaciones NUEVAS y NO LEÍDAS
+            const newNotifications = dedupedNotifications.filter(n => 
+              !previousIds.has(n.backendId) && !n.read
+            );
+
+            console.log(`🆕 [NOTIFICATIONS] Notificaciones nuevas sin leer: ${newNotifications.length}`);
+
+            // Mostrar notificación push para cada nueva
+            // ⚠️ IMPORTANTE: Saltamos order_created en localhost porque ya se mostró optimísticamente
+            const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            
+            newNotifications.forEach(notif => {
+              // Saltar notificaciones de orden en localhost (ya se mostraron localmente)
+              if (isLocalhost && notif.type === 'order_created') {
+                console.log('⏭️ [NOTIFICATIONS] Saltando order_created en localhost (ya se mostró):', notif.title);
+                return;
+              }
+
+              console.log('🔔 [NOTIFICATIONS] Mostrando notificación push para:', notif.title);
+              
+              // ✅ IMPORTANTE: saveToStorage=false porque YA está guardada en localStorage arriba
+              this.showLocalNotification({
+                title: notif.title,
+                body: notif.message,
+                icon: notif.icon,
+                data: {
+                  ...notif.data,
+                  notificationId: notif.backendId,
+                  url: notif.url
+                }
+              }, false); // ← NO guardar, ya está guardada
+            });
+
+            // Notificar cambios
+            try {
+              window.dispatchEvent(new CustomEvent('notifications:updated'));
+            } catch {}
+            // Actualizar badge del sistema basado en conteo backend (no bloquear)
+            try { this.updateAppBadgeFromLocal(userId).catch(() => {}); } catch (e) { /* noop */ }
+          }
+        },
+        error: (error) => {
+          console.warn('⚠️ [NOTIFICATIONS] No se pudieron sincronizar notificaciones desde backend:', error);
+        }
+      });
+    } catch (error) {
+      console.error('❌ [NOTIFICATIONS] Error sincronizando notificaciones:', error);
+    }
+  }
+
+  /**
+   * Marcar notificación como leída en el backend
+   */
+  async markBackendNotificationAsRead(backendId: number): Promise<void> {
+    try {
+      await firstValueFrom(this.notificationsApi.markAsRead(backendId));
+      console.log(`✅ [NOTIFICATIONS] Notificación ${backendId} marcada como leída en backend`);
+      
+      // Actualizar localStorage
+      const user = await this.securityService.getSecureUser();
+      if (user && typeof user.id === 'number') {
+        const key = this.getNotificationsKey(user.id);
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const list = JSON.parse(raw);
+          const notif = list.find((n: any) => n.backendId === backendId);
+          if (notif) {
+            notif.read = true;
+            localStorage.setItem(key, JSON.stringify(list));
+            try {
+              window.dispatchEvent(new CustomEvent('notifications:updated'));
+            } catch {}
+            try {
+              await this.updateAppBadgeFromLocal(user.id);
+            } catch (e) { /* noop */ }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ [NOTIFICATIONS] Error marcando notificación como leída en backend:', error);
+    }
+  }
+
+  /**
+   * Eliminar notificación del backend
+   */
+  async deleteBackendNotification(backendId: number): Promise<void> {
+    try {
+      await firstValueFrom(this.notificationsApi.deleteNotification(backendId));
+      console.log(`✅ [NOTIFICATIONS] Notificación ${backendId} eliminada del backend`);
+      
+      // Actualizar localStorage
+      const user = await this.securityService.getSecureUser();
+      if (user && typeof user.id === 'number') {
+        const key = this.getNotificationsKey(user.id);
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          let list = JSON.parse(raw);
+          list = list.filter((n: any) => n.backendId !== backendId);
+          localStorage.setItem(key, JSON.stringify(list));
+          try {
+            window.dispatchEvent(new CustomEvent('notifications:updated'));
+          } catch {}
+          try {
+            await this.updateAppBadgeFromLocal(user.id);
+          } catch (e) { /* noop */ }
+        }
+      }
+    } catch (error) {
+      console.error('❌ [NOTIFICATIONS] Error eliminando notificación del backend:', error);
+    }
+  }
+
+  /**
+   * Marcar todas las notificaciones como leídas en el backend
+   */
+  async markAllBackendNotificationsAsRead(): Promise<void> {
+    try {
+      await firstValueFrom(this.notificationsApi.markAllAsRead());
+      console.log('✅ [NOTIFICATIONS] Todas las notificaciones marcadas como leídas en backend');
+      
+      // Actualizar localStorage
+      const user = await this.securityService.getSecureUser();
+      if (user && typeof user.id === 'number') {
+        const key = this.getNotificationsKey(user.id);
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const list = JSON.parse(raw);
+          list.forEach((n: any) => {
+            n.read = true;
+          });
+          localStorage.setItem(key, JSON.stringify(list));
+          try {
+            window.dispatchEvent(new CustomEvent('notifications:updated'));
+          } catch {}
+          try {
+            await this.updateAppBadgeFromLocal(user.id);
+          } catch (e) { /* noop */ }
+        }
+      }
+    } catch (error) {
+      console.error('❌ [NOTIFICATIONS] Error marcando todas como leídas en backend:', error);
+    }
+  }
+
+  /**
+   * Eliminar todas las notificaciones del backend
+   */
+  async deleteAllBackendNotifications(): Promise<void> {
+    try {
+      await firstValueFrom(this.notificationsApi.deleteAllNotifications());
+      console.log('✅ [NOTIFICATIONS] Todas las notificaciones eliminadas del backend');
+      
+      // Limpiar localStorage
+      const user = await this.securityService.getSecureUser();
+        if (user && typeof user.id === 'number') {
+        const key = this.getNotificationsKey(user.id);
+        localStorage.removeItem(key);
+        try {
+          window.dispatchEvent(new CustomEvent('notifications:updated'));
+        } catch {}
+        try {
+          await this.updateAppBadgeFromLocal(user.id);
+        } catch (e) { /* noop */ }
+      }
+    } catch (error) {
+      console.error('❌ [NOTIFICATIONS] Error eliminando todas las notificaciones del backend:', error);
+    }
+  }
+
+  /**
+   * Forzar sincronización desde backend (útil para refresh manual)
+   */
+  async forceBackendSync(): Promise<void> {
+    await this.syncNotificationsFromBackend();
+  }
+
+  /**
+   * Obtener icono por defecto según el tipo de notificación
+   * Usa el mismo icono que showLocalNotification() para consistencia
+   */
+  private getDefaultIconForType(type: string): string {
+    // ✅ Usar ruta relativa como en showLocalNotification()
+    // Esto asegura que el icono aparezca tanto en notificaciones locales
+    // como en notificaciones sincronizadas desde el backend
+    return '/icons/icon-192x192.png';
+  }
+
+  /**
+   * ✅ Iniciar sincronización automática en segundo plano
+   */
+  private startAutoSync(): void {
+    // Si ya hay un intervalo, no crear otro
+    if (this.syncInterval) {
+      console.log('⚠️ [AUTO-SYNC] Ya existe un intervalo de sincronización activo');
+      return;
+    }
+
+    console.log(`� [AUTO-SYNC] INICIANDO sincronización automática cada ${this.SYNC_INTERVAL_MS / 1000} segundos`);
+    console.log(`⏰ [AUTO-SYNC] Intervalo configurado: ${this.SYNC_INTERVAL_MS}ms (${this.SYNC_INTERVAL_MS / 1000}s)`);
+
+    // Hacer una sincronización inmediata al iniciar
+    console.log('🔄 [AUTO-SYNC] Sincronización inicial...');
+    this.syncNotificationsFromBackend().catch(error => {
+      console.error('❌ [AUTO-SYNC] Error en sincronización inicial:', error);
+    });
+
+    // ✅ Sincronización periódica SIEMPRE (incluso si la app está en background)
+    this.syncInterval = setInterval(() => {
+      const now = new Date().toLocaleTimeString();
+      console.log(`🔄 [AUTO-SYNC] [${now}] Sincronizando notificaciones...`);
+      this.syncNotificationsFromBackend().catch(error => {
+        console.error('❌ [AUTO-SYNC] Error en sincronización automática:', error);
+      });
+    }, this.SYNC_INTERVAL_MS);
+
+    console.log('✅ [AUTO-SYNC] Intervalo configurado correctamente. ID:', this.syncInterval);
+
+    // Exponer en window para debugging
+    if (typeof window !== 'undefined') {
+      (window as any).stopAutoSync = () => this.stopAutoSync();
+      (window as any).startAutoSync = () => this.startAutoSync();
+      (window as any).debugAutoSync = () => {
+        console.log('🔍 [AUTO-SYNC DEBUG]', {
+          isActive: !!this.syncInterval,
+          intervalId: this.syncInterval,
+          intervalMs: this.SYNC_INTERVAL_MS,
+          intervalSeconds: this.SYNC_INTERVAL_MS / 1000
+        });
+      };
+    }
+  }
+
+  /**
+   * ✅ Detener sincronización automática
+   */
+  private stopAutoSync(): void {
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+      this.syncInterval = null;
+      console.log('⏹️ [AUTO-SYNC] Sincronización automática detenida');
+    }
+  }
+
+  /**
+   * ⏸️ Pausar auto-sync temporalmente (para evitar interrupciones en UI)
+   * Se usa cuando el usuario está en el tab de notificaciones
+   */
+  public pauseAutoSync(): void {
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+      this.syncInterval = null;
+      console.log('⏸️ [AUTO-SYNC] Auto-sync pausado (usuario interactuando)');
+    }
+  }
+
+  /**
+   * ▶️ Reanudar auto-sync después de pausarlo
+   * Se usa cuando el usuario sale del tab de notificaciones
+   */
+  public resumeAutoSync(): void {
+    // Solo reanudar si no está ya activo
+    if (!this.syncInterval) {
+      console.log('▶️ [AUTO-SYNC] Reanudando auto-sync...');
+      this.startAutoSync();
+    } else {
+      console.log('ℹ️ [AUTO-SYNC] Ya está activo, no se reanuda');
+    }
+  }
+
+  /**
+   * ✅ Verificar si el auto-sync está activo
+   */
+  public isAutoSyncActive(): boolean {
+    return this.syncInterval !== null;
+  }
+
+  /**
+   * ✅ Verificar si el usuario está logueado y arrancar auto-sync
+   * Se llama en el constructor para manejar el caso de recargas de página
+   */
+  private async checkAndStartAutoSync(): Promise<void> {
+    try {
+      console.log('🔍 [AUTO-SYNC] Verificando si el usuario está autenticado...');
+      const user = await this.securityService.getSecureUser();
+      
+      if (user && typeof user.id === 'number') {
+        console.log(`✅ [AUTO-SYNC] Usuario YA autenticado (ID: ${user.id}), iniciando auto-sync...`);
+        this.startAutoSync();
+      } else {
+        console.log('ℹ️ [AUTO-SYNC] Usuario no autenticado, esperando login...');
+      }
+    } catch (error) {
+      console.warn('⚠️ [AUTO-SYNC] Error verificando usuario:', error);
     }
   }
 }

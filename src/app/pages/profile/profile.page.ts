@@ -8,13 +8,12 @@ import { OrderService, Order } from '../../services/order.service';
 import { User } from '../../interfaces/auth.interfaces';
 import { Address } from '../../interfaces/address.interfaces';
 import { Subscription, firstValueFrom } from 'rxjs';
-import { NotificationToggleComponent } from '../../components/notification-toggle/notification-toggle.component';
 import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonAvatar, IonSpinner, IonIcon, IonList, IonChip, IonRefresher, IonRefresherContent, NotificationToggleComponent],
+  imports: [CommonModule, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonAvatar, IonSpinner, IonIcon, IonList, IonChip, IonRefresher, IonRefresherContent],
   templateUrl: './profile.page.html',
   styleUrls: ['./profile.page.scss']
 })
@@ -218,7 +217,10 @@ export class ProfilePage implements OnInit, OnDestroy {
       const response = await firstValueFrom(this.addressService.getUserAddresses());
       this.zone.run(() => {
         if (response && response.success) {
-          this.addresses = (response.data as Address[]) || [];
+          // NO sobrescribir directamente: la lógica de servicio ya deduplica.
+          // Pero si la respuesta trae array, aplicamos una dedupe defensiva final.
+          const incoming = Array.isArray(response.data) ? (response.data as Address[]) : [];
+          this.addresses = this.mergeAndDedupeClient(this.addresses, incoming);
         } else {
           this.addressesError = response?.message || 'Error cargando direcciones';
           this.addresses = [];
@@ -238,6 +240,47 @@ export class ProfilePage implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       });
     }
+  }
+
+  // Dedupe final en el componente para evitar parpadeo si el backend trae duplicados
+  private mergeAndDedupeClient(existing: Address[], incoming: Address[]): Address[] {
+    const norm = (v: any) => (v||'').toString().normalize('NFKC').replace(/\s+/g,' ').trim().toLowerCase();
+    const simplifyLine = (s: any) => norm(s).replace(/\b(num|numero|número|no)\.?\b/g,'').replace(/\s+/g,' ').trim();
+    const sig = (a: Address) => [
+      norm(a.first_name), norm(a.last_name), simplifyLine(a.address_line_1), simplifyLine(a.address_line_2),
+      norm(a.city), norm(a.state), norm(a.postal_code), norm(a.country), norm(a.type), norm(a.phone)
+    ].join('|');
+    const map = new Map<string, Address>();
+    const push = (a: Address) => {
+      if (!a) return;
+      const s = sig(a);
+      if (!map.has(s)) { map.set(s, a); return; }
+      const prev = map.get(s)!;
+      // Resolver: preferir is_default y updated_at más reciente
+      const updatedPrev = prev.updated_at || ''; const updatedCur = a.updated_at || '';
+      const choose = () => {
+        if (a.is_default && !prev.is_default) return a;
+        if (a.is_default === prev.is_default) {
+          if (updatedCur && updatedPrev && updatedCur !== updatedPrev) return updatedCur > updatedPrev ? a : prev;
+          if (updatedCur && !updatedPrev) return a;
+          if (!updatedCur && updatedPrev) return prev;
+          if ((a.id||0) !== (prev.id||0)) return (a.id||0) > (prev.id||0) ? a : prev;
+        }
+        return prev;
+      };
+      map.set(s, choose());
+    };
+    [...existing, ...incoming].forEach(push);
+    // Sólo una default final
+    let defaultFound = false;
+    const arr = Array.from(map.values()).map(a => {
+      if (a.is_default) {
+        if (!defaultFound) { defaultFound = true; return a; }
+        return { ...a, is_default: false };
+      }
+      return a;
+    });
+    return arr;
   }
 
   async deleteAddress(address: Address): Promise<void> {

@@ -102,27 +102,28 @@
 
 </ion-content>
 
-<!-- Bottom Action Bar -->
-<div class="action-bar" *ngIf="!loading && !error && product && showContent">
-  <div class="price-section">
-    <span class="price-label">Precio</span>
-    <span class="price-amount">${{ currentPrice || product.price }}</span>
-    <span class="stock-info" *ngIf="!selectionMissing && currentStock > 0">
-      {{ currentStock }} disponibles
-    </span>
+<ion-footer *ngIf="!loading && !error && product && showContent">
+  <div class="action-bar">
+    <div class="price-section">
+      <span class="price-label">Precio</span>
+      <span class="price-amount">${{ currentPrice || product.price }}</span>
+      <span class="stock-info" *ngIf="!selectionMissing && currentStock > 0">
+        {{ currentStock }} disponibles
+      </span>
+    </div>
+    <ion-button
+      class="add-to-cart-btn"
+      (click)="addToCart()"
+      [disabled]="!canAddToCart">
+      @if (addingToCart) {
+        <ion-spinner name="crescent" slot="start"></ion-spinner>
+      } @else {
+        <ion-icon name="cart-outline" slot="start"></ion-icon>
+      }
+      {{ selectionMissing ? 'Selecciona opciones' : (currentStock <= 0 ? 'Agotado' : (addingToCart ? 'Agregando...' : 'Agregar al Carrito')) }}
+    </ion-button>
   </div>
-  <ion-button
-    class="add-to-cart-btn"
-    (click)="addToCart()"
-    [disabled]="!canAddToCart">
-    @if (addingToCart) {
-      <ion-spinner name="crescent" slot="start"></ion-spinner>
-    } @else {
-      <ion-icon name="cart-outline" slot="start"></ion-icon>
-    }
-    {{ selectionMissing ? 'Selecciona opciones' : (currentStock <= 0 ? 'Agotado' : (addingToCart ? 'Agregando...' : 'Agregar al Carrito')) }}
-  </ion-button>
-</div>
+</ion-footer>
 
 <!-- Toast de confirmación -->
 <app-add-to-cart-toast

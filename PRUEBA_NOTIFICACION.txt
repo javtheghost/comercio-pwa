@@ -1,0 +1,21 @@
+// CÓDIGO PARA CREAR NOTIFICACIÓN DE CARRITO ABANDONADO
+// Copia y pega esto en la consola del navegador (DevTools)
+
+const userId = JSON.parse(localStorage.getItem('user'))?.id;
+const notifs = JSON.parse(localStorage.getItem(`app_notifications_${userId}`) || '[]');
+notifs.unshift({
+  id: 'cart_test_' + Date.now(),
+  type: 'cart_abandoned',
+  title: '¡Tu carrito te espera! 🛒',
+  message: 'Completa tu compra ahora y obtén 10% de descuento con el código CART10-TEST',
+  timestamp: new Date().toISOString(),
+  read: false,
+  data: {
+    cart_id: 999,
+    discount: '10%',
+    coupon_code: 'CART10-TEST',
+    url: '/cart'
+  }
+});
+localStorage.setItem(`app_notifications_${userId}`, JSON.stringify(notifs));
+console.log('✅ Notificación creada! Ahora ve a la página de notificaciones');

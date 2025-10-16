@@ -1,7 +1,7 @@
 // environment.ts - Desarrollo
 export const environment = {
   production: false,
-  apiUrl: 'http://localhost:8000/api', // URL del backend Laravel
+  apiUrl: 'http://localhost:8000/api', // URL del backend Laravel local
   appName: 'STORE',
   version: '1.0.0',
   // Tasa de IVA por defecto (16% en MX)

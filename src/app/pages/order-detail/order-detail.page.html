@@ -1,0 +1,129 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/orders"></ion-back-button>
+    </ion-buttons>
+  <ion-title>Orden #{{ order?.order_number || orderId }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="order-detail-content">
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Cargando orden...</p>
+  </div>
+
+  <!-- Not Found -->
+  <div *ngIf="!loading && !order" class="empty-state">
+    <ion-icon name="alert-circle-outline" color="medium"></ion-icon>
+    <h3>No se encontró la orden</h3>
+    <p>Es posible que haya sido eliminada o no pertenezca a tu cuenta.</p>
+    <ion-button routerLink="/tabs/orders" fill="outline" size="small">
+      <ion-icon name="arrow-back-outline" slot="start"></ion-icon>
+      Volver
+    </ion-button>
+  </div>
+
+  <ng-container *ngIf="!loading && order">
+    <!-- Hero / Status Card -->
+    <div class="hero-card ion-margin">
+      <div class="status-icon" [ngClass]="order.status">
+        <ion-icon [name]="order.status === 'delivered' ? 'checkmark-circle' : order.status === 'pending' ? 'time' : order.status === 'processing' ? 'sync' : order.status === 'shipped' ? 'airplane' : 'close-circle'"></ion-icon>
+      </div>
+      <h2 class="title">{{ orderService.getOrderStatusText(order.status) }}</h2>
+      <p class="subtitle">Pago: {{ orderService.getPaymentStatusText(order.payment_status) }}</p>
+      <p class="order-number">N.º de orden <strong>#{{ order.order_number }}</strong></p>
+    </div>
+
+    <!-- Totals Card -->
+    <ion-card class="totals-card">
+      <ion-card-header>
+        <ion-card-title>Resumen</ion-card-title>
+        <ion-card-subtitle>{{ order.created_at | date:'dd MMM y, HH:mm' }}</ion-card-subtitle>
+      </ion-card-header>
+      <ion-card-content>
+        <div class="totals-grid">
+          <div class="line"><span>Subtotal</span><span>{{ order.subtotal | currency:'MXN' }}</span></div>
+          <div class="line" *ngIf="order.tax_amount"><span>IVA (16%)</span><span>{{ order.tax_amount | currency:'MXN' }}</span></div>
+          <div class="line" *ngIf="order.shipping_amount"><span>Envío</span><span>{{ order.shipping_amount | currency:'MXN' }}</span></div>
+          <div class="line" *ngIf="order.discount_amount"><span>Descuento</span><span>-{{ order.discount_amount | currency:'MXN' }}</span></div>
+          <div class="line total"><span>Total</span><span>{{ order.total_amount | currency:'MXN' }}</span></div>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Items -->
+    <ion-card class="items-card">
+      <ion-card-header>
+  <ion-card-title>Productos ({{ order ? order.items.length : 0 }})</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-list lines="none">
+          <ion-item *ngFor="let item of order?.items" class="item-row" detail="false">
+            <div class="thumb" *ngIf="item.product?.image; else placeholder">
+              <img [src]="item.product?.image" alt="{{ item.product?.name }}" loading="lazy" />
+            </div>
+            <ng-template #placeholder>
+              <div class="thumb placeholder">
+                <ion-icon name="image-outline"></ion-icon>
+              </div>
+            </ng-template>
+            <ion-label>
+              <h3>{{ item.product?.name || 'Producto' }}</h3>
+              <p *ngIf="item.product_variant">Variante: {{ item.product_variant.name }}</p>
+              <p class="muted">Cantidad: {{ item.quantity }}</p>
+            </ion-label>
+            <div class="price">{{ item.total_price | currency:'MXN' }}</div>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Addresses -->
+  <ion-card class="address-card" *ngIf="order?.shipping_address">
+      <ion-card-header>
+        <ion-card-title>Envío</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="address-line">{{ order.shipping_address.street }}</p>
+        <p class="address-line">{{ order.shipping_address.city }}, {{ order.shipping_address.state }} {{ order.shipping_address.postal_code }}</p>
+        <p class="address-line">{{ order.shipping_address.country }}</p>
+        <p class="address-line" *ngIf="order.shipping_address.phone">Tel: {{ order.shipping_address.phone }}</p>
+      </ion-card-content>
+    </ion-card>
+
+  <ion-card class="address-card" *ngIf="order?.billing_address && order.billing_address !== order.shipping_address">
+      <ion-card-header>
+        <ion-card-title>Facturación</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="address-line">{{ order.billing_address.street }}</p>
+        <p class="address-line">{{ order.billing_address.city }}, {{ order.billing_address.state }} {{ order.billing_address.postal_code }}</p>
+        <p class="address-line">{{ order.billing_address.country }}</p>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Notes -->
+  <ion-card *ngIf="order?.notes" class="notes-card">
+      <ion-card-header>
+        <ion-card-title>Notas</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p>{{ order.notes }}</p>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Actions -->
+    <div class="actions ion-padding-horizontal ion-padding-bottom">
+      <ion-button expand="block" color="primary" *ngIf="order?.status === 'pending'" (click)="onCancelOrder()">
+        <ion-icon name="close-circle-outline" slot="start"></ion-icon>
+        Cancelar Orden
+      </ion-button>
+      <ion-button expand="block" fill="outline" color="medium" routerLink="/tabs/orders">
+        <ion-icon name="arrow-back-outline" slot="start"></ion-icon>
+        Volver a Órdenes
+      </ion-button>
+    </div>
+  </ng-container>
+</ion-content>

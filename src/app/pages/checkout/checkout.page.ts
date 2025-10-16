@@ -12,6 +12,7 @@ import { TabsPage } from '../../tabs/tabs.page';
 import { User } from '../../interfaces/auth.interfaces';
 import { Address as UserAddress } from '../../interfaces/address.interfaces';
 import { Subscription, firstValueFrom } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-checkout',
@@ -38,19 +39,20 @@ export class CheckoutPage implements OnInit, OnDestroy {
     phone: ''
   };
 
-  paymentMethod = 'card';
-  cardDetails = {
-    number: '',
-    expiry: '',
-    cvv: '',
-    name: ''
-  };
+  // Método de pago (por ahora sólo efectivo)
+  paymentMethod: 'cash' = 'cash';
 
   // Direcciones del usuario
   userAddresses: UserAddress[] = [];
   selectedAddressId: number | null = null;
-  useExistingAddress = false;
+  useExistingAddress = false; // mantenido por compatibilidad interna
+  addressMode: 'existing' | 'new' = 'new';
   addressesLoading = false;
+  // Errores de validación para nueva dirección
+  addressErrors: string[] = [];
+  showAddressErrors = false;
+  savingAddress = false;
+  addressSavedToastShown = false;
 
   private cartSubscription: Subscription = new Subscription();
   private authSubscription: Subscription = new Subscription();
@@ -173,29 +175,68 @@ export class CheckoutPage implements OnInit, OnDestroy {
   }
 
   isFormValid(): boolean {
-    return !!(
+    // Si se usa dirección existente, sólo necesitamos selección y método de pago
+    if (this.addressMode === 'existing') {
+      return !!(this.selectedAddressId && this.paymentMethod);
+    }
+    // Nueva dirección: validar campos usando servicio (modo silencioso para no mostrar aún errores)
+    const validBasic = !!(
       this.shippingAddress.firstName &&
       this.shippingAddress.lastName &&
       this.shippingAddress.address &&
       this.shippingAddress.city &&
       this.shippingAddress.state &&
       this.shippingAddress.zipCode &&
-      this.shippingAddress.phone
+      this.shippingAddress.phone &&
+      this.paymentMethod
+    );
+    if (!validBasic) return false;
+    return this.validateNewAddress(true); // validación silenciosa (no fuerza mostrar errores)
+  }
+
+  // Chequeo ligero sólo para habilitar botón "Guardar dirección" (sin validar formato de CP/teléfono)
+  isNewAddressBasicFilled(): boolean {
+    if (this.addressMode !== 'new') return false;
+    return !!(
+      this.shippingAddress.firstName?.trim() &&
+      this.shippingAddress.lastName?.trim() &&
+      this.shippingAddress.address?.trim() &&
+      this.shippingAddress.city?.trim() &&
+      this.shippingAddress.state?.trim() &&
+      this.shippingAddress.zipCode?.trim() &&
+      this.shippingAddress.phone?.trim()
     );
   }
 
-  onPaymentMethodChange(): void {
-    this.paymentMethod = 'cash'; // ✅ seleccionado por defecto
-
+  onAddressModeChange(): void {
+    this.useExistingAddress = this.addressMode === 'existing';
+    if (this.useExistingAddress) {
+      if (!this.selectedAddressId && this.userAddresses.length) {
+        const defaultAddress = this.addressService.getDefaultAddress(this.userAddresses);
+        if (defaultAddress) {
+          this.selectedAddressId = defaultAddress.id || null;
+        } else {
+          this.selectedAddressId = this.userAddresses[0].id || null;
+        }
+      }
+      if (this.selectedAddressId) {
+        const addr = this.userAddresses.find(a => a.id === this.selectedAddressId);
+        if (addr) this.fillAddressFromSelected(addr);
+      }
+    } else {
+      // Modo nueva: limpiar todos los campos para evitar duplicados accidentales
+      this.resetNewAddressForm();
+    }
+    this.cdr.detectChanges();
   }
 
-  // Método de debug temporal
-  debugPaymentMethod(): void {
-    console.log('🐛 [DEBUG] Estado actual del método de pago:');
-    console.log('- paymentMethod:', this.paymentMethod);
-    console.log('- Tipo:', typeof this.paymentMethod);
-    console.log('- Es igual a "cash":', this.paymentMethod === 'cash');
-    console.log('- Es igual a "card":', this.paymentMethod === 'card');
+  onExistingAddressSelected(): void {
+    if (!this.selectedAddressId) return;
+    const selectedAddress = this.userAddresses.find(a => a.id === this.selectedAddressId);
+    if (selectedAddress) {
+      this.fillAddressFromSelected(selectedAddress);
+    }
+    this.cdr.detectChanges();
   }
 
   async processOrder(): Promise<void> {
@@ -203,6 +244,10 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
     if (!this.isFormValid()) {
       this.error = 'Por favor completa todos los campos requeridos';
+      // Si estamos en modo nueva dirección, forzar mostrar errores detallados
+      if (this.addressMode === 'new') {
+        this.validateNewAddress(false);
+      }
       return;
     }
 
@@ -220,6 +265,15 @@ export class CheckoutPage implements OnInit, OnDestroy {
     if (!this.paymentMethod) {
       this.error = 'Por favor selecciona un método de pago';
       return;
+    }
+
+    // Validar nueva dirección (en caso de modo 'new') antes de crear la orden
+    if (this.addressMode === 'new') {
+      const isAddressValid = this.validateNewAddress(false);
+      if (!isAddressValid) {
+        this.error = 'Corrige los errores de la dirección antes de continuar';
+        return;
+      }
     }
 
     const loading = await this.loadingController.create({
@@ -272,6 +326,9 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
       if (response && response.success) {
         console.log('✅ [CHECKOUT] Orden creada exitosamente:', response.data);
+
+        // ✅ Verificar si viene de carrito abandonado y marcarlo como recuperado
+        await this.handleAbandonedCartRecovery();
 
         // Limpiar el carrito
         await firstValueFrom(this.cartService.clearCart());
@@ -338,6 +395,70 @@ export class CheckoutPage implements OnInit, OnDestroy {
     }
   }
 
+  // Guardar la nueva dirección opcionalmente
+  async saveNewAddress(): Promise<void> {
+    if (this.addressMode !== 'new') return;
+    const isValid = this.validateNewAddress(false);
+    if (!isValid) {
+      this.error = 'Corrige los errores antes de guardar la dirección';
+      return;
+    }
+    if (this.savingAddress) return;
+    this.savingAddress = true;
+    this.error = null;
+    const payload: any = {
+      first_name: this.shippingAddress.firstName.trim(),
+      last_name: this.shippingAddress.lastName.trim(),
+      address_line_1: this.shippingAddress.address.trim(),
+      city: this.shippingAddress.city.trim(),
+      state: this.shippingAddress.state.trim(),
+      postal_code: this.shippingAddress.zipCode.trim(),
+      country: this.shippingAddress.country.trim(),
+      phone: this.shippingAddress.phone.trim(),
+      type: 'shipping',
+      is_default: false
+    };
+    try {
+      const resp = await firstValueFrom(this.addressService.createAddress(payload));
+      if (resp && resp.success && resp.data && !Array.isArray(resp.data)) {
+        // Actualizar lista local
+        await this.loadUserAddresses();
+        // Seleccionar la nueva
+        const created: any = resp.data;
+        if (created.id) {
+          this.selectedAddressId = created.id;
+          this.addressMode = 'existing';
+          this.useExistingAddress = true;
+        }
+        if (!this.addressSavedToastShown) {
+          const toast = await this.toastController.create({
+            message: 'Dirección guardada',
+            duration: 2500,
+            color: 'success',
+            position: 'top'
+          });
+            await toast.present();
+          this.addressSavedToastShown = true;
+        }
+      } else {
+        throw new Error(resp?.message || 'No se pudo guardar la dirección');
+      }
+    } catch (e: any) {
+      console.error('[CHECKOUT] Error guardando dirección:', e);
+      this.error = e?.message || 'Error guardando la dirección';
+      const toast = await this.toastController.create({
+        message: this.error || 'Error guardando la dirección',
+        duration: 4000,
+        color: 'danger',
+        position: 'top'
+      });
+      await toast.present();
+    } finally {
+      this.savingAddress = false;
+      this.cdr.detectChanges();
+    }
+  }
+
 
   goBack(): void {
     this.router.navigate(['/tabs/cart']);
@@ -355,12 +476,19 @@ export class CheckoutPage implements OnInit, OnDestroy {
       if (response && response.success) {
         this.userAddresses = response.data as UserAddress[];
 
-        // Si hay direcciones, seleccionar la predeterminada
-        const defaultAddress = this.addressService.getDefaultAddress(this.userAddresses);
-        if (defaultAddress) {
-          this.selectedAddressId = defaultAddress.id || null;
-          this.useExistingAddress = true;
-          this.fillAddressFromSelected(defaultAddress);
+        // Si hay direcciones, intentar seleccionar la predeterminada
+        if (this.userAddresses.length) {
+          const defaultAddress = this.addressService.getDefaultAddress(this.userAddresses);
+          if (defaultAddress) {
+            this.selectedAddressId = defaultAddress.id || null;
+            this.addressMode = 'existing';
+            this.useExistingAddress = true;
+            this.fillAddressFromSelected(defaultAddress);
+          } else {
+            this.addressMode = 'new';
+          }
+        } else {
+          this.addressMode = 'new';
         }
       }
     } catch (error: any) {
@@ -369,16 +497,6 @@ export class CheckoutPage implements OnInit, OnDestroy {
       this.addressesLoading = false;
       this.cdr.detectChanges(); // Forzar detección de cambios al finalizar
     }
-  }
-
-  onAddressSelectionChange(): void {
-    if (this.useExistingAddress && this.selectedAddressId) {
-      const selectedAddress = this.userAddresses.find(addr => addr.id === this.selectedAddressId);
-      if (selectedAddress) {
-        this.fillAddressFromSelected(selectedAddress);
-      }
-    }
-    this.cdr.detectChanges(); // Forzar detección de cambios
   }
 
   private fillAddressFromSelected(address: UserAddress): void {
@@ -391,6 +509,50 @@ export class CheckoutPage implements OnInit, OnDestroy {
     this.shippingAddress.country = address.country;
     this.shippingAddress.phone = address.phone;
     this.cdr.detectChanges(); // Forzar detección de cambios
+  }
+
+  private resetNewAddressForm(): void {
+    this.shippingAddress.firstName = '';
+    this.shippingAddress.lastName = '';
+    this.shippingAddress.address = '';
+    this.shippingAddress.city = '';
+    this.shippingAddress.state = '';
+    this.shippingAddress.zipCode = '';
+    this.shippingAddress.country = 'México';
+    this.shippingAddress.phone = '';
+    this.addressErrors = [];
+    this.showAddressErrors = false;
+  }
+
+  // Validación avanzada de nueva dirección usando AddressService
+  private buildPartialAddressForValidation(): Partial<UserAddress> {
+    return {
+      first_name: this.shippingAddress.firstName,
+      last_name: this.shippingAddress.lastName,
+      address_line_1: this.shippingAddress.address,
+      city: this.shippingAddress.city,
+      state: this.shippingAddress.state,
+      postal_code: this.shippingAddress.zipCode,
+      country: this.shippingAddress.country,
+      phone: this.shippingAddress.phone
+    } as Partial<UserAddress>;
+  }
+
+  validateNewAddress(silent: boolean): boolean {
+    const partial = this.buildPartialAddressForValidation() as any; // reutiliza interfaz del servicio
+    const result = this.addressService.validateAddressData(partial);
+    this.addressErrors = result.errors;
+    if (!silent) {
+      this.showAddressErrors = true;
+    }
+    return result.isValid;
+  }
+
+  onAddressFieldChange(): void {
+    if (this.addressMode === 'new' && this.showAddressErrors) {
+      // Revalidar en vivo sólo si ya se mostraron
+      this.validateNewAddress(true);
+    }
   }
 
   formatAddress(address: UserAddress): string {
@@ -419,5 +581,55 @@ export class CheckoutPage implements OnInit, OnDestroy {
     if (!this.selectedAddressId) return '';
     const selectedAddress = this.userAddresses.find(addr => addr.id === this.selectedAddressId);
     return selectedAddress ? this.formatAddress(selectedAddress) : '';
+  }
+
+  /**
+   * 🛒 Marcar carrito como recuperado si viene de notificación de carrito abandonado
+   */
+  private async handleAbandonedCartRecovery(): Promise<void> {
+    try {
+      // Obtener cart_id de localStorage (guardado al hacer clic en la notificación)
+      const cartId = localStorage.getItem('abandoned_cart_id');
+      
+      if (!cartId) {
+        return; // No viene de carrito abandonado
+      }
+
+      console.log('🛒 [CHECKOUT] Marcando carrito como recuperado:', cartId);
+
+      // Obtener token de autenticación
+      const token = this.authService.getToken();
+      
+      if (!token) {
+        console.warn('⚠️ [CHECKOUT] No hay token para marcar carrito como recuperado');
+        return;
+      }
+
+      // Llamar al endpoint de recuperación
+      const response = await fetch(
+        `${environment.apiUrl}/cart/recovered/${cartId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ [CHECKOUT] Carrito marcado como recuperado:', data);
+        
+        // Limpiar el cart_id guardado
+        localStorage.removeItem('abandoned_cart_id');
+      } else {
+        console.warn('⚠️ [CHECKOUT] Error al marcar carrito como recuperado:', response.status);
+      }
+      
+    } catch (error) {
+      console.error('❌ [CHECKOUT] Error en handleAbandonedCartRecovery:', error);
+      // No lanzar error - esto no debe bloquear el checkout
+    }
   }
 }

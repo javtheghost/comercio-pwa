@@ -11,7 +11,8 @@ import {
   IonButton,
   IonIcon,
   IonBadge,
-  IonSpinner
+  IonSpinner,
+  IonFooter
 } from '@ionic/angular/standalone';
 import { ProductService } from '../../services/product.service';
 import { CartService, AddToCartRequest } from '../../services/cart.service';
@@ -33,7 +34,8 @@ import { FavoritesService } from '../../services/favorites.service';
     IonButton,
     IonIcon,
     IonBadge,
-    IonSpinner,
+  IonSpinner,
+  IonFooter,
     ProductVariantSelectorComponent,
     AddToCartToastComponent
   ],
@@ -649,24 +651,28 @@ export class ProductDetailPage implements OnInit {
   }
 
   goBack() {
-    // Oculta la action bar y otros elementos fijos antes de navegar
+    this.prepareLeave();
+    this.performNavigateBack();
+  }
+
+  private prepareLeave() {
+    // Ocultar inmediatamente para que no quede un frame del footer/action bar
     this.showContent = false;
+    this.addingToCart = false;
+    this.showToast = false;
     this.cdr.detectChanges();
-    setTimeout(() => {
-      if (window.history.length > 2) {
-        this.navCtrl.back();
-      } else if (this.fromSearch) {
-        this.navCtrl.navigateRoot(['/tabs/search'], {
-          animated: true,
-          animationDirection: 'back'
-        });
-      } else {
-        this.navCtrl.navigateRoot(['/tabs/home'], {
-          animated: true,
-          animationDirection: 'back'
-        });
-      }
-    }, 10);
+  }
+
+  private performNavigateBack() {
+    if (window.history.length > 2) {
+      this.navCtrl.back();
+      return;
+    }
+    const target = this.fromSearch ? '/tabs/search' : '/tabs/home';
+    this.navCtrl.navigateRoot([target], {
+      animated: true,
+      animationDirection: 'back'
+    });
   }
 
   /**
