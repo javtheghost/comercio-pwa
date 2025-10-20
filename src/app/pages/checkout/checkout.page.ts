@@ -345,9 +345,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
     this.error = null;
 
     try {
-    console.log('💳 [CHECKOUT] Procesando orden...');
-    // orderData será logueado justo después de ser construido más abajo
-
+      console.log('💳 [CHECKOUT] Procesando orden...');
       // Preparar datos de la orden
       const orderData: CreateOrderRequest = {
         customer_id: this.user.id,
@@ -376,7 +374,15 @@ export class CheckoutPage implements OnInit, OnDestroy {
         payment_method: this.paymentMethod
       };
 
-  console.log('🧾 [DEBUG] orderData prepared (post-construction):', orderData);
+      console.log('🧾 [DEBUG] orderData prepared (post-construction):', orderData);
+      console.log('[CHECKOUT] Antes de llamar a createOrder');
+      let result;
+      try {
+        result = await this.orderService.createOrder(orderData).toPromise();
+        console.log('[CHECKOUT] createOrder completado, resultado:', result);
+      } catch (err) {
+        console.error('[CHECKOUT] Error en createOrder:', err);
+      }
 
       // Validar datos antes de enviar
       const validation = this.orderService.validateOrderData(orderData);
