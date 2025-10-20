@@ -86,6 +86,27 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
     // Cargar datos del usuario
     this.loadUserData();
+
+    // DEBUG: exponer un trigger global para forzar processOrder() desde la Console
+    try {
+      // @ts-ignore - debugging helper
+      window.triggerCheckoutProcess = async () => {
+        console.log('🔬 [DEBUG] triggerCheckoutProcess called from window');
+        try {
+          await this.processOrder();
+        } catch (e) {
+          console.error('🔬 [DEBUG] Error invoking processOrder via trigger:', e);
+        }
+      };
+
+      // también escuchar un evento custom para forzar checkout
+      window.addEventListener('force-checkout', async () => {
+        console.log('🔬 [DEBUG] force-checkout event received');
+        try { await this.processOrder(); } catch (e) { console.error(e); }
+      });
+    } catch (e) {
+      console.warn('⚠️ [CHECKOUT] No se pudo exponer triggerCheckoutProcess:', e);
+    }
   }
 
   ngOnDestroy() {

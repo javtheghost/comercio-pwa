@@ -272,6 +272,18 @@ app-tabs {
   }
 }
 
+/* Debug helpers: ensure the confirm button is on top and clickable */
+.checkout-actions ion-button {
+  position: relative !important;
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+}
+
+/* Any full-screen overlays used for layout should not block pointer events on the actions area */
+.page-overlay, .screen-overlay {
+  pointer-events: none !important;
+}
+
 /* Estilos botón guardar dirección */
 .save-address-action {
   margin: 20px 0 6px;
