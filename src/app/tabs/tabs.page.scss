@@ -36,8 +36,10 @@
   background: #fff;
   border-top: 1px solid #e0e0e0;
   box-shadow: none;
-  padding: 0;
-  height: 56px;
+  /* Reservar espacio para el safe-area-bottom (home indicator) y evitar hueco en algunos dispositivos */
+  /* height incluye la zona segura; padding-bottom mantiene los iconos visibles encima del indicador */
+  padding: 0 env(safe-area-inset-left, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-right, 0);
+  height: calc(56px + env(safe-area-inset-bottom, 0px));
   position: fixed;
   left: 0;
   right: 0;
@@ -134,7 +136,7 @@ body.verifying-session-active .custom-tab-bar {
 
 @media (max-width: 480px) {
   .custom-tab-bar {
-    height: 44px;
+    height: calc(44px + env(safe-area-inset-bottom, 0px));
     padding: 0 2px;
   }
   .custom-tab-bar button {

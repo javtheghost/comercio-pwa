@@ -645,7 +645,11 @@ export class NotificationService {
         platform: detectedPlatform as 'web' | 'android' | 'ios'
       };
 
-      await firstValueFrom(this.http.post(`${this.API_URL}/api/notification-tokens`, tokenData));
+  // Normalizar base para evitar dobles '/api' cuando environment.apiUrl ya incluye '/api'
+  const base = (this.API_URL || '').replace(/\/+$/, '');
+  const hasApiSuffix = /\/api$/i.test(base);
+  const tokenUrl = hasApiSuffix ? `${base}/notification-tokens` : `${base}/api/notification-tokens`;
+  await firstValueFrom(this.http.post(tokenUrl, tokenData));
       console.log('✅ Token guardado en servidor');
     } catch (error) {
       console.error('❌ Error guardando token:', error);

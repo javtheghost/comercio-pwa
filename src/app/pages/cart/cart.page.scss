@@ -21,9 +21,14 @@
 .cart-item {
   --padding-start: 16px;
   --padding-end: 16px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  /* Mejor layout: usar flex para controlar espacio entre imagen, info y controles */
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
 }
 
 .product-image {
@@ -31,12 +36,25 @@
   height: 80px;
   border-radius: 8px;
   overflow: hidden;
+  flex: 0 0 80px;
+  display: block;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
 }
 
 .product-info h3 {
   font-weight: 600;
   color: #333;
   margin-bottom: 4px;
+  /* Permitir que el título haga wrap y no empuje los controles */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 15px;
 }
 
 .size {
@@ -56,6 +74,8 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .quantity-selector {
@@ -65,7 +85,7 @@
   border-radius: 8px;
   background: #fff;
   padding: 4px;
-  min-width: 120px;
+  min-width: 100px;
 }
 
 .quantity-btn {
@@ -80,7 +100,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 50px;
+  min-width: 44px;
   height: 32px;
   background: #f8f9fa;
   border-radius: 4px;
@@ -119,6 +139,39 @@
   margin: 20px 16px;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Responsive: en pantallas muy angostas apilar elementos para evitar solapamientos */
+@media (max-width: 460px) {
+  .cart-item {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px;
+  }
+
+  .product-image {
+    width: 72px;
+    height: 72px;
+    margin-bottom: 8px;
+    flex: 0 0 auto;
+  }
+
+  .product-info {
+    order: 2;
+  }
+
+  .quantity-controls {
+    order: 3;
+    margin-left: 0;
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .quantity-selector {
+    min-width: 110px;
+  }
 }
 
 .order-summary h3 {
