@@ -288,6 +288,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
         this.validateNewAddress(false);
       }
       this.loading = false;
+      console.log('[CHECKOUT] return: isFormValid falló');
       return;
     }
     console.log('✅ [CHECKOUT] isFormValid -> PASSED');
@@ -296,6 +297,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
       console.log('⛔ [CHECKOUT] isCartEmpty -> true');
       this.error = 'El carrito está vacío';
       this.loading = false;
+      console.log('[CHECKOUT] return: carrito vacío');
       return;
     }
     console.log('✅ [CHECKOUT] isCartEmpty -> false');
@@ -304,6 +306,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
       console.log('⛔ [CHECKOUT] user -> null/undefined');
       this.error = 'Usuario no autenticado';
       this.loading = false;
+      console.log('[CHECKOUT] return: usuario no autenticado');
       return;
     }
     console.log('✅ [CHECKOUT] user -> present (id=' + (this.user?.id || 'n/a') + ')');
@@ -313,6 +316,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
       console.log('⛔ [CHECKOUT] paymentMethod -> falsy');
       this.error = 'Por favor selecciona un método de pago';
       this.loading = false;
+      console.log('[CHECKOUT] return: método de pago no seleccionado');
       return;
     }
     console.log('✅ [CHECKOUT] paymentMethod ->', this.paymentMethod);
@@ -324,6 +328,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
         console.log('⛔ [CHECKOUT] New address validation failed');
         this.error = 'Corrige los errores de la dirección antes de continuar';
         this.loading = false;
+        console.log('[CHECKOUT] return: validación de nueva dirección falló');
         return;
       }
       console.log('✅ [CHECKOUT] New address valid');
