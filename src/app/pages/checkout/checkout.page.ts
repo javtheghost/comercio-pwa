@@ -288,18 +288,24 @@ export class CheckoutPage implements OnInit, OnDestroy {
       }
     }
 
-    const loading = await this.loadingController.create({
-      message: 'Procesando orden...',
-      spinner: 'crescent'
-    });
-    await loading.present();
-    console.log('🔄 [CHECKOUT] Loading presentado');
+    let loading: HTMLIonLoadingElement | null = null;
+    try {
+      loading = await this.loadingController.create({
+        message: 'Procesando orden...',
+        spinner: 'crescent'
+      });
+      await loading.present();
+      console.log('🔄 [CHECKOUT] Loading presentado');
+    } catch (loadErr) {
+      // En producción algunos errores pueden ocurrir presentando el loading; no debe detener el flujo
+      console.warn('⚠️ [CHECKOUT] No se pudo presentar el loading:', loadErr);
+    }
 
     this.error = null;
 
     try {
-  console.log('💳 [CHECKOUT] Procesando orden...');
-  // orderData será logueado justo después de ser construido más abajo
+    console.log('💳 [CHECKOUT] Procesando orden...');
+    // orderData será logueado justo después de ser construido más abajo
 
       // Preparar datos de la orden
       const orderData: CreateOrderRequest = {
@@ -329,7 +335,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
         payment_method: this.paymentMethod
       };
 
-      console.log('🧾 [DEBUG] orderData prepared (post-construction):', orderData);
+  console.log('🧾 [DEBUG] orderData prepared (post-construction):', orderData);
 
       // Validar datos antes de enviar
       const validation = this.orderService.validateOrderData(orderData);
@@ -338,8 +344,9 @@ export class CheckoutPage implements OnInit, OnDestroy {
       }
 
       // Crear la orden
-      const response = await firstValueFrom(this.orderService.createOrder(orderData));
-      console.log('↪️ [DEBUG] createOrder response ->', response);
+  console.log('⬆️ [DEBUG] Enviando POST a createOrder...');
+  const response = await firstValueFrom(this.orderService.createOrder(orderData));
+  console.log('↪️ [DEBUG] createOrder response ->', response);
 
       // Aceptar respuestas alternativas (backend puede devolver la orden directamente)
       const success = (response && (response.success === true || response.success === 'true'))
@@ -413,7 +420,11 @@ export class CheckoutPage implements OnInit, OnDestroy {
       await toast.present();
 
     } finally {
-      await loading.dismiss();
+      try {
+        if (loading) await loading.dismiss();
+      } catch (dismissErr) {
+        console.warn('⚠️ [CHECKOUT] Error dismissing loading:', dismissErr);
+      }
     }
   }
 
