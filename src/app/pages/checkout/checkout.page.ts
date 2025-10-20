@@ -242,6 +242,18 @@ export class CheckoutPage implements OnInit, OnDestroy {
   async processOrder(): Promise<void> {
     console.log('💳 [CHECKOUT] Método de pago seleccionado:', this.paymentMethod);
 
+    // DEBUG: dump estado inicial para diagnosticar porque no se hace la petición
+    try {
+      console.log('🧪 [DEBUG] isFormValid ->', this.isFormValid());
+      console.log('🧪 [DEBUG] isCartEmpty ->', this.isCartEmpty());
+      console.log('🧪 [DEBUG] cart ->', this.cart);
+      console.log('🧪 [DEBUG] user ->', this.user);
+      console.log('🧪 [DEBUG] addressMode ->', this.addressMode);
+      console.log('🧪 [DEBUG] selectedAddressId ->', this.selectedAddressId);
+    } catch (dbgErr) {
+      console.warn('⚠️ [DEBUG] Error dumping initial state:', dbgErr);
+    }
+
     if (!this.isFormValid()) {
       this.error = 'Por favor completa todos los campos requeridos';
       // Si estamos en modo nueva dirección, forzar mostrar errores detallados
@@ -281,11 +293,13 @@ export class CheckoutPage implements OnInit, OnDestroy {
       spinner: 'crescent'
     });
     await loading.present();
+    console.log('🔄 [CHECKOUT] Loading presentado');
 
     this.error = null;
 
     try {
-      console.log('💳 [CHECKOUT] Procesando orden...');
+  console.log('💳 [CHECKOUT] Procesando orden...');
+  // orderData será logueado justo después de ser construido más abajo
 
       // Preparar datos de la orden
       const orderData: CreateOrderRequest = {
@@ -315,6 +329,8 @@ export class CheckoutPage implements OnInit, OnDestroy {
         payment_method: this.paymentMethod
       };
 
+      console.log('🧾 [DEBUG] orderData prepared (post-construction):', orderData);
+
       // Validar datos antes de enviar
       const validation = this.orderService.validateOrderData(orderData);
       if (!validation.isValid) {
@@ -323,9 +339,15 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
       // Crear la orden
       const response = await firstValueFrom(this.orderService.createOrder(orderData));
+      console.log('↪️ [DEBUG] createOrder response ->', response);
 
-      if (response && response.success) {
-        console.log('✅ [CHECKOUT] Orden creada exitosamente:', response.data);
+      // Aceptar respuestas alternativas (backend puede devolver la orden directamente)
+      const success = (response && (response.success === true || response.success === 'true'))
+        || (!!response && (response.id || response.order_number || response.data));
+      const responseData = response?.data || response;
+
+      if (success) {
+        console.log('✅ [CHECKOUT] Orden creada (aceptado):', responseData);
 
         // ✅ Verificar si viene de carrito abandonado y marcarlo como recuperado
         await this.handleAbandonedCartRecovery();
