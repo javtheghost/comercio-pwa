@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, BehaviorSubject, catchError, of, switchMap, map } from 'rxjs';
+import { Observable, BehaviorSubject, catchError, of, switchMap, map, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthService } from './auth.service';
 
@@ -117,6 +117,16 @@ export class OrderService {
    */
   createOrder(orderData: CreateOrderRequest): Observable<any> {
     return this.http.post(`${this.API_URL}/orders`, orderData);
+    console.log('[ORDER SERVICE] Intentando enviar orden:', orderData);
+    return this.http.post(`${this.API_URL}/orders`, orderData).pipe(
+      tap((response) => {
+        console.log('[ORDER SERVICE] Respuesta recibida:', response);
+      }),
+      catchError((error) => {
+        console.error('[ORDER SERVICE] Error al enviar orden:', error);
+        throw error;
+      })
+    );
   }
 
   /**
