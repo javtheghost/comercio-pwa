@@ -40,19 +40,17 @@
           <div class="total-price">Total: {{ item.total_price | currency:'MXN' }}</div>
           <div *ngIf="!item.is_available" class="not-available">Producto no disponible</div>
         </div>
-        <div class="quantity-trash-group">
-          <div class="quantity-controls">
-            <div class="quantity-selector">
-              <ion-button fill="clear" size="small" (click)="decreaseQuantity(item)"><ion-icon name="remove-outline"></ion-icon></ion-button>
-              <div class="quantity-input-container">
-                <input type="number" [value]="item.quantity" (input)="updateQuantity(item,$event)" (blur)="commitQuantityInput(item,$event)" (keyup.enter)="commitQuantityInput(item,$event)" min="1" max="99" class="quantity-input">
-              </div>
-              <ion-button fill="clear" size="small" (click)="increaseQuantity(item)"><ion-icon name="add-outline"></ion-icon></ion-button>
+        <div class="quantity-controls">
+          <div class="quantity-selector">
+            <ion-button fill="clear" size="small" (click)="decreaseQuantity(item)"><ion-icon name="remove-outline"></ion-icon></ion-button>
+            <div class="quantity-input-container">
+              <input type="number" [value]="item.quantity" (input)="updateQuantity(item,$event)" (blur)="commitQuantityInput(item,$event)" (keyup.enter)="commitQuantityInput(item,$event)" min="1" max="99" class="quantity-input">
             </div>
+            <ion-button fill="clear" size="small" (click)="increaseQuantity(item)"><ion-icon name="add-outline"></ion-icon></ion-button>
           </div>
-          <div class="remove-btn-container">
+          <div class="trash-container">
             <ion-button fill="clear" color="danger" size="small" (click)="removeFromCart(item)">
-              <ion-icon name="trash-outline" class="remove-icon"></ion-icon>
+              <ion-icon name="trash-outline"></ion-icon>
             </ion-button>
           </div>
         </div>
