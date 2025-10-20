@@ -263,6 +263,11 @@ export class CheckoutPage implements OnInit, OnDestroy {
   async processOrder(): Promise<void> {
     console.log('💳 [CHECKOUT] Método de pago seleccionado:', this.paymentMethod);
 
+    // Marcar loading de UI para evitar que el botón quede habilitado
+    try {
+      this.loading = true;
+    } catch {}
+
     // DEBUG: dump estado inicial para diagnosticar porque no se hace la petición
     try {
       console.log('🧪 [DEBUG] isFormValid ->', this.isFormValid());
@@ -276,37 +281,52 @@ export class CheckoutPage implements OnInit, OnDestroy {
     }
 
     if (!this.isFormValid()) {
+      console.log('⛔ [CHECKOUT] isFormValid -> FAILED');
       this.error = 'Por favor completa todos los campos requeridos';
       // Si estamos en modo nueva dirección, forzar mostrar errores detallados
       if (this.addressMode === 'new') {
         this.validateNewAddress(false);
       }
+      this.loading = false;
       return;
     }
+    console.log('✅ [CHECKOUT] isFormValid -> PASSED');
 
     if (this.isCartEmpty()) {
+      console.log('⛔ [CHECKOUT] isCartEmpty -> true');
       this.error = 'El carrito está vacío';
+      this.loading = false;
       return;
     }
+    console.log('✅ [CHECKOUT] isCartEmpty -> false');
 
     if (!this.user) {
+      console.log('⛔ [CHECKOUT] user -> null/undefined');
       this.error = 'Usuario no autenticado';
+      this.loading = false;
       return;
     }
+    console.log('✅ [CHECKOUT] user -> present (id=' + (this.user?.id || 'n/a') + ')');
 
     // Validar método de pago
     if (!this.paymentMethod) {
+      console.log('⛔ [CHECKOUT] paymentMethod -> falsy');
       this.error = 'Por favor selecciona un método de pago';
+      this.loading = false;
       return;
     }
+    console.log('✅ [CHECKOUT] paymentMethod ->', this.paymentMethod);
 
     // Validar nueva dirección (en caso de modo 'new') antes de crear la orden
     if (this.addressMode === 'new') {
       const isAddressValid = this.validateNewAddress(false);
       if (!isAddressValid) {
+        console.log('⛔ [CHECKOUT] New address validation failed');
         this.error = 'Corrige los errores de la dirección antes de continuar';
+        this.loading = false;
         return;
       }
+      console.log('✅ [CHECKOUT] New address valid');
     }
 
     let loading: HTMLIonLoadingElement | null = null;
@@ -446,6 +466,8 @@ export class CheckoutPage implements OnInit, OnDestroy {
       } catch (dismissErr) {
         console.warn('⚠️ [CHECKOUT] Error dismissing loading:', dismissErr);
       }
+      // Reset UI loading flag
+      try { this.loading = false; } catch {}
     }
   }
 
