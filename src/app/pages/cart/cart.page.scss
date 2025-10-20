@@ -89,14 +89,13 @@
     align-items: stretch;
     gap: 8px;
   }
-  .cart-item .product-info {
-    max-width: 100%;
-    font-size: 16px;
-  }
-  .cart-item .quantity-controls {
+  .cart-actions {
+    flex-direction: column;
     align-items: flex-end;
-    min-width: 0;
-    flex: none;
+    gap: 0;
+  }
+  .remove-btn-container {
+    margin-top: 6px;
   }
 }
 
