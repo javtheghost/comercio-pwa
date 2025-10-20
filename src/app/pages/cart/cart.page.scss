@@ -28,8 +28,130 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px 10px;
+  padding: 16px 12px;
   background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+
+.cart-item .product-image {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex: 0 0 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+}
+
+.cart-item .product-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cart-item .product-info {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  font-size: 16px;
+}
+
+.cart-item .product-info h3 {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 2px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+}
+
+.cart-item .price, .cart-item .total-price {
+  font-size: 15px;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.cart-item .quantity-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-left: 12px;
+}
+
+.cart-item .quantity-selector {
+  display: flex;
+  align-items: center;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fafbfc;
+  padding: 2px 4px;
+  min-width: 90px;
+}
+
+.cart-item .quantity-btn {
+  --color: #666;
+  --padding-start: 8px;
+  --padding-end: 8px;
+  margin: 0;
+  min-width: 28px;
+}
+
+.cart-item .quantity-input-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 28px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  margin: 0 2px;
+}
+
+.cart-item .quantity-input {
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  outline: none;
+  padding: 0;
+}
+
+@media (max-width: 600px) {
+  .cart-item {
+     flex-direction: row;
+     align-items: center;
+     gap: 8px;
+     padding: 10px 4px;
+  }
+  .cart-item .product-image {
+     width: 56px;
+     height: 56px;
+     flex: 0 0 56px;
+  }
+  .cart-item .quantity-controls {
+     margin-left: 4px;
+     gap: 4px;
+  }
+  .cart-item .quantity-selector {
+     min-width: 70px;
+     padding: 0 2px;
+  }
+  .cart-item .product-info h3 {
+     font-size: 14px;
+  }
+}
 }
 
 .product-image {
