@@ -65,7 +65,7 @@
   justify-content: center;
   gap: 2px;
   font-size: 17px;
-  max-width: 340px;
+  max-width: 440px;
   white-space: normal;
   overflow: hidden;
 }
@@ -93,10 +93,19 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
+  gap: 4px;
   flex: 0 0 120px;
   margin-left: auto;
-  min-width: 110px;
+  min-width: 90px;
+.remove-btn-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.remove-icon {
+  font-size: 18px;
+}
 }
 
 .cart-item .quantity-selector {
@@ -156,8 +165,11 @@
    }
    .cart-item .product-info {
      font-size: 14px;
-     max-width: 120px;
+     max-width: 180px;
      white-space: normal;
+   }
+   .remove-icon {
+     font-size: 15px;
    }
    .cart-item .product-info h3 {
      font-size: 14px;

@@ -48,7 +48,11 @@
             </div>
             <ion-button fill="clear" size="small" (click)="increaseQuantity(item)"><ion-icon name="add-outline"></ion-icon></ion-button>
           </div>
-          <ion-button fill="clear" color="danger" size="small" (click)="removeFromCart(item)"><ion-icon name="trash-outline"></ion-icon></ion-button>
+          <div class="remove-btn-container">
+            <ion-button fill="clear" color="danger" size="small" (click)="removeFromCart(item)">
+              <ion-icon name="trash-outline" class="remove-icon"></ion-icon>
+            </ion-button>
+          </div>
         </div>
       </div>
     </ion-list>
