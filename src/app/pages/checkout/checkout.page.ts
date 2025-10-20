@@ -351,34 +351,44 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
     try {
       console.log('💳 [CHECKOUT] Procesando orden...');
-      // Preparar datos de la orden
-      const orderData: CreateOrderRequest = {
-        customer_id: this.user.id,
-        items: this.cart!.items.map(item => ({
+      // Diagnóstico línea por línea
+      let customer_id, items, shipping_address, billing_address, notes, payment_method;
+      try {
+        customer_id = this.user.id;
+        console.log('[CHECKOUT][dbg] customer_id:', customer_id);
+        items = this.cart!.items.map(item => ({
           product_id: item.product_id,
           product_variant_id: item.product_variant_id,
           quantity: item.quantity
-        })),
-        shipping_address: {
+        }));
+        console.log('[CHECKOUT][dbg] items:', items);
+        shipping_address = {
           street: this.shippingAddress.address,
           city: this.shippingAddress.city,
           state: this.shippingAddress.state,
           postal_code: this.shippingAddress.zipCode,
           country: this.shippingAddress.country,
           phone: this.shippingAddress.phone
-        },
-        billing_address: {
-          street: this.shippingAddress.address,
-          city: this.shippingAddress.city,
-          state: this.shippingAddress.state,
-          postal_code: this.shippingAddress.zipCode,
-          country: this.shippingAddress.country,
-          phone: this.shippingAddress.phone
-        },
-        notes: `Orden creada desde PWA - ${new Date().toLocaleString()}`,
-        payment_method: this.paymentMethod
+        };
+        console.log('[CHECKOUT][dbg] shipping_address:', shipping_address);
+        billing_address = { ...shipping_address };
+        console.log('[CHECKOUT][dbg] billing_address:', billing_address);
+        notes = `Orden creada desde PWA - ${new Date().toLocaleString()}`;
+        payment_method = this.paymentMethod;
+        console.log('[CHECKOUT][dbg] notes:', notes);
+        console.log('[CHECKOUT][dbg] payment_method:', payment_method);
+      } catch (buildErr) {
+        console.error('[CHECKOUT][EXCEPTION] Error construyendo orderData:', buildErr);
+        throw buildErr;
+      }
+      const orderData: CreateOrderRequest = {
+        customer_id,
+        items,
+        shipping_address,
+        billing_address,
+        notes,
+        payment_method
       };
-
       console.log('🧾 [DEBUG] orderData prepared (post-construction):', orderData);
       console.log('[CHECKOUT] Antes de llamar a createOrder');
       let result;
