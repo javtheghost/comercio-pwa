@@ -1,6 +1,6 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://ecommerceapi-production-fe72.up.railway.app/api', // URL de Railway
+  apiUrl: 'https://ecommerceapi.toolaccess.tech/api', // URL de Railway
   appName: 'STORE',
   version: '1.0.0',
   // Clave secreta para encriptación (en producción usar variable de entorno)
@@ -18,5 +18,7 @@ export const environment = {
       appId: '753241400797565',
       redirectUri: 'https://ecommerceapi-production-fe72.up.railway.app/api/auth/facebook/callback'
     }
-  }
+  },
+  vatRate: 0.16 // agrega esta línea
+
 };

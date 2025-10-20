@@ -1,7 +1,8 @@
 // environment.ts - Desarrollo
 export const environment = {
-  production: false,
-  apiUrl: 'http://localhost:8000/api', // URL del backend Laravel local
+
+  production: true,
+  apiUrl: 'https://ecommerceapi.toolaccess.tech/api', // URL del backend Laravel
   appName: 'STORE',
   version: '1.0.0',
   // Tasa de IVA por defecto (16% en MX)
@@ -21,5 +22,6 @@ export const environment = {
       appId: '753241400797565', // Facebook App ID
       redirectUri: 'http://127.0.0.1:8000/api/auth/facebook/callback'
     }
-  }
+  },
+  
 };
