@@ -398,11 +398,35 @@ export class CheckoutPage implements OnInit, OnDestroy {
         throw new Error(validation.errors.join(', '));
       }
 
-      // Crear la orden (UNA SOLA VEZ)
+      // Crear la orden (UNA SOLA VEZ) con timeout para evitar bloqueo indefinido
       console.log('⬆️ [DEBUG] Enviando POST a createOrder...');
       console.log('🔍 [DEBUG] orderData final:', JSON.stringify(orderData, null, 2));
-      const response = await firstValueFrom(this.orderService.createOrder(orderData));
-      console.log('↪️ [DEBUG] createOrder response ->', response);
+
+      const TIMEOUT_MS = 15000; // 15s
+      let response: any;
+      try {
+        response = await Promise.race([
+          firstValueFrom(this.orderService.createOrder(orderData)),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS))
+        ]);
+        console.log('↪️ [DEBUG] createOrder response ->', response);
+      } catch (err: any) {
+        console.error('❌ [CHECKOUT] Error al llamar createOrder (incluye timeout):', err);
+        // Mostrar mensaje más claro al usuario
+        const msg = (err && err.message === 'timeout') ? 'La petición tardó demasiado. Intenta nuevamente.' : (err?.message || 'Error enviando la orden');
+        this.error = msg;
+        try {
+          const toast = await this.toastController.create({ message: msg, duration: 4000, color: 'danger', position: 'top' });
+          await toast.present();
+        } catch (tErr) { console.warn('⚠️ [CHECKOUT] No se pudo mostrar toast de error:', tErr); }
+
+        // Asegurar que el loading se limpia y se intenta dismiss del spinner
+        try { this.loading = false; } catch {}
+        try { if (loading) await loading.dismiss(); } catch {}
+
+        // Re-lanzar para que el bloque externo lo maneje también (ya mostramos toast)
+        throw err;
+      }
 
       // Aceptar respuestas alternativas (backend puede devolver la orden directamente)
       console.log('🔍 [DEBUG] Validando respuesta...');
