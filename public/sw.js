@@ -294,7 +294,7 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // Manejar cierre de notificaciones
-self.addEventListener('notificationclose', (event) => {
+self.addEventListener('notificationclose', async (event) => {
   console.log('🚫 Notification closed:', event);
   
   // Aquí puedes enviar analytics o hacer seguimiento
@@ -314,6 +314,22 @@ self.addEventListener('notificationclose', (event) => {
     }).catch((error) => {
       console.error('❌ Error enviando analytics:', error);
     });
+  }
+
+  // Informar a las ventanas abiertas que la notificación fue cerrada
+  // para que la app pueda reafirmar el badge basado en su estado interno (localStorage/backend)
+  try {
+    const clientsList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clientsList) {
+      try {
+        client.postMessage({
+          type: 'NOTIFICATION_CLOSED',
+          payload: notificationData
+        });
+      } catch (e) { /* noop */ }
+    }
+  } catch (e) {
+    console.warn('⚠️ Error notificando a clients sobre cierre de notificación:', e);
   }
 });
 

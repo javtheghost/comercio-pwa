@@ -83,6 +83,18 @@ export class TabsPage implements OnInit, OnDestroy {
       this.navigate(path);
     });
 
+    // Reafirmar contador cuando la app vuelve a foco por visibilitychange
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        try {
+          if (document.visibilityState === 'visible') {
+            // Forzar recálculo
+            if (this.notificationsUpdateHandler) this.notificationsUpdateHandler();
+          }
+        } catch (e) { /* noop */ }
+      });
+    }
+
     // Sincronizar índice inicial y cambios de URL (por ejemplo, al venir desde Login)
     const setIndexFromUrl = (url: string) => {
       const foundIndex = this.tabOrder.findIndex(p => url.startsWith(p));

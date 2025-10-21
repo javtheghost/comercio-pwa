@@ -618,6 +618,32 @@ export class NotificationService {
           });
           // Ya no cerramos locales: preferimos notificaciones mostradas desde SW
         }
+        // Cuando el Service Worker notifica que una notificación fue cerrada en el SO
+        if (event.data.type === 'NOTIFICATION_CLOSED') {
+          try {
+            // Recalcular badge desde storage/back-end para no depender del estado del SO
+            const uid = await this.getCurrentUserId();
+            await this.updateAppBadgeFromLocal(uid);
+            try { window.dispatchEvent(new CustomEvent('notifications:updated')); } catch {}
+            console.log('🔔 [NOTIFICATIONS] NOTIFICATION_CLOSED recibido - badge reafirmado');
+          } catch (e) {
+            console.warn('⚠️ Error manejando NOTIFICATION_CLOSED:', e);
+          }
+        }
+      });
+    }
+
+    // Cuando una ventana gana foco (visibilidadchange) reafirmar el badge basado en storage
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', async () => {
+        try {
+          if (document.visibilityState === 'visible') {
+            const uid = await this.getCurrentUserId();
+            await this.updateAppBadgeFromLocal(uid);
+            // También emitir evento para que UI se actualice inmediatamente
+            try { window.dispatchEvent(new CustomEvent('notifications:updated')); } catch {}
+          }
+        } catch (e) { /* noop */ }
       });
     }
   }
