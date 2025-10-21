@@ -122,17 +122,21 @@ export class OrderService {
       console.log('[ORDER SERVICE] Payload:', JSON.parse(JSON.stringify(orderData)));
     } catch (e) { console.log('[ORDER SERVICE] Payload (raw):', orderData); }
 
-    // Intentar obtener token sincronamente para mostrar en logs (no modificar headers)
-    try {
-      const token = this.authService.getToken();
-      if (token) {
-        console.log('[ORDER SERVICE] Authorization token presente (primeros 30 chars):', token.substring(0, 30) + '...');
-      } else {
-        console.log('[ORDER SERVICE] Authorization token ausente en authService');
-      }
-    } catch (e) { console.warn('[ORDER SERVICE] No se pudo leer token para logs:', e); }
+    // Obtener token y configurar headers
+    const token = this.authService.getToken();
+    const headers: any = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
 
-    return this.http.post(url, orderData).pipe(
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+      console.log('[ORDER SERVICE] Authorization token presente (primeros 30 chars):', token.substring(0, 30) + '...');
+    } else {
+      console.log('[ORDER SERVICE] Authorization token ausente en authService');
+    }
+
+    return this.http.post(url, orderData, { headers }).pipe(
       tap((response) => {
         console.log('[ORDER SERVICE] Respuesta recibida:', response);
       }),
