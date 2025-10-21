@@ -19,6 +19,17 @@ export const authInterceptor: HttpInterceptorFn = (
   // Agregar token a las peticiones autenticadas
   const modifiedRequest = addTokenToRequest(request, authService, securityService);
 
+  // DEBUG: loggear peticiones salientes en localhost para ayudar a diagnosticar llamadas (sin exponer token completo)
+  try {
+    const isLocal = typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+    if (isLocal) {
+      try {
+        const shortAuth = modifiedRequest.headers.get('Authorization') ? modifiedRequest.headers.get('Authorization')!.substring(0, 30) + '...' : 'none';
+        console.log(`🔁 [HTTP DEBUG] ${modifiedRequest.method} ${modifiedRequest.url} - Authorization: ${shortAuth}`);
+      } catch (e) { /* noop */ }
+    }
+  } catch (e) { /* noop */ }
+
   return next(modifiedRequest).pipe(
     catchError((error: HttpErrorResponse) => {
       if (error.status === 401 && authService.isAuthenticated()) {

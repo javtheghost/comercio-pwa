@@ -116,9 +116,23 @@ export class OrderService {
    * Crear una nueva orden
    */
   createOrder(orderData: CreateOrderRequest): Observable<any> {
-    return this.http.post(`${this.API_URL}/orders`, orderData);
-    console.log('[ORDER SERVICE] Intentando enviar orden:', orderData);
-    return this.http.post(`${this.API_URL}/orders`, orderData).pipe(
+    const url = `${this.API_URL}/orders`;
+    try {
+      console.log('[ORDER SERVICE] Intentando enviar orden a URL:', url);
+      console.log('[ORDER SERVICE] Payload:', JSON.parse(JSON.stringify(orderData)));
+    } catch (e) { console.log('[ORDER SERVICE] Payload (raw):', orderData); }
+
+    // Intentar obtener token sincronamente para mostrar en logs (no modificar headers)
+    try {
+      const token = this.authService.getToken();
+      if (token) {
+        console.log('[ORDER SERVICE] Authorization token presente (primeros 30 chars):', token.substring(0, 30) + '...');
+      } else {
+        console.log('[ORDER SERVICE] Authorization token ausente en authService');
+      }
+    } catch (e) { console.warn('[ORDER SERVICE] No se pudo leer token para logs:', e); }
+
+    return this.http.post(url, orderData).pipe(
       tap((response) => {
         console.log('[ORDER SERVICE] Respuesta recibida:', response);
       }),
