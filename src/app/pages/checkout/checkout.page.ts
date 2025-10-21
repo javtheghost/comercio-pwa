@@ -390,14 +390,6 @@ export class CheckoutPage implements OnInit, OnDestroy {
         payment_method
       };
       console.log('🧾 [DEBUG] orderData prepared (post-construction):', orderData);
-      console.log('[CHECKOUT] Antes de llamar a createOrder');
-      let result;
-      try {
-        result = await this.orderService.createOrder(orderData).toPromise();
-        console.log('[CHECKOUT] createOrder completado, resultado:', result);
-      } catch (err) {
-        console.error('[CHECKOUT] Error en createOrder:', err);
-      }
 
       // Validar datos antes de enviar
       const validation = this.orderService.validateOrderData(orderData);
@@ -405,10 +397,10 @@ export class CheckoutPage implements OnInit, OnDestroy {
         throw new Error(validation.errors.join(', '));
       }
 
-      // Crear la orden
-  console.log('⬆️ [DEBUG] Enviando POST a createOrder...');
-  const response = await firstValueFrom(this.orderService.createOrder(orderData));
-  console.log('↪️ [DEBUG] createOrder response ->', response);
+      // Crear la orden (UNA SOLA VEZ)
+      console.log('⬆️ [DEBUG] Enviando POST a createOrder...');
+      const response = await firstValueFrom(this.orderService.createOrder(orderData));
+      console.log('↪️ [DEBUG] createOrder response ->', response);
 
       // Aceptar respuestas alternativas (backend puede devolver la orden directamente)
       const success = (response && (response.success === true || response.success === 'true'))
@@ -687,7 +679,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
     try {
       // Obtener cart_id de localStorage (guardado al hacer clic en la notificación)
       const cartId = localStorage.getItem('abandoned_cart_id');
-      
+
       if (!cartId) {
         return; // No viene de carrito abandonado
       }
@@ -696,7 +688,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
       // Obtener token de autenticación
       const token = this.authService.getToken();
-      
+
       if (!token) {
         console.warn('⚠️ [CHECKOUT] No hay token para marcar carrito como recuperado');
         return;
@@ -717,13 +709,13 @@ export class CheckoutPage implements OnInit, OnDestroy {
       if (response.ok) {
         const data = await response.json();
         console.log('✅ [CHECKOUT] Carrito marcado como recuperado:', data);
-        
+
         // Limpiar el cart_id guardado
         localStorage.removeItem('abandoned_cart_id');
       } else {
         console.warn('⚠️ [CHECKOUT] Error al marcar carrito como recuperado:', response.status);
       }
-      
+
     } catch (error) {
       console.error('❌ [CHECKOUT] Error en handleAbandonedCartRecovery:', error);
       // No lanzar error - esto no debe bloquear el checkout
