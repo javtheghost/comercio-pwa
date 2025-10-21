@@ -405,9 +405,17 @@ export class CheckoutPage implements OnInit, OnDestroy {
       console.log('↪️ [DEBUG] createOrder response ->', response);
 
       // Aceptar respuestas alternativas (backend puede devolver la orden directamente)
+      console.log('🔍 [DEBUG] Validando respuesta...');
+      console.log('🔍 [DEBUG] response.success:', response?.success);
+      console.log('🔍 [DEBUG] response.id:', response?.id);
+      console.log('🔍 [DEBUG] response.order_number:', response?.order_number);
+      console.log('🔍 [DEBUG] response.data:', response?.data);
+
       const success = (response && (response.success === true || response.success === 'true'))
         || (!!response && (response.id || response.order_number || response.data));
       const responseData = response?.data || response;
+
+      console.log('🔍 [DEBUG] success calculado:', success);
 
       if (success) {
         console.log('✅ [CHECKOUT] Orden creada (aceptado):', responseData);
@@ -450,6 +458,8 @@ export class CheckoutPage implements OnInit, OnDestroy {
         });
 
       } else {
+        console.log('❌ [DEBUG] success es false, lanzando error');
+        console.log('❌ [DEBUG] response completa:', response);
         throw new Error(response?.message || 'Error desconocido al crear la orden');
       }
 
