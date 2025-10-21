@@ -351,6 +351,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
     try {
       console.log('💳 [CHECKOUT] Procesando orden...');
+      console.log('🔍 [DEBUG] Llegamos al try principal del processOrder');
       // Diagnóstico línea por línea
       let customer_id, items, shipping_address, billing_address, notes, payment_method;
       try {
@@ -399,6 +400,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
       // Crear la orden (UNA SOLA VEZ)
       console.log('⬆️ [DEBUG] Enviando POST a createOrder...');
+      console.log('🔍 [DEBUG] orderData final:', JSON.stringify(orderData, null, 2));
       const response = await firstValueFrom(this.orderService.createOrder(orderData));
       console.log('↪️ [DEBUG] createOrder response ->', response);
 
