@@ -10,6 +10,7 @@ import { CheckoutPage } from './pages/checkout/checkout.page';
 import { OrderConfirmationPage } from './pages/order-confirmation/order-confirmation.page';
 import { AddressPage } from './pages/address/address.page';
 import { NotificationsPage } from './pages/notifications/notifications.page';
+import { OauthSuccessPage } from './pages/oauth-success/oauth-success.page';
 import { AuthGuard } from './guards/auth.guard';
 import { VerifiedGuard } from './guards/verified.guard';
 import { VerifyEmailPage } from './pages/verify-email/verify-email.page';
@@ -23,6 +24,10 @@ export const routes: Routes = [
   {
     path: 'verify-email',
     component: VerifyEmailPage
+  },
+  {
+    path: 'auth/oauth-success',
+    component: OauthSuccessPage
   },
   {
     path: 'checkout',

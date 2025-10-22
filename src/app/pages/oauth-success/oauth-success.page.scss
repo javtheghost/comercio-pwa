@@ -1,0 +1,62 @@
+.oauth-content {
+  --background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.oauth-container {
+  text-align: center;
+  background: white;
+  border-radius: 16px;
+  padding: 40px 30px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  max-width: 400px;
+  width: 100%;
+}
+
+.oauth-icon {
+  margin-bottom: 24px;
+
+  ion-spinner {
+    --color: #007bff;
+    width: 60px;
+    height: 60px;
+  }
+
+  ion-icon {
+    font-size: 80px;
+  }
+}
+
+h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #2c3e50;
+}
+
+p {
+  font-size: 16px;
+  color: #6c757d;
+  margin: 0;
+  line-height: 1.5;
+}
+
+// Animaciones
+.oauth-container {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

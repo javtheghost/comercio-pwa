@@ -1,0 +1,22 @@
+<ion-content class="oauth-content">
+  <div class="oauth-container">
+    <div class="oauth-icon" *ngIf="loading">
+      <ion-spinner name="crescent"></ion-spinner>
+    </div>
+
+    <div class="oauth-icon" *ngIf="!loading && success">
+      <ion-icon name="checkmark-circle" color="success" size="large"></ion-icon>
+    </div>
+
+    <div class="oauth-icon" *ngIf="!loading && !success">
+      <ion-icon name="close-circle" color="danger" size="large"></ion-icon>
+    </div>
+
+    <h2 *ngIf="loading">Procesando login...</h2>
+    <h2 *ngIf="!loading && success">¡Login exitoso!</h2>
+    <h2 *ngIf="!loading && !success">Error en el login</h2>
+
+    <p *ngIf="!loading && success">Redirigiendo al inicio...</p>
+    <p *ngIf="!loading && !success">{{ errorMessage }}</p>
+  </div>
+</ion-content>

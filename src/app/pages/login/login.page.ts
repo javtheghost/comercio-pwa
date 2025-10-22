@@ -271,7 +271,105 @@ onSkip() {
   }
 
   onFacebookLogin() {
-    this.showToastMessage('Inicio de sesión con Facebook no implementado aún');
+    console.log('🔐 [LOGIN] Iniciando login con Facebook...');
+
+    try {
+      // URL del backend para Facebook OAuth
+      const backendUrl = 'https://ecommerceapi.toolaccess.tech';
+      const facebookUrl = `${backendUrl}/api/auth/facebook`;
+
+      console.log('🔐 [LOGIN] Redirigiendo a Facebook OAuth:', facebookUrl);
+
+      // Abrir ventana popup para Facebook OAuth
+      const popup = window.open(
+        facebookUrl,
+        'facebook-login',
+        'width=600,height=600,scrollbars=yes,resizable=yes'
+      );
+
+      if (!popup) {
+        throw new Error('No se pudo abrir la ventana popup. Verifica que los popups estén habilitados.');
+      }
+
+      // Escuchar el mensaje de la ventana popup
+      const messageListener = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) {
+          return;
+        }
+
+        if (event.data.type === 'FACEBOOK_LOGIN_SUCCESS') {
+          console.log('🔐 [LOGIN] Login con Facebook exitoso:', event.data);
+          popup.close();
+          window.removeEventListener('message', messageListener);
+
+          // Procesar la respuesta del login
+          this.handleFacebookLoginSuccess(event.data);
+        } else if (event.data.type === 'FACEBOOK_LOGIN_ERROR') {
+          console.error('🔐 [LOGIN] Error en login con Facebook:', event.data.error);
+          popup.close();
+          window.removeEventListener('message', messageListener);
+
+          this.showToastMessage(`Error en login con Facebook: ${event.data.error}`);
+        }
+      };
+
+      window.addEventListener('message', messageListener);
+
+      // Verificar si la ventana se cerró manualmente
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', messageListener);
+          console.log('🔐 [LOGIN] Ventana popup cerrada manualmente');
+        }
+      }, 1000);
+
+    } catch (error: any) {
+      console.error('🔐 [LOGIN] Error iniciando login con Facebook:', error);
+      this.showToastMessage(`Error: ${error.message}`);
+    }
+  }
+
+  /**
+   * Manejar el éxito del login con Facebook
+   */
+  private async handleFacebookLoginSuccess(data: any) {
+    console.log('🔐 [LOGIN] Procesando éxito de Facebook:', data);
+
+    try {
+      // Mostrar loading
+      this.authLoading = true;
+
+      // Guardar token y datos del usuario
+      if (data.token) {
+        localStorage.setItem('auth_token', data.token);
+        console.log('🔐 [LOGIN] Token guardado en localStorage');
+      }
+
+      if (data.user && data.token) {
+        // Simular un login exitoso usando el AuthService
+        // El AuthService manejará automáticamente el estado
+        console.log('🔐 [LOGIN] Usuario autenticado con Facebook:', data.user);
+
+        // El token ya se guardó en localStorage arriba
+        // El AuthService detectará automáticamente el token en la próxima verificación
+        console.log('🔐 [LOGIN] Estado de autenticación se actualizará automáticamente');
+      }
+
+      // Mostrar mensaje de éxito
+      this.showToastMessage('¡Inicio de sesión con Facebook exitoso!');
+
+      // Redirigir al home
+      setTimeout(() => {
+        this.router.navigate(['/tabs/home']);
+      }, 1500);
+
+    } catch (error: any) {
+      console.error('🔐 [LOGIN] Error procesando login con Facebook:', error);
+      this.showToastMessage(`Error procesando login: ${error.message}`);
+    } finally {
+      this.authLoading = false;
+    }
   }
 
   onForgotPassword(event: Event) {
