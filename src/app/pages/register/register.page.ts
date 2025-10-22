@@ -71,8 +71,8 @@ export class RegisterPage implements OnInit {
       console.log('🔐 [REGISTER] Mensaje global recibido:', event.data, 'Origin:', event.origin);
 
       // Permitir mensajes de localhost:4200 o cualquier origen (para OAuth)
-      if (event.origin.includes('localhost:4200') || 
-          event.origin.includes('127.0.0.1:4200') || 
+      if (event.origin.includes('localhost:4200') ||
+          event.origin.includes('127.0.0.1:4200') ||
           event.origin === window.location.origin ||
           event.origin === '*') {
         if (event.data.type === 'FACEBOOK_REGISTER_SUCCESS' || event.data.type === 'GOOGLE_REGISTER_SUCCESS') {
@@ -179,7 +179,7 @@ export class RegisterPage implements OnInit {
           // Redirigir después de 2 segundos para que vea el mensaje
           setTimeout(() => {
             this.closeSuccessModal();
-            
+
             // Verificar si el usuario tiene email verificado (OAuth o verificación previa)
             if (user?.email_verified_at || user?.oauth_provider) {
               console.log('✅ [REGISTER] Usuario OAuth o email ya verificado, redirigiendo a home');
