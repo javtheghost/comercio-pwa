@@ -431,26 +431,55 @@ export class CheckoutPage implements OnInit, OnDestroy {
   // Método directo sin service worker ni notificaciones
   async processOrderDirect(): Promise<void> {
     console.log('🚀 [DIRECT] Procesando orden directamente (sin SW ni notificaciones)');
+    console.log('🚀 [DIRECT] user:', !!this.user, this.user?.id);
+    console.log('🚀 [DIRECT] cart:', !!this.cart, this.cart?.items?.length);
+    console.log('🚀 [DIRECT] isCartEmpty():', this.isCartEmpty());
 
-    if (!this.user || !this.cart || this.isCartEmpty()) {
-      console.log('❌ [DIRECT] Datos básicos faltantes');
+    if (!this.user) {
+      console.log('❌ [DIRECT] Usuario faltante');
       return;
     }
 
-    const loading = await this.loadingController.create({
-      message: 'Procesando orden directa...',
-      spinner: 'crescent'
-    });
-    await loading.present();
+    if (!this.cart) {
+      console.log('❌ [DIRECT] Carrito faltante');
+      return;
+    }
+
+    if (this.isCartEmpty()) {
+      console.log('❌ [DIRECT] Carrito vacío');
+      return;
+    }
+
+    console.log('✅ [DIRECT] Datos básicos OK, continuando...');
+
+    let loading: HTMLIonLoadingElement | null = null;
+    try {
+      console.log('🔄 [DIRECT] Creando loading...');
+      loading = await this.loadingController.create({
+        message: 'Procesando orden directa...',
+        spinner: 'crescent'
+      });
+      console.log('🔄 [DIRECT] Presentando loading...');
+      await loading.present();
+      console.log('✅ [DIRECT] Loading presentado');
+    } catch (loadingError) {
+      console.error('❌ [DIRECT] Error con loading:', loadingError);
+      // Continuar sin loading si hay error
+    }
 
     try {
+      console.log('🔨 [DIRECT] Construyendo datos de la orden...');
+
       // Construir datos de la orden
       const customer_id = this.user.id;
+      console.log('🔨 [DIRECT] customer_id:', customer_id);
+
       const items = this.cart.items.map(item => ({
         product_id: item.product_id,
         product_variant_id: item.product_variant_id,
         quantity: item.quantity
       }));
+      console.log('🔨 [DIRECT] items:', items);
 
       const shipping_address = {
         street: this.shippingAddress.address,
@@ -460,6 +489,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
         country: this.shippingAddress.country,
         phone: this.shippingAddress.phone
       };
+      console.log('🔨 [DIRECT] shipping_address:', shipping_address);
 
       const billing_address = { ...shipping_address };
       const notes = `Orden directa desde PWA - ${new Date().toLocaleString()}`;
@@ -479,6 +509,10 @@ export class CheckoutPage implements OnInit, OnDestroy {
       const token = this.authService.getToken();
       const url = `${environment.apiUrl.replace(/\/+$/, '')}/orders`;
 
+      console.log('🌐 [DIRECT] URL:', url);
+      console.log('🔑 [DIRECT] Token:', token ? 'Presente' : 'Faltante');
+
+      console.log('📡 [DIRECT] Iniciando fetch...');
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -487,6 +521,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
         },
         body: JSON.stringify(orderData)
       });
+      console.log('📡 [DIRECT] Fetch completado, status:', response.status);
 
       const result = await response.json();
       console.log('📥 [DIRECT] Respuesta recibida:', result);
