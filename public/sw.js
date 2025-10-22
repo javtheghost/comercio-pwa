@@ -240,10 +240,11 @@ self.addEventListener('notificationclick', (event) => {
         );
         break;
       case 'new_order':
-        urlToOpen = `/order-confirmation?orderId=${notificationData.order_id || ''}`;
+        // Abrir detalle de orden en la pestaña de orders
+        urlToOpen = `/tabs/orders/${notificationData.order_id || notificationData.orderId || ''}`;
         break;
       case 'order_status':
-        urlToOpen = `/order-confirmation?orderId=${notificationData.order_id || ''}`;
+        urlToOpen = `/tabs/orders/${notificationData.order_id || notificationData.orderId || ''}`;
         break;
       case 'promotion':
         urlToOpen = notificationData.promotion_url || '/promotions';

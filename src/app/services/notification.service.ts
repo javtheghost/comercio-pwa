@@ -736,8 +736,11 @@ export class NotificationService {
       const orderId = data?.orderId ?? data?.order_id;
       const url = data?.url;
       if (orderId) {
-        // Preferir la pantalla de confirmación con el detalle de la orden
-        this.navigateByUrl(`/order-confirmation?orderId=${orderId}`);
+        // Abrir el detalle de la orden: esto debe mostrar siempre el detalle completo
+        // en lugar de la pantalla de confirmación que solo se muestra justo después
+        // de crear la orden. Usamos la ruta de detalle dentro de tabs para garantizar
+        // que el componente OrderDetailPage reciba el parámetro :id correctamente.
+        this.navigateByUrl(`/tabs/orders/${orderId}`);
         return;
       }
       if (url) {
@@ -1478,7 +1481,8 @@ export class NotificationService {
           type: 'new_order',
           orderId: idNum,
           orderNumber: orderNumberVal || `#${idNum}`,
-          url: `/order-confirmation?orderId=${idNum}`
+          // Cambiado a ruta de detalle para que al hacer click abra el order detail
+          url: `/tabs/orders/${idNum}`
         }
       };
 
@@ -1599,7 +1603,7 @@ export class NotificationService {
           type: 'order_status',
           orderId: idNum,
           status: newStatus,
-          url: `/order-confirmation?orderId=${idNum}`
+          url: `/tabs/orders/${idNum}`
         }
       };
 
