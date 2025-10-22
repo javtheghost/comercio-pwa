@@ -4,6 +4,7 @@ import { Observable, throwError, from } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { SecurityService } from '../services/security.service';
+import { environment } from '../../environments/environment';
 
 // Flag global para evitar múltiples refreshes simultáneos
 let isRefreshing = false;
@@ -86,11 +87,12 @@ async function handleTokenRefresh(
       throw new Error('No hay token para renovar');
     }
 
-    console.log('🔑 [AUTH INTERCEPTOR] Llamando a /auth/refresh...');
+    const refreshUrl = `${environment.apiUrl.replace(/\/$/, '')}/auth/refresh`;
+    console.log('🔑 [AUTH INTERCEPTOR] Llamando a refresh URL:', refreshUrl);
 
-    // Llamar al endpoint de refresh con el token actual
+    // Llamar al endpoint de refresh con el token actual (usar URL absoluta para evitar problemas de host)
     const refreshResponse: any = await httpClient.post(
-      '/auth/refresh',
+      refreshUrl,
       {},
       {
         headers: {
