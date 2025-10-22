@@ -61,6 +61,9 @@ export class CheckoutPage implements OnInit, OnDestroy {
     total?: number;
   } | null = null;
 
+  // Modal de confirmación
+  showOrderSuccessModal = false;
+
   private cartSubscription: Subscription = new Subscription();
   private authSubscription: Subscription = new Subscription();
 
@@ -804,15 +807,13 @@ export class CheckoutPage implements OnInit, OnDestroy {
           console.warn('⚠️ [CHECKOUT] Error enviando notificación de orden:', notificationError);
         }
 
-        // Navegar a página de confirmación
-        this.router.navigate(['/order-confirmation'], {
-          queryParams: {
-            orderNumber: response.data.order_number,
-            orderId: response.data.id,
-            total: response.data.total_amount,
-            mode: 'thanks'
-          }
-        });
+        // Mostrar modal de confirmación sin navegar
+        this.orderConfirmation = {
+          orderNumber: response.data.order_number,
+          orderId: response.data.id,
+          total: parseFloat(response.data.total_amount)
+        };
+        this.showOrderSuccessModal = true;
 
       } else {
         console.log('❌ [CHECKOUT] Error en respuesta:', response);
@@ -1009,6 +1010,45 @@ export class CheckoutPage implements OnInit, OnDestroy {
       total: this.getTotal()
     };
     await this.showOrderSuccessAlert();
+  }
+
+  /**
+   * Cerrar el modal de confirmación de orden
+   */
+  closeOrderModal(): void {
+    this.showOrderSuccessModal = false;
+    this.orderConfirmation = null;
+  }
+
+  /**
+   * Navegar a la página de órdenes del usuario
+   */
+  goToOrders(): void {
+    console.log('🔍 [MODAL] Navegando a órdenes...');
+    this.closeOrderModal();
+    this.router.navigate(['/tabs/account']);
+  }
+
+  /**
+   * Navegar al inicio
+   */
+  goToHome(): void {
+    console.log('🔍 [MODAL] Navegando al inicio...');
+    this.closeOrderModal();
+    this.router.navigate(['/tabs/home']);
+  }
+
+  /**
+   * Método de debug para mostrar el modal de confirmación
+   */
+  showDebugModal(): void {
+    console.log('🔧 [DEBUG] Mostrando modal de confirmación...');
+    this.orderConfirmation = {
+      orderNumber: 'DEBUG-12345',
+      orderId: 'debug-123',
+      total: this.getTotal()
+    };
+    this.showOrderSuccessModal = true;
   }
 
   // Métodos para manejar direcciones

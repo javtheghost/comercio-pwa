@@ -228,15 +228,12 @@
             </div>
           </div>
           <div class="checkout-actions">
-            <ion-button expand="block" size="large" [disabled]="!isFormValid() || loading" (click)="processOrder()">
-              <ion-icon name="bag-check-outline" slot="start"></ion-icon>
-              Confirmar Pedido 1 test- ${{ getTotal() | number:'1.2-2' }}
-            </ion-button>
+
             <!-- Botón de debug: forzar creación de orden (no altera el flujo principal) -->
             <div style="margin-top:8px">
               <ion-button expand="block" size="small"  [disabled]="loading" (click)="debugCreateOrder()">
                 <ion-icon name="bag-check-outline" slot="start"></ion-icon>
-                Confirmar Pedido  2test ${{ getTotal() | number:'1.2-2' }}
+                Confirmar Pedido ${{ getTotal() | number:'1.2-2' }}
               </ion-button>
             </div>
 
@@ -253,6 +250,14 @@
               <ion-button expand="block" size="small" fill="outline" color="success" (click)="showDebugAlert()">
                 <ion-icon name="checkmark-circle-outline" slot="start"></ion-icon>
                 Mostrar Alert Mejorado (Debug)
+              </ion-button>
+            </div>
+
+            <!-- Botón de debug: mostrar modal de confirmación -->
+            <div style="margin-top:8px">
+              <ion-button expand="block" size="small" fill="outline" color="tertiary" (click)="showDebugModal()">
+                <ion-icon name="eye-outline" slot="start"></ion-icon>
+                Mostrar Modal (Debug)
               </ion-button>
             </div>
           </div>
@@ -278,6 +283,65 @@
   </div>
 </ion-content>
 
+
+<!-- Modal de Confirmación de Orden -->
+<ion-modal [isOpen]="showOrderSuccessModal" [backdropDismiss]="true" (didDismiss)="closeOrderModal()">
+  <ion-header>
+    <ion-toolbar color="success">
+      <ion-title>¡Orden Confirmada!</ion-title>
+      <ion-buttons slot="end">
+        <ion-button fill="clear" (click)="closeOrderModal()">
+          <ion-icon name="close" slot="icon-only"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+    </ion-toolbar>
+  </ion-header>
+  <ion-content class="ion-padding">
+    <div class="success-content">
+      <div class="success-icon">
+        <ion-icon name="checkmark-circle" size="large" color="success"></ion-icon>
+      </div>
+
+      <h2>¡Tu pedido ha sido confirmado!</h2>
+
+      <div class="order-details">
+        <ion-card>
+          <ion-card-content>
+            <div class="detail-row">
+              <span class="label">Número de Orden:</span>
+              <span class="value">{{ orderConfirmation?.orderNumber || 'N/A' }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Total:</span>
+              <span class="value">${{ orderConfirmation?.total | number:'1.2-2' }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Método de Pago:</span>
+              <span class="value">Efectivo (Contra Entrega)</span>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      </div>
+
+      <div class="email-notification">
+        <ion-icon name="mail-outline" color="primary"></ion-icon>
+        <p>Te enviaremos actualizaciones del estado de tu pedido a tu correo electrónico.</p>
+      </div>
+
+      <div class="modal-actions">
+        <ion-button expand="block" fill="outline" (click)="goToOrders()">
+          <ion-icon name="list-outline" slot="start"></ion-icon>
+          Ver Mis Órdenes
+        </ion-button>
+
+        <ion-button expand="block" (click)="goToHome()">
+          <ion-icon name="home-outline" slot="start"></ion-icon>
+          Ir al Inicio
+        </ion-button>
+      </div>
+    </div>
+  </ion-content>
+</ion-modal>
 
 <!-- Tabs Navigation -->
 <app-tabs></app-tabs>

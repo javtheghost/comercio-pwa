@@ -597,6 +597,107 @@ app-tabs {
   }
 }
 
+// Estilos para el modal de confirmación en checkout
+.success-content {
+  text-align: center;
+  padding: 20px 0;
+
+  .success-icon {
+    margin-bottom: 24px;
+
+    ion-icon {
+      font-size: 80px;
+      animation: success-bounce 0.6s ease-out;
+    }
+  }
+
+  h2 {
+    color: var(--ion-color-success);
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0 0 24px 0;
+  }
+
+  .order-details {
+    margin: 24px 0;
+
+    ion-card {
+      margin: 0;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--ion-color-light);
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      .label {
+        font-weight: 500;
+        color: var(--ion-color-dark);
+        font-size: 16px;
+      }
+
+      .value {
+        font-weight: 600;
+        color: var(--ion-color-primary);
+        font-size: 16px;
+      }
+    }
+  }
+
+  .email-notification {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: var(--ion-color-primary-tint);
+    padding: 16px;
+    border-radius: 12px;
+    margin: 24px 0;
+    border: 1px solid var(--ion-color-primary);
+
+    ion-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    p {
+      margin: 0;
+      color: var(--ion-color-primary-shade);
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.4;
+    }
+  }
+
+  .modal-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 32px;
+
+    ion-button {
+      --border-radius: 12px;
+      height: 48px;
+      font-weight: 600;
+      font-size: 16px;
+
+      &[fill="outline"] {
+        --border-width: 2px;
+        --border-color: var(--ion-color-primary);
+        --color: var(--ion-color-primary);
+      }
+    }
+  }
+}
+
 // Dark mode para el modal
 @media (prefers-color-scheme: dark) {
   .success-content {
