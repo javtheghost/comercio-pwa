@@ -113,11 +113,19 @@ export class CheckoutPage implements OnInit, OnDestroy {
    * Debug helper: enviar la orden directamente via fetch para aislar HttpClient/interceptor/SW
    */
   async debugCreateOrder(): Promise<void> {
+    // Mostrar loading
+    const loading = await this.loadingController.create({
+      message: 'Procesando orden (Debug)...',
+      spinner: 'crescent'
+    });
+    await loading.present();
+
     try {
       console.log('🐞 [DEBUG] debugCreateOrder triggered');
 
       if (!this.cart || this.isCartEmpty()) {
         console.warn('[DEBUG] No hay items en el carrito');
+        await loading.dismiss();
         const toast = await this.toastController.create({ message: 'Carrito vacío (debug)', duration: 3000, color: 'warning' });
         await toast.present();
         return;
@@ -125,6 +133,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
       if (!this.user) {
         console.warn('[DEBUG] No hay usuario autenticado');
+        await loading.dismiss();
         const toast = await this.toastController.create({ message: 'Usuario no autenticado (debug)', duration: 3000, color: 'warning' });
         await toast.present();
         return;
@@ -146,12 +155,8 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
       const orderData: CreateOrderRequest = { customer_id, items, shipping_address, billing_address, notes, payment_method };
 
-      console.log('🐞 [DEBUG] orderData (debug):', orderData);
-
       const token = this.authService.getToken();
       const url = `${environment.apiUrl.replace(/\/+$/, '')}/orders`;
-
-      console.log('🐞 [DEBUG] Enviando fetch directo a', url);
 
       const resp = await fetch(url, {
         method: 'POST',
@@ -162,15 +167,66 @@ export class CheckoutPage implements OnInit, OnDestroy {
         body: JSON.stringify(orderData)
       });
 
-      console.log('🐞 [DEBUG] fetch status:', resp.status);
       const text = await resp.text();
-      console.log('🐞 [DEBUG] fetch body:', text);
 
-      const toast = await this.toastController.create({ message: `Debug fetch finished: ${resp.status}`, duration: 4000 });
-      await toast.present();
+      let response;
+      try {
+        response = JSON.parse(text);
+      } catch (e) {
+        console.error('🐞 [DEBUG] Error parsing response:', e);
+        const toast = await this.toastController.create({
+          message: 'Error parsing response',
+          duration: 4000,
+          color: 'danger'
+        });
+        await toast.present();
+        return;
+      }
+
+      // Verificar si la orden se creó exitosamente
+      const success = (response && (response.success === true || response.success === 'true'))
+        || (!!response && (response.id || response.order_number || response.data));
+
+      if (success) {
+        console.log('✅ [DEBUG] Orden creada exitosamente');
+
+        // Cerrar loading
+        await loading.dismiss();
+
+        // Limpiar el carrito
+        await firstValueFrom(this.cartService.clearCart());
+
+        // Mostrar mensaje de éxito
+        const toast = await this.toastController.create({
+          message: '¡Orden creada exitosamente! (Debug)',
+          duration: 3000,
+          color: 'success',
+          position: 'top'
+        });
+        await toast.present();
+
+        // Redirigir a página de confirmación
+        this.router.navigate(['/order-confirmation'], {
+          queryParams: {
+            orderId: response.data?.id || response.id,
+            orderNumber: response.data?.order_number || response.order_number,
+            mode: 'thanks'
+          }
+        });
+      } else {
+        console.log('❌ [DEBUG] Error creando orden');
+        await loading.dismiss();
+        const toast = await this.toastController.create({
+          message: `Error: ${response?.message || 'Error desconocido'}`,
+          duration: 4000,
+          color: 'danger'
+        });
+        await toast.present();
+      }
 
     } catch (err) {
       console.error('🐞 [DEBUG] Error en debugCreateOrder:', err);
+      await loading.dismiss();
       const toast = await this.toastController.create({ message: 'Error debug fetch', duration: 4000, color: 'danger' });
       try { await toast.present(); } catch {}
     }
@@ -335,70 +391,42 @@ export class CheckoutPage implements OnInit, OnDestroy {
       this.loading = true;
     } catch {}
 
-    // DEBUG: dump estado inicial para diagnosticar porque no se hace la petición
-    try {
-      console.log('🧪 [DEBUG] isFormValid ->', this.isFormValid());
-      console.log('🧪 [DEBUG] isCartEmpty ->', this.isCartEmpty());
-      console.log('🧪 [DEBUG] cart ->', this.cart);
-      console.log('🧪 [DEBUG] user ->', this.user);
-      console.log('🧪 [DEBUG] addressMode ->', this.addressMode);
-      console.log('🧪 [DEBUG] selectedAddressId ->', this.selectedAddressId);
-    } catch (dbgErr) {
-      console.warn('⚠️ [DEBUG] Error dumping initial state:', dbgErr);
-    }
 
     if (!this.isFormValid()) {
-      console.log('⛔ [CHECKOUT] isFormValid -> FAILED');
       this.error = 'Por favor completa todos los campos requeridos';
-      // Si estamos en modo nueva dirección, forzar mostrar errores detallados
       if (this.addressMode === 'new') {
         this.validateNewAddress(false);
       }
       this.loading = false;
-      console.log('[CHECKOUT] return: isFormValid falló');
       return;
     }
-    console.log('✅ [CHECKOUT] isFormValid -> PASSED');
 
     if (this.isCartEmpty()) {
-      console.log('⛔ [CHECKOUT] isCartEmpty -> true');
       this.error = 'El carrito está vacío';
       this.loading = false;
-      console.log('[CHECKOUT] return: carrito vacío');
       return;
     }
-    console.log('✅ [CHECKOUT] isCartEmpty -> false');
 
     if (!this.user) {
-      console.log('⛔ [CHECKOUT] user -> null/undefined');
       this.error = 'Usuario no autenticado';
       this.loading = false;
-      console.log('[CHECKOUT] return: usuario no autenticado');
       return;
     }
-    console.log('✅ [CHECKOUT] user -> present (id=' + (this.user?.id || 'n/a') + ')');
 
-    // Validar método de pago
     if (!this.paymentMethod) {
-      console.log('⛔ [CHECKOUT] paymentMethod -> falsy');
       this.error = 'Por favor selecciona un método de pago';
       this.loading = false;
-      console.log('[CHECKOUT] return: método de pago no seleccionado');
       return;
     }
-    console.log('✅ [CHECKOUT] paymentMethod ->', this.paymentMethod);
 
     // Validar nueva dirección (en caso de modo 'new') antes de crear la orden
     if (this.addressMode === 'new') {
       const isAddressValid = this.validateNewAddress(false);
       if (!isAddressValid) {
-        console.log('⛔ [CHECKOUT] New address validation failed');
         this.error = 'Corrige los errores de la dirección antes de continuar';
         this.loading = false;
-        console.log('[CHECKOUT] return: validación de nueva dirección falló');
         return;
       }
-      console.log('✅ [CHECKOUT] New address valid');
     }
 
     let loading: HTMLIonLoadingElement | null = null;
@@ -425,37 +453,25 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
     try {
       console.log('💳 [CHECKOUT] Procesando orden...');
-      console.log('🔍 [DEBUG] Llegamos al try principal del processOrder');
-      // Diagnóstico línea por línea
-      let customer_id, items, shipping_address, billing_address, notes, payment_method;
-      try {
-        customer_id = this.user.id;
-        console.log('[CHECKOUT][dbg] customer_id:', customer_id);
-        items = this.cart!.items.map(item => ({
-          product_id: item.product_id,
-          product_variant_id: item.product_variant_id,
-          quantity: item.quantity
-        }));
-        console.log('[CHECKOUT][dbg] items:', items);
-        shipping_address = {
-          street: this.shippingAddress.address,
-          city: this.shippingAddress.city,
-          state: this.shippingAddress.state,
-          postal_code: this.shippingAddress.zipCode,
-          country: this.shippingAddress.country,
-          phone: this.shippingAddress.phone
-        };
-        console.log('[CHECKOUT][dbg] shipping_address:', shipping_address);
-        billing_address = { ...shipping_address };
-        console.log('[CHECKOUT][dbg] billing_address:', billing_address);
-        notes = `Orden creada desde PWA - ${new Date().toLocaleString()}`;
-        payment_method = this.paymentMethod;
-        console.log('[CHECKOUT][dbg] notes:', notes);
-        console.log('[CHECKOUT][dbg] payment_method:', payment_method);
-      } catch (buildErr) {
-        console.error('[CHECKOUT][EXCEPTION] Error construyendo orderData:', buildErr);
-        throw buildErr;
-      }
+
+      // Construir datos de la orden
+      const customer_id = this.user.id;
+      const items = this.cart!.items.map(item => ({
+        product_id: item.product_id,
+        product_variant_id: item.product_variant_id,
+        quantity: item.quantity
+      }));
+      const shipping_address = {
+        street: this.shippingAddress.address,
+        city: this.shippingAddress.city,
+        state: this.shippingAddress.state,
+        postal_code: this.shippingAddress.zipCode,
+        country: this.shippingAddress.country,
+        phone: this.shippingAddress.phone
+      };
+      const billing_address = { ...shipping_address };
+      const notes = `Orden creada desde PWA - ${new Date().toLocaleString()}`;
+      const payment_method = this.paymentMethod;
       const orderData: CreateOrderRequest = {
         customer_id,
         items,
@@ -464,17 +480,14 @@ export class CheckoutPage implements OnInit, OnDestroy {
         notes,
         payment_method
       };
-      console.log('🧾 [DEBUG] orderData prepared (post-construction):', orderData);
-
       // Validar datos antes de enviar
       const validation = this.orderService.validateOrderData(orderData);
       if (!validation.isValid) {
         throw new Error(validation.errors.join(', '));
       }
 
-      // Crear la orden (UNA SOLA VEZ) con timeout para evitar bloqueo indefinido
-      console.log('⬆️ [DEBUG] Enviando POST a createOrder...');
-      console.log('🔍 [DEBUG] orderData final:', JSON.stringify(orderData, null, 2));
+      // Crear la orden con timeout para evitar bloqueo indefinido
+      console.log('⬆️ [CHECKOUT] Enviando orden...');
 
       const TIMEOUT_MS = 15000; // 15s
       let response: any;
@@ -483,9 +496,9 @@ export class CheckoutPage implements OnInit, OnDestroy {
           firstValueFrom(this.orderService.createOrder(orderData)),
           new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS))
         ]);
-        console.log('↪️ [DEBUG] createOrder response ->', response);
+        console.log('↪️ [CHECKOUT] Respuesta recibida');
       } catch (err: any) {
-        console.error('❌ [CHECKOUT] Error al llamar createOrder (incluye timeout):', err);
+        console.error('❌ [CHECKOUT] Error al crear orden:', err);
         // Mostrar mensaje más claro al usuario
         const msg = (err && err.message === 'timeout') ? 'La petición tardó demasiado. Intenta nuevamente.' : (err?.message || 'Error enviando la orden');
         this.error = msg;
@@ -502,18 +515,10 @@ export class CheckoutPage implements OnInit, OnDestroy {
         throw err;
       }
 
-      // Aceptar respuestas alternativas (backend puede devolver la orden directamente)
-      console.log('🔍 [DEBUG] Validando respuesta...');
-      console.log('🔍 [DEBUG] response.success:', response?.success);
-      console.log('🔍 [DEBUG] response.id:', response?.id);
-      console.log('🔍 [DEBUG] response.order_number:', response?.order_number);
-      console.log('🔍 [DEBUG] response.data:', response?.data);
-
+      // Validar respuesta
       const success = (response && (response.success === true || response.success === 'true'))
         || (!!response && (response.id || response.order_number || response.data));
       const responseData = response?.data || response;
-
-      console.log('🔍 [DEBUG] success calculado:', success);
 
       if (success) {
         console.log('✅ [CHECKOUT] Orden creada (aceptado):', responseData);
@@ -556,8 +561,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
         });
 
       } else {
-        console.log('❌ [DEBUG] success es false, lanzando error');
-        console.log('❌ [DEBUG] response completa:', response);
+        console.log('❌ [CHECKOUT] Error en respuesta:', response);
         throw new Error(response?.message || 'Error desconocido al crear la orden');
       }
 
