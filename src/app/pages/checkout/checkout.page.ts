@@ -319,9 +319,15 @@ export class CheckoutPage implements OnInit, OnDestroy {
   }
 
   isFormValid(): boolean {
+    console.log('🔍 [DEBUG] isFormValid - addressMode:', this.addressMode);
+    console.log('🔍 [DEBUG] isFormValid - selectedAddressId:', this.selectedAddressId);
+    console.log('🔍 [DEBUG] isFormValid - paymentMethod:', this.paymentMethod);
+
     // Si se usa dirección existente, sólo necesitamos selección y método de pago
     if (this.addressMode === 'existing') {
-      return !!(this.selectedAddressId && this.paymentMethod);
+      const result = !!(this.selectedAddressId && this.paymentMethod);
+      console.log('🔍 [DEBUG] isFormValid (existing) - result:', result);
+      return result;
     }
     // Nueva dirección: validar campos usando servicio (modo silencioso para no mostrar aún errores)
     const validBasic = !!(
@@ -334,8 +340,12 @@ export class CheckoutPage implements OnInit, OnDestroy {
       this.shippingAddress.phone &&
       this.paymentMethod
     );
+    console.log('🔍 [DEBUG] isFormValid (new) - validBasic:', validBasic);
+    console.log('🔍 [DEBUG] isFormValid (new) - shippingAddress:', this.shippingAddress);
     if (!validBasic) return false;
-    return this.validateNewAddress(true); // validación silenciosa (no fuerza mostrar errores)
+    const addressValid = this.validateNewAddress(true); // validación silenciosa (no fuerza mostrar errores)
+    console.log('🔍 [DEBUG] isFormValid (new) - addressValid:', addressValid);
+    return addressValid;
   }
 
   // Chequeo ligero sólo para habilitar botón "Guardar dirección" (sin validar formato de CP/teléfono)
@@ -383,7 +393,37 @@ export class CheckoutPage implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  // Método de debug para verificar si el click funciona
+  onCheckoutButtonClick(): void {
+    console.log('🖱️ [DEBUG] Botón de checkout clickeado');
+    console.log('🖱️ [DEBUG] loading:', this.loading);
+    console.log('🖱️ [DEBUG] isFormValid():', this.isFormValid());
+    console.log('🖱️ [DEBUG] addressMode:', this.addressMode);
+    console.log('🖱️ [DEBUG] selectedAddressId:', this.selectedAddressId);
+    console.log('🖱️ [DEBUG] paymentMethod:', this.paymentMethod);
+
+    if (this.loading) {
+      console.log('⚠️ [DEBUG] Botón deshabilitado por loading');
+      return;
+    }
+
+    if (!this.isFormValid()) {
+      console.log('⚠️ [DEBUG] Botón deshabilitado por validación');
+      return;
+    }
+
+    console.log('✅ [DEBUG] Ejecutando processOrder...');
+    this.processOrder();
+  }
+
   async processOrder(): Promise<void> {
+    console.log('🔍 [DEBUG] processOrder iniciado');
+    console.log('🔍 [DEBUG] isFormValid():', this.isFormValid());
+    console.log('🔍 [DEBUG] addressMode:', this.addressMode);
+    console.log('🔍 [DEBUG] selectedAddressId:', this.selectedAddressId);
+    console.log('🔍 [DEBUG] paymentMethod:', this.paymentMethod);
+    console.log('🔍 [DEBUG] shippingAddress:', this.shippingAddress);
+
     console.log('💳 [CHECKOUT] Método de pago seleccionado:', this.paymentMethod);
 
     // Marcar loading de UI para evitar que el botón quede habilitado

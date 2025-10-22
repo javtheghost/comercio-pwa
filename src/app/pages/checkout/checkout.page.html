@@ -228,15 +228,15 @@
             </div>
           </div>
           <div class="checkout-actions">
-            <ion-button expand="block" size="large" [disabled]="!isFormValid() || loading" (click)="processOrder()">
+            <ion-button expand="block" size="large" [disabled]="!isFormValid() || loading" (click)="onCheckoutButtonClick()">
               <ion-icon name="bag-check-outline" slot="start"></ion-icon>
               Confirmar Pedido - ${{ getTotal() | number:'1.2-2' }}
             </ion-button>
             <!-- Botón de debug: forzar creación de orden (no altera el flujo principal) -->
             <div style="margin-top:8px">
-              <ion-button expand="block" size="small"  [disabled]="loading" (click)="debugCreateOrder()">
-                <ion-icon name="bag-check-outline" slot="start"></ion-icon>
-                Confirmar Pedido  ${{ getTotal() | number:'1.2-2' }}
+              <ion-button expand="block" size="small" color="warning" fill="outline" [disabled]="loading" (click)="debugCreateOrder()">
+                <ion-icon name="bug-outline" slot="start"></ion-icon>
+                🔧 FORZAR ORDEN (DEBUG) - ${{ getTotal() | number:'1.2-2' }}
               </ion-button>
             </div>
           </div>
