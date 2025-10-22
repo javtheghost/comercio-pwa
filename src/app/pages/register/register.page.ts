@@ -111,19 +111,19 @@ export class RegisterPage implements OnInit {
         next: (response) => {
           this.loading = false;
           this.showSuccessModal = true;
-          
+
           // Obtener datos del usuario desde la respuesta del registro
           const user = this.authService.getCurrentUserValue();
           const email = user?.email || this.registerForm.value.email || '';
-          
+
           console.log('✅ [REGISTER] Registro exitoso, redirigiendo a verify-email');
-          
+
           // Redirigir después de 2 segundos para que vea el mensaje
           setTimeout(() => {
             this.closeSuccessModal();
             // Siempre redirigir a verify-email después del registro
             // (el usuario necesita verificar su email)
-            this.navCtrl.navigateRoot(['/tabs/verify-email'], { 
+            this.navCtrl.navigateRoot(['/tabs/verify-email'], {
               queryParams: { email, sent: '1' },
               animationDirection: 'forward'
             });
@@ -161,11 +161,123 @@ export class RegisterPage implements OnInit {
   }
 
   onGoogleRegister() {
-    this.showToastMessage('Registro con Google no implementado aún');
+    console.log('🔐 [REGISTER] Iniciando registro con Google...');
+
+    try {
+      // URL del backend para Google OAuth
+      const backendUrl = 'https://ecommerceapi.toolaccess.tech';
+      const googleUrl = `${backendUrl}/api/auth/google`;
+
+      console.log('🔐 [REGISTER] Redirigiendo a Google OAuth:', googleUrl);
+
+      // Abrir ventana popup para Google OAuth
+      const popup = window.open(
+        googleUrl,
+        'google-register',
+        'width=600,height=600,scrollbars=yes,resizable=yes'
+      );
+
+      if (!popup) {
+        throw new Error('No se pudo abrir la ventana popup. Verifica que los popups estén habilitados.');
+      }
+
+      // Escuchar el mensaje de la ventana popup
+      const messageListener = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) {
+          return;
+        }
+
+        if (event.data.type === 'GOOGLE_REGISTER_SUCCESS') {
+          console.log('🔐 [REGISTER] Registro con Google exitoso:', event.data);
+          popup.close();
+          window.removeEventListener('message', messageListener);
+
+          // Procesar la respuesta del registro
+          this.handleGoogleRegisterSuccess(event.data);
+        } else if (event.data.type === 'GOOGLE_REGISTER_ERROR') {
+          console.error('🔐 [REGISTER] Error en registro con Google:', event.data.error);
+          popup.close();
+          window.removeEventListener('message', messageListener);
+
+          this.showToastMessage(`Error en registro con Google: ${event.data.error}`);
+        }
+      };
+
+      window.addEventListener('message', messageListener);
+
+      // Verificar si la ventana se cerró manualmente
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', messageListener);
+          console.log('🔐 [REGISTER] Ventana popup cerrada manualmente');
+        }
+      }, 1000);
+
+    } catch (error: any) {
+      console.error('❌ [REGISTER] Error en registro con Google:', error);
+      this.showToastMessage(`Error al iniciar registro con Google: ${error.message}`);
+    }
   }
 
   onFacebookRegister() {
-    this.showToastMessage('Registro con Facebook no implementado aún');
+    console.log('🔐 [REGISTER] Iniciando registro con Facebook...');
+
+    try {
+      // URL del backend para Facebook OAuth
+      const backendUrl = 'https://ecommerceapi.toolaccess.tech';
+      const facebookUrl = `${backendUrl}/api/auth/facebook`;
+
+      console.log('🔐 [REGISTER] Redirigiendo a Facebook OAuth:', facebookUrl);
+
+      // Abrir ventana popup para Facebook OAuth
+      const popup = window.open(
+        facebookUrl,
+        'facebook-register',
+        'width=600,height=600,scrollbars=yes,resizable=yes'
+      );
+
+      if (!popup) {
+        throw new Error('No se pudo abrir la ventana popup. Verifica que los popups estén habilitados.');
+      }
+
+      // Escuchar el mensaje de la ventana popup
+      const messageListener = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) {
+          return;
+        }
+
+        if (event.data.type === 'FACEBOOK_REGISTER_SUCCESS') {
+          console.log('🔐 [REGISTER] Registro con Facebook exitoso:', event.data);
+          popup.close();
+          window.removeEventListener('message', messageListener);
+
+          // Procesar la respuesta del registro
+          this.handleFacebookRegisterSuccess(event.data);
+        } else if (event.data.type === 'FACEBOOK_REGISTER_ERROR') {
+          console.error('🔐 [REGISTER] Error en registro con Facebook:', event.data.error);
+          popup.close();
+          window.removeEventListener('message', messageListener);
+
+          this.showToastMessage(`Error en registro con Facebook: ${event.data.error}`);
+        }
+      };
+
+      window.addEventListener('message', messageListener);
+
+      // Verificar si la ventana se cerró manualmente
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', messageListener);
+          console.log('🔐 [REGISTER] Ventana popup cerrada manualmente');
+        }
+      }, 1000);
+
+    } catch (error: any) {
+      console.error('❌ [REGISTER] Error en registro con Facebook:', error);
+      this.showToastMessage(`Error al iniciar registro con Facebook: ${error.message}`);
+    }
   }
 
 
@@ -293,5 +405,77 @@ export class RegisterPage implements OnInit {
 
   closeSuccessModal() {
     this.showSuccessModal = false;
+  }
+
+  private async handleGoogleRegisterSuccess(data: any) {
+    console.log('✅ [REGISTER] Procesando registro exitoso con Google:', data);
+
+    try {
+      // Mostrar loading
+      this.loading = true;
+
+      // Guardar token y datos del usuario
+      if (data.token) {
+        localStorage.setItem('auth_token', data.token);
+        console.log('✅ [REGISTER] Token guardado en localStorage');
+      }
+
+      if (data.user && data.token) {
+        console.log('✅ [REGISTER] Usuario registrado con Google:', data.user);
+        console.log('✅ [REGISTER] Estado de autenticación se actualizará automáticamente');
+      }
+
+      // Mostrar mensaje de éxito
+      this.showToastMessage('¡Registro con Google exitoso!');
+
+      // Redirigir al home
+      setTimeout(() => {
+        this.navCtrl.navigateRoot(['/tabs/home'], {
+          animationDirection: 'forward'
+        });
+      }, 1500);
+
+    } catch (error: any) {
+      console.error('❌ [REGISTER] Error procesando registro con Google:', error);
+      this.showToastMessage(`Error procesando registro: ${error.message}`);
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  private async handleFacebookRegisterSuccess(data: any) {
+    console.log('✅ [REGISTER] Procesando registro exitoso con Facebook:', data);
+
+    try {
+      // Mostrar loading
+      this.loading = true;
+
+      // Guardar token y datos del usuario
+      if (data.token) {
+        localStorage.setItem('auth_token', data.token);
+        console.log('✅ [REGISTER] Token guardado en localStorage');
+      }
+
+      if (data.user && data.token) {
+        console.log('✅ [REGISTER] Usuario registrado con Facebook:', data.user);
+        console.log('✅ [REGISTER] Estado de autenticación se actualizará automáticamente');
+      }
+
+      // Mostrar mensaje de éxito
+      this.showToastMessage('¡Registro con Facebook exitoso!');
+
+      // Redirigir al home
+      setTimeout(() => {
+        this.navCtrl.navigateRoot(['/tabs/home'], {
+          animationDirection: 'forward'
+        });
+      }, 1500);
+
+    } catch (error: any) {
+      console.error('❌ [REGISTER] Error procesando registro con Facebook:', error);
+      this.showToastMessage(`Error procesando registro: ${error.message}`);
+    } finally {
+      this.loading = false;
+    }
   }
 }
