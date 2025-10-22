@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { NavController } from '@ionic/angular';
 import { IonContent, IonButton, IonIcon, IonSpinner, IonToast } from '@ionic/angular/standalone';
 import { AuthService } from '../../services/auth.service';
+import { environment } from '../../../environments/environment';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -61,7 +62,8 @@ export class VerifyEmailPage implements OnInit, OnDestroy {
       try {
         const href = window.location.href || '';
         // Buscar patrones como /email/verify/{id}/{hash} o /auth/email/verify/{id}/{hash}
-        const regex = /(?:email\/verify|auth\/email\/verify|verify)\/(\d+)(?:\/|%2F)([^\/?#&]+)/i;
+        // Aceptar id y hash como cualquier segmento (no solo dígitos)
+        const regex = /(?:email\/verify|auth\/email\/verify|verify)\/([^\/?#&]+)\/([^\/?#&]+)/i;
         const m = href.match(regex);
         if (m && m[1] && m[2]) {
           const idFromPath = decodeURIComponent(m[1]);
@@ -134,27 +136,71 @@ export class VerifyEmailPage implements OnInit, OnDestroy {
     this.verifying = true;
     this.loading = true;
     const start = Date.now();
+
+    const finishWithUserCheck = (minDelay = 500) => {
+      const elapsed = Date.now() - start;
+      const wait = Math.max(0, minDelay - elapsed);
+      setTimeout(() => {
+        console.log('🔎 [VERIFY EMAIL] Comprobando estado de sesión con getCurrentUser()...');
+        this.authService.getCurrentUser().subscribe({
+          next: (user) => {
+            console.log('🔎 [VERIFY EMAIL] getCurrentUser() devolvió:', user);
+            if (user?.email_verified_at) {
+              console.log('🚀 [VERIFY EMAIL] Usuario verificado, redirigiendo a home...');
+              this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
+            } else {
+              console.warn('⚠️ [VERIFY EMAIL] Usuario NO verificado tras verify call. Mostrando mensaje.');
+              this.verifying = false;
+              this.loading = false;
+              this.isVerifyingFromLink = false;
+              this.show('Tu correo fue verificado pero la sesión no se inició automáticamente. Inicia sesión manualmente.');
+            }
+          },
+          error: (e) => {
+            console.error('❌ [VERIFY EMAIL] getCurrentUser() falló después de verify:', e);
+            this.verifying = false;
+            this.loading = false;
+            this.isVerifyingFromLink = false;
+            this.show('Verificación completada, pero no se pudo restaurar la sesión automáticamente. Inicia sesión.');
+          }
+        });
+      }, wait);
+    };
+
     this.authService.verifyEmail(id, hash, expires, signature).subscribe({
       next: (response) => {
-        console.log('✅ [VERIFY EMAIL] Email verificado exitosamente:', response);
-        const elapsed = Date.now() - start;
-        const minShow = 500; // ms
-        const wait = Math.max(0, minShow - elapsed);
-        setTimeout(() => {
-          // Navigate after a short delay so the loader isn't a flicker
-          console.log('🚀 [VERIFY EMAIL] Redirigiendo a home después del loader...');
-          this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
-        }, wait);
+        console.log('✅ [VERIFY EMAIL] Email verificado exitosamente (API):', response);
+        // Si la respuesta incluye token y user, AuthService ya iniciará sesión.
+        // Aun así confirmamos con getCurrentUser antes de redirigir.
+        finishWithUserCheck(500);
       },
       error: (error) => {
-        console.error('❌ [VERIFY EMAIL] Error verificando email:', error);
-        this.verifying = false;
-        this.loading = false;
-        this.verificationError = true;
-        this.isVerifyingFromLink = false; // Mostrar contenido con error
+        console.error('❌ [VERIFY EMAIL] Error verificando email (API):', error);
+        // Intentar fallback con fetch que incluya cookies/redirects
+        const base = environment.apiUrl.replace(/\/$/, '');
+        const verifyPath = `${base}/auth/email/verify/${encodeURIComponent(id)}/${encodeURIComponent(hash)}`;
+        const params: string[] = [];
+        if (expires) params.push(`expires=${encodeURIComponent(expires)}`);
+        if (signature) params.push(`signature=${encodeURIComponent(signature)}`);
+        const fullUrl = params.length ? `${verifyPath}?${params.join('&')}` : verifyPath;
 
-        const errorMsg = error?.error?.message || 'No se pudo verificar el email. El link puede haber expirado.';
-        this.show(errorMsg);
+        console.log('🔁 [VERIFY EMAIL] Intentando fetch fallback a:', fullUrl);
+
+        fetch(fullUrl, { method: 'GET', credentials: 'include', redirect: 'follow' })
+          .then(resp => {
+            console.log('🔁 [VERIFY EMAIL] fetch fallback status:', resp.status);
+            // Después del fetch, consultamos getCurrentUser para confirmar sesión
+            finishWithUserCheck(800);
+          })
+          .catch((fe) => {
+            console.error('❌ [VERIFY EMAIL] fetch fallback falló:', fe);
+            this.verifying = false;
+            this.loading = false;
+            this.verificationError = true;
+            this.isVerifyingFromLink = false;
+            const errorMsg = error?.error?.message || 'No se pudo verificar el email. El link puede haber expirado.';
+            this.show(errorMsg);
+          });
       }
     });
   }
