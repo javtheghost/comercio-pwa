@@ -16,11 +16,11 @@ export const environment = {
   oauth: {
     google: {
       clientId: '1000869383990-76t579i12qqeq7gi48bbqrks8kg4vcuf.apps.googleusercontent.com', // Google Client ID
-      redirectUri: 'http://127.0.0.1:8000/api/auth/google/callback'
+      redirectUri: 'https://ecommerceapi.toolaccess.tech/api/auth/google/callback'
     },
     facebook: {
       appId: '753241400797565', // Facebook App ID
-      redirectUri: 'http://127.0.0.1:8000/api/auth/facebook/callback'
+      redirectUri: 'https://ecommerceapi.toolaccess.tech/api/auth/facebook/callback'
     }
   },
 
