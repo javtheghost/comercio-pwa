@@ -56,6 +56,25 @@ export class VerifyEmailPage implements OnInit, OnDestroy {
         return;
       }
 
+      // Fallback: algunos proveedores o redirecciones pueden reescribir el link y quitar query params.
+      // Intentar extraer id/hash desde la URL completa (path segments) si no vienen como query params.
+      try {
+        const href = window.location.href || '';
+        // Buscar patrones como /email/verify/{id}/{hash} o /auth/email/verify/{id}/{hash}
+        const regex = /(?:email\/verify|auth\/email\/verify|verify)\/(\d+)(?:\/|%2F)([^\/?#&]+)/i;
+        const m = href.match(regex);
+        if (m && m[1] && m[2]) {
+          const idFromPath = decodeURIComponent(m[1]);
+          const hashFromPath = decodeURIComponent(m[2]);
+          console.log('✅ [VERIFY EMAIL] Detectado link de verificación en path, procesando...', { idFromPath, hashFromPath });
+          this.isVerifyingFromLink = true;
+          this.verifyEmailWithToken(idFromPath, hashFromPath, expires, signature);
+          return;
+        }
+      } catch (e) {
+        console.warn('⚠️ [VERIFY EMAIL] Error intentando extraer token desde URL:', e);
+      }
+
       // Caso normal: mostrar instrucciones de que se envió el email
       const user = this.authService.getCurrentUserValue();
       
@@ -114,15 +133,18 @@ export class VerifyEmailPage implements OnInit, OnDestroy {
     console.log('🔄 [VERIFY EMAIL] Verificando email con token...');
     this.verifying = true;
     this.loading = true;
-
+    const start = Date.now();
     this.authService.verifyEmail(id, hash, expires, signature).subscribe({
       next: (response) => {
         console.log('✅ [VERIFY EMAIL] Email verificado exitosamente:', response);
-        
-        // Redirigir INMEDIATAMENTE a home sin mostrar mensaje ni pantalla
-        // No cambiar flags para que el loader siga visible durante la redirección
-        console.log('🚀 [VERIFY EMAIL] Redirigiendo a home inmediatamente...');
-        this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
+        const elapsed = Date.now() - start;
+        const minShow = 500; // ms
+        const wait = Math.max(0, minShow - elapsed);
+        setTimeout(() => {
+          // Navigate after a short delay so the loader isn't a flicker
+          console.log('🚀 [VERIFY EMAIL] Redirigiendo a home después del loader...');
+          this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
+        }, wait);
       },
       error: (error) => {
         console.error('❌ [VERIFY EMAIL] Error verificando email:', error);
@@ -130,7 +152,7 @@ export class VerifyEmailPage implements OnInit, OnDestroy {
         this.loading = false;
         this.verificationError = true;
         this.isVerifyingFromLink = false; // Mostrar contenido con error
-        
+
         const errorMsg = error?.error?.message || 'No se pudo verificar el email. El link puede haber expirado.';
         this.show(errorMsg);
       }
