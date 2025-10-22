@@ -319,6 +319,9 @@ export class OauthSuccessPage implements OnInit {
     console.log('🔐 [OAUTH] Usuario verificado:', isEmailVerified);
     console.log('🔐 [OAUTH] Proveedor OAuth:', userData?.oauth_provider);
 
+    // Forzar actualización del AuthService con los datos OAuth
+    console.log('🔐 [OAUTH] Forzando actualización del AuthService...');
+
     // Emitir evento personalizado para notificar al AuthService
     const event = new CustomEvent('userLoggedIn', {
       detail: {
@@ -336,7 +339,10 @@ export class OauthSuccessPage implements OnInit {
 
     // Redirigir directamente al home (OAuth no necesita verificación de email)
     console.log('🔐 [OAUTH] Redirigiendo al home (OAuth no requiere verificación)');
-    window.location.href = '/tabs/home';
+    // Usar el sistema de navegación de Angular en lugar de window.location
+    setTimeout(() => {
+      window.location.href = '/tabs/home';
+    }, 100);
   }
 
   private redirectWithToken(params: any) {
