@@ -226,7 +226,8 @@ onSkip() {
           // Esperar a obtener el usuario fresco desde /auth/me para evitar estado obsoleto
           this.authService.getCurrentUser().subscribe({
             next: (freshUser) => {
-              if (freshUser?.email_verified_at) {
+              // Verificar si el usuario tiene email verificado O es OAuth
+              if (freshUser?.email_verified_at || freshUser?.oauth_provider) {
                 this.verifyingSession = false;
                 this.setVerifyingOverlay(false);
                 this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
@@ -235,7 +236,7 @@ onSkip() {
                 setTimeout(() => {
                   this.authService.getCurrentUser().subscribe({
                     next: (second) => {
-                      if (second?.email_verified_at) {
+                      if (second?.email_verified_at || second?.oauth_provider) {
                         this.verifyingSession = false;
                         this.setVerifyingOverlay(false);
                         this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });

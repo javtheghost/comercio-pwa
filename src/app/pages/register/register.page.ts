@@ -174,17 +174,25 @@ export class RegisterPage implements OnInit {
           const user = this.authService.getCurrentUserValue();
           const email = user?.email || this.registerForm.value.email || '';
 
-          console.log('✅ [REGISTER] Registro exitoso, redirigiendo a verify-email');
+          console.log('✅ [REGISTER] Registro exitoso');
 
           // Redirigir después de 2 segundos para que vea el mensaje
           setTimeout(() => {
             this.closeSuccessModal();
-            // Siempre redirigir a verify-email después del registro
-            // (el usuario necesita verificar su email)
-            this.navCtrl.navigateRoot(['/tabs/verify-email'], {
-              queryParams: { email, sent: '1' },
-              animationDirection: 'forward'
-            });
+            
+            // Verificar si el usuario tiene email verificado (OAuth o verificación previa)
+            if (user?.email_verified_at || user?.oauth_provider) {
+              console.log('✅ [REGISTER] Usuario OAuth o email ya verificado, redirigiendo a home');
+              this.navCtrl.navigateRoot(['/tabs/home'], {
+                animationDirection: 'forward'
+              });
+            } else {
+              console.log('📧 [REGISTER] Usuario necesita verificar email, redirigiendo a verify-email');
+              this.navCtrl.navigateRoot(['/tabs/verify-email'], {
+                queryParams: { email, sent: '1' },
+                animationDirection: 'forward'
+              });
+            }
           }, 2000);
         },
         error: (error) => {
