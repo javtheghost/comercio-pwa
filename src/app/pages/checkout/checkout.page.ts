@@ -137,7 +137,27 @@ export class CheckoutPage implements OnInit, OnDestroy {
       return;
     }
 
+    let loading: HTMLIonLoadingElement | null = null;
+
     try {
+      console.log('🐞 [DEBUG] debugCreateOrder triggered');
+
+      if (!this.cart || this.isCartEmpty()) {
+        console.warn('[DEBUG] No hay items en el carrito');
+        if (loading) await (loading as HTMLIonLoadingElement).dismiss();
+        const toast = await this.toastController.create({ message: 'Carrito vacío (debug)', duration: 3000, color: 'warning' });
+        await toast.present();
+        return;
+      }
+
+      if (!this.user) {
+        console.warn('[DEBUG] No hay usuario autenticado');
+        if (loading) await (loading as HTMLIonLoadingElement).dismiss();
+        const toast = await this.toastController.create({ message: 'Usuario no autenticado (debug)', duration: 3000, color: 'warning' });
+        await toast.present();
+        return;
+      }
+
       const customer_id = this.user.id;
       const items = this.cart.items.map(item => ({
         product_id: item.product_id,
@@ -203,7 +223,10 @@ export class CheckoutPage implements OnInit, OnDestroy {
         || (!!response && (response.id || response.order_number || response.data));
 
       if (success) {
-        console.log('✅ [DEBUG] Orden creada exitosamente:', response);
+        console.log('✅ [DEBUG] Orden creada exitosamente');
+
+        // Cerrar loading
+        if (loading) await (loading as HTMLIonLoadingElement).dismiss();
 
         // Limpiar el carrito
         await firstValueFrom(this.cartService.clearCart());
@@ -221,7 +244,8 @@ export class CheckoutPage implements OnInit, OnDestroy {
         await toast.present();
 
       } else {
-        console.log('❌ [DEBUG] Error creando orden:', response);
+        console.log('❌ [DEBUG] Error creando orden');
+        if (loading) await (loading as HTMLIonLoadingElement).dismiss();
         const toast = await this.toastController.create({
           message: `Error: ${response?.message || 'Error desconocido del servidor'}`,
           duration: 4000,
@@ -232,12 +256,9 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
     } catch (err: any) {
       console.error('🐞 [DEBUG] Error en debugCreateOrder:', err);
-      const toast = await this.toastController.create({
-        message: `Error debug: ${err?.message || 'Error desconocido'}`,
-        duration: 4000,
-        color: 'danger'
-      });
-      await toast.present();
+      if (loading) await (loading as HTMLIonLoadingElement).dismiss();
+      const toast = await this.toastController.create({ message: 'Error debug fetch', duration: 4000, color: 'danger' });
+      try { await toast.present(); } catch {}
     }
   }
 
@@ -538,9 +559,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
       if (response.ok && (result.success || result.id || result.data)) {
         console.log('✅ [DIRECT] Orden creada exitosamente');
 
-        if (loading) {
-          await loading.dismiss();
-        }
+  if (loading) await loading.dismiss();
 
         // Limpiar carrito
         await firstValueFrom(this.cartService.clearCart());
@@ -568,9 +587,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
     } catch (error: any) {
       console.error('❌ [DIRECT] Error:', error);
-      if (loading) {
-        await loading.dismiss();
-      }
+  if (loading) await loading.dismiss();
 
       const toast = await this.toastController.create({
         message: `Error: ${error.message || 'Error desconocido'}`,
@@ -818,7 +835,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
     } finally {
       try {
-        if (loading) await loading.dismiss();
+        if (loading) await (loading as HTMLIonLoadingElement).dismiss();
       } catch (dismissErr) {
         console.warn('⚠️ [CHECKOUT] Error dismissing loading:', dismissErr);
       }
