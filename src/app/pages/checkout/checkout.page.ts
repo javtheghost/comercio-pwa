@@ -125,6 +125,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
       if (!this.cart || this.isCartEmpty()) {
         console.warn('[DEBUG] No hay items en el carrito');
+        await loading.dismiss();
         const toast = await this.toastController.create({ message: 'Carrito vacío (debug)', duration: 3000, color: 'warning' });
         await toast.present();
         return;
@@ -166,14 +167,64 @@ export class CheckoutPage implements OnInit, OnDestroy {
         body: JSON.stringify(orderData)
       });
 
-      console.log('🐞 [DEBUG] fetch status:', resp.status);
       const text = await resp.text();
-      console.log('🐞 [DEBUG] fetch body:', text);
 
-      const toast = await this.toastController.create({ message: `Debug fetch finished: ${resp.status}`, duration: 4000 });
+      let response;
+      try {
+        response = JSON.parse(text);
+      } catch (e) {
+        console.error('🐞 [DEBUG] Error parsing response:', e);
+        const toast = await this.toastController.create({
+          message: 'Error parsing response',
+          duration: 4000,
+          color: 'danger'
+        });
+        await toast.present();
+        return;
+      }
+
+      // Verificar si la orden se creó exitosamente
+      const success = (response && (response.success === true || response.success === 'true'))
+        || (!!response && (response.id || response.order_number || response.data));
+
+      if (success) {
+        console.log('✅ [DEBUG] Orden creada exitosamente');
+
+        // Cerrar loading
+        await loading.dismiss();
+
+        // Limpiar el carrito
+        await firstValueFrom(this.cartService.clearCart());
+
+        // Mostrar mensaje de éxito
+        const toast = await this.toastController.create({
+          message: '¡Orden creada exitosamente! (Debug)',
+          duration: 3000,
+          color: 'success',
+          position: 'top'
+        });
         await toast.present();
 
-            } catch (err) {
+        // Redirigir a página de confirmación
+        this.router.navigate(['/order-confirmation'], {
+          queryParams: {
+            orderId: response.data?.id || response.id,
+            orderNumber: response.data?.order_number || response.order_number,
+            mode: 'thanks'
+          }
+        });
+      } else {
+        console.log('❌ [DEBUG] Error creando orden');
+        await loading.dismiss();
+        const toast = await this.toastController.create({
+          message: `Error: ${response?.message || 'Error desconocido'}`,
+          duration: 4000,
+          color: 'danger'
+        });
+        await toast.present();
+      }
+
+    } catch (err) {
       console.error('🐞 [DEBUG] Error en debugCreateOrder:', err);
       await loading.dismiss();
       const toast = await this.toastController.create({ message: 'Error debug fetch', duration: 4000, color: 'danger' });
@@ -435,9 +486,8 @@ export class CheckoutPage implements OnInit, OnDestroy {
         throw new Error(validation.errors.join(', '));
       }
 
-      // Crear la orden (UNA SOLA VEZ) con timeout para evitar bloqueo indefinido
-      console.log('⬆️ [DEBUG] Enviando POST a createOrder...');
-      console.log('🔍 [DEBUG] orderData final:', JSON.stringify(orderData, null, 2));
+      // Crear la orden con timeout para evitar bloqueo indefinido
+      console.log('⬆️ [CHECKOUT] Enviando orden...');
 
       const TIMEOUT_MS = 15000; // 15s
       let response: any;
@@ -446,9 +496,9 @@ export class CheckoutPage implements OnInit, OnDestroy {
           firstValueFrom(this.orderService.createOrder(orderData)),
           new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS))
         ]);
-        console.log('↪️ [DEBUG] createOrder response ->', response);
+        console.log('↪️ [CHECKOUT] Respuesta recibida');
       } catch (err: any) {
-        console.error('❌ [CHECKOUT] Error al llamar createOrder (incluye timeout):', err);
+        console.error('❌ [CHECKOUT] Error al crear orden:', err);
         // Mostrar mensaje más claro al usuario
         const msg = (err && err.message === 'timeout') ? 'La petición tardó demasiado. Intenta nuevamente.' : (err?.message || 'Error enviando la orden');
         this.error = msg;
@@ -465,12 +515,9 @@ export class CheckoutPage implements OnInit, OnDestroy {
         throw err;
       }
 
-
       const success = (response && (response.success === true || response.success === 'true'))
         || (!!response && (response.id || response.order_number || response.data));
       const responseData = response?.data || response;
-
-      console.log('🔍 [DEBUG] success calculado:', success);
 
       if (success) {
         console.log('✅ [CHECKOUT] Orden creada (aceptado):', responseData);
