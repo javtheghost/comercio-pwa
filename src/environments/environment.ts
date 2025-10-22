@@ -15,7 +15,7 @@ export const environment = {
   // Configuración de OAuth
   oauth: {
     google: {
-      clientId: '679269429706-d90a1dnes40rn3ra1lhrcnh83up9sal8.apps.googleusercontent.com', // Google Client ID
+      clientId: '1000869383990-76t579i12qqeq7gi48bbqrks8kg4vcuf.apps.googleusercontent.com', // Google Client ID
       redirectUri: 'http://127.0.0.1:8000/api/auth/google/callback'
     },
     facebook: {
@@ -23,5 +23,5 @@ export const environment = {
       redirectUri: 'http://127.0.0.1:8000/api/auth/facebook/callback'
     }
   },
-  
+
 };

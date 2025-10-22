@@ -60,6 +60,64 @@ export class RegisterPage implements OnInit {
     if (this.authService.isAuthenticated()) {
       this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
     }
+
+    // Agregar listener global para mensajes OAuth
+    this.setupOAuthListener();
+  }
+
+  private setupOAuthListener() {
+    // Listener global para mensajes OAuth que puedan venir de cualquier popup
+    window.addEventListener('message', (event: MessageEvent) => {
+      console.log('🔐 [REGISTER] Mensaje global recibido:', event.data, 'Origin:', event.origin);
+
+      // Permitir mensajes de localhost:4200 o cualquier origen (para OAuth)
+      if (event.origin.includes('localhost:4200') || 
+          event.origin.includes('127.0.0.1:4200') || 
+          event.origin === window.location.origin ||
+          event.origin === '*') {
+        if (event.data.type === 'FACEBOOK_REGISTER_SUCCESS' || event.data.type === 'GOOGLE_REGISTER_SUCCESS') {
+          console.log('🔐 [REGISTER] Procesando registro OAuth desde listener global:', event.data);
+          this.handleOAuthSuccess(event.data);
+        }
+      }
+    });
+  }
+
+  private handleOAuthSuccess(data: any) {
+    console.log('🔐 [REGISTER] Procesando éxito OAuth:', data);
+
+    try {
+      // Mostrar loading
+      this.loading = true;
+
+      // Guardar token y datos del usuario
+      if (data.token) {
+        localStorage.setItem('auth_token', data.token);
+        console.log('🔐 [REGISTER] Token guardado en localStorage');
+      }
+
+      if (data.user && data.token) {
+        console.log('🔐 [REGISTER] Usuario registrado:', data.user);
+        console.log('🔐 [REGISTER] Estado de autenticación se actualizará automáticamente');
+      }
+
+      // Mostrar mensaje de éxito
+      const provider = data.user?.oauth_provider === 'google' ? 'Google' : 'Facebook';
+      this.showToastMessage(`¡Registro con ${provider} exitoso!`);
+
+      // Redirigir al home
+      setTimeout(() => {
+        this.navCtrl.navigateRoot(['/tabs/home'], {
+          animationDirection: 'forward'
+        });
+      }, 1500);
+
+    } catch (error: any) {
+      console.error('🔐 [REGISTER] Error procesando OAuth:', error);
+      this.showToastMessage(`Error procesando registro: ${error.message}`);
+    } finally {
+      this.loading = false;
+    }
   }
 
   async onRegister() {
@@ -183,7 +241,13 @@ export class RegisterPage implements OnInit {
 
       // Escuchar el mensaje de la ventana popup
       const messageListener = (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) {
+        console.log('🔐 [REGISTER] Mensaje recibido:', event.data, 'Origin:', event.origin);
+
+        // Permitir mensajes de localhost:4200 (el popup OAuth)
+        if (event.origin !== window.location.origin &&
+            !event.origin.includes('localhost:4200') &&
+            !event.origin.includes('127.0.0.1:4200')) {
+          console.log('🔐 [REGISTER] Origen no permitido:', event.origin);
           return;
         }
 
@@ -243,7 +307,13 @@ export class RegisterPage implements OnInit {
 
       // Escuchar el mensaje de la ventana popup
       const messageListener = (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) {
+        console.log('🔐 [REGISTER] Mensaje recibido:', event.data, 'Origin:', event.origin);
+
+        // Permitir mensajes de localhost:4200 (el popup OAuth)
+        if (event.origin !== window.location.origin &&
+            !event.origin.includes('localhost:4200') &&
+            !event.origin.includes('127.0.0.1:4200')) {
+          console.log('🔐 [REGISTER] Origen no permitido:', event.origin);
           return;
         }
 

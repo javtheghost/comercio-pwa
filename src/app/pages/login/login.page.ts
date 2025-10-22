@@ -76,11 +76,70 @@ onSkip() {
       this.authLoading = authState.loading;
     });
 
+    // Agregar listener global para mensajes OAuth
+    this.setupOAuthListener();
+
     // Debug reCAPTCHA status
     setTimeout(() => {
       const status = this.recaptchaService.getRecaptchaStatus();
       console.log('🔍 Estado de reCAPTCHA en login ngOnInit:', status);
     }, 3000);
+  }
+
+  private setupOAuthListener() {
+    // Listener global para mensajes OAuth que puedan venir de cualquier popup
+    window.addEventListener('message', (event: MessageEvent) => {
+      // Filtrar solo mensajes de OAuth, ignorar Angular DevTools
+      if (event.data && typeof event.data === 'object' && event.data.type) {
+        console.log('🔐 [LOGIN] Mensaje con tipo recibido:', event.data, 'Origin:', event.origin);
+
+        // Permitir mensajes de localhost:4200 o cualquier origen (para OAuth)
+        if (event.origin.includes('localhost:4200') ||
+            event.origin.includes('127.0.0.1:4200') ||
+            event.origin === window.location.origin ||
+            event.origin === '*') {
+          if (event.data.type === 'FACEBOOK_LOGIN_SUCCESS' || event.data.type === 'GOOGLE_LOGIN_SUCCESS') {
+            console.log('🔐 [LOGIN] Procesando login OAuth desde listener global:', event.data);
+            this.handleOAuthSuccess(event.data);
+          }
+        }
+      }
+    });
+  }
+
+  private handleOAuthSuccess(data: any) {
+    console.log('🔐 [LOGIN] Procesando éxito OAuth:', data);
+
+    try {
+      // Mostrar loading
+      this.authLoading = true;
+
+      // Guardar token y datos del usuario
+      if (data.token) {
+        localStorage.setItem('auth_token', data.token);
+        console.log('🔐 [LOGIN] Token guardado en localStorage');
+      }
+
+      if (data.user && data.token) {
+        console.log('🔐 [LOGIN] Usuario autenticado:', data.user);
+        console.log('🔐 [LOGIN] Estado de autenticación se actualizará automáticamente');
+      }
+
+      // Mostrar mensaje de éxito
+      const provider = data.user?.oauth_provider === 'google' ? 'Google' : 'Facebook';
+      this.showToastMessage(`¡Inicio de sesión con ${provider} exitoso!`);
+
+      // Redirigir al home
+      setTimeout(() => {
+        this.router.navigate(['/tabs/home']);
+      }, 1500);
+
+    } catch (error: any) {
+      console.error('🔐 [LOGIN] Error procesando OAuth:', error);
+      this.showToastMessage(`Error procesando login: ${error.message}`);
+    } finally {
+      this.authLoading = false;
+    }
   }
 
   // Ionic lifecycle hook: when the view becomes active again (e.g., after logout)
@@ -267,11 +326,74 @@ onSkip() {
   }
 
   onGoogleLogin() {
-    this.showToastMessage('Inicio de sesión con Google no implementado aún');
+    console.log('🔐 [LOGIN] Iniciando login con Google...');
+
+    try {
+      // URL del backend para Google OAuth
+      const backendUrl = 'https://ecommerceapi.toolaccess.tech';
+      const googleUrl = `${backendUrl}/api/auth/google`;
+
+      console.log('🔐 [LOGIN] Redirigiendo a Google OAuth:', googleUrl);
+
+      // Abrir ventana popup para Google OAuth
+      const popup = window.open(
+        googleUrl,
+        'google-login',
+        'width=600,height=600,scrollbars=yes,resizable=yes'
+      );
+
+      if (!popup) {
+        throw new Error('No se pudo abrir la ventana popup. Verifica que los popups estén habilitados.');
+      }
+
+      // Escuchar el mensaje de la ventana popup
+      const messageListener = (event: MessageEvent) => {
+        console.log('🔐 [LOGIN] Mensaje recibido:', event.data, 'Origin:', event.origin);
+
+        // Permitir mensajes de localhost:4200 o cualquier origen (para OAuth)
+        if (event.origin !== window.location.origin &&
+            !event.origin.includes('localhost:4200') &&
+            !event.origin.includes('127.0.0.1:4200') &&
+            event.origin !== '*') {
+          console.log('🔐 [LOGIN] Origen no permitido:', event.origin);
+          return;
+        }
+
+        if (event.data.type === 'GOOGLE_LOGIN_SUCCESS') {
+          console.log('🔐 [LOGIN] Login con Google exitoso:', event.data);
+          popup.close();
+          window.removeEventListener('message', messageListener);
+
+          // Procesar la respuesta del login
+          this.handleGoogleLoginSuccess(event.data);
+        } else if (event.data.type === 'GOOGLE_LOGIN_ERROR') {
+          console.error('🔐 [LOGIN] Error en login con Google:', event.data.error);
+          popup.close();
+          window.removeEventListener('message', messageListener);
+
+          this.showToastMessage(`Error en login con Google: ${event.data.error}`);
+        }
+      };
+
+      window.addEventListener('message', messageListener);
+
+      // Verificar si la ventana se cerró manualmente
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', messageListener);
+          console.log('🔐 [LOGIN] Ventana popup cerrada manualmente');
+        }
+      }, 1000);
+
+    } catch (error: any) {
+      console.error('❌ [LOGIN] Error iniciando login con Google:', error);
+      this.showToastMessage(`Error: ${error.message}`);
+    }
   }
 
   onFacebookLogin() {
-    console.log('🔐 [LOGIN] Iniciando login con Facebook...');
+
 
     try {
       // URL del backend para Facebook OAuth
@@ -293,7 +415,14 @@ onSkip() {
 
       // Escuchar el mensaje de la ventana popup
       const messageListener = (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) {
+        console.log('🔐 [LOGIN] Mensaje recibido:', event.data, 'Origin:', event.origin);
+
+        // Permitir mensajes de localhost:4200 o cualquier origen (para OAuth)
+        if (event.origin !== window.location.origin &&
+            !event.origin.includes('localhost:4200') &&
+            !event.origin.includes('127.0.0.1:4200') &&
+            event.origin !== '*') {
+          console.log('🔐 [LOGIN] Origen no permitido:', event.origin);
           return;
         }
 
@@ -327,6 +456,48 @@ onSkip() {
     } catch (error: any) {
       console.error('🔐 [LOGIN] Error iniciando login con Facebook:', error);
       this.showToastMessage(`Error: ${error.message}`);
+    }
+  }
+
+  /**
+   * Manejar el éxito del login con Google
+   */
+  private async handleGoogleLoginSuccess(data: any) {
+    console.log('🔐 [LOGIN] Procesando éxito de Google:', data);
+
+    try {
+      // Mostrar loading
+      this.authLoading = true;
+
+      // Guardar token y datos del usuario
+      if (data.token) {
+        localStorage.setItem('auth_token', data.token);
+        console.log('🔐 [LOGIN] Token guardado en localStorage');
+      }
+
+      if (data.user && data.token) {
+        // Simular un login exitoso usando el AuthService
+        // El AuthService manejará automáticamente el estado
+        console.log('🔐 [LOGIN] Usuario autenticado con Google:', data.user);
+
+        // El token ya se guardó en localStorage arriba
+        // El AuthService detectará automáticamente el token en la próxima verificación
+        console.log('🔐 [LOGIN] Estado de autenticación se actualizará automáticamente');
+      }
+
+      // Mostrar mensaje de éxito
+      this.showToastMessage('¡Inicio de sesión con Google exitoso!');
+
+      // Redirigir al home
+      setTimeout(() => {
+        this.router.navigate(['/tabs/home']);
+      }, 1500);
+
+    } catch (error: any) {
+      console.error('🔐 [LOGIN] Error procesando login con Google:', error);
+      this.showToastMessage(`Error procesando login: ${error.message}`);
+    } finally {
+      this.authLoading = false;
     }
   }
 

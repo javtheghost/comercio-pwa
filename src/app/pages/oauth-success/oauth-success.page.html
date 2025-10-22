@@ -18,5 +18,16 @@
 
     <p *ngIf="!loading && success">Redirigiendo al inicio...</p>
     <p *ngIf="!loading && !success">{{ errorMessage }}</p>
+
+    <!-- Botón manual para cerrar y procesar login -->
+    <div *ngIf="!loading && success" class="manual-actions">
+      <p>Si no se redirige automáticamente:</p>
+      <ion-button (click)="manualClose()" color="primary" fill="outline">
+        Cerrar y continuar
+      </ion-button>
+      <ion-button (click)="forceLogin()" color="warning" fill="outline">
+        Forzar Login (Debug)
+      </ion-button>
+    </div>
   </div>
 </ion-content>

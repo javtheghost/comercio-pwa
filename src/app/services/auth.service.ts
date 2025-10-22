@@ -26,6 +26,76 @@ export class AuthService {
     private notificationService: NotificationService
   ) {
     this.initializeAuth();
+    this.setupOAuthListener();
+  }
+
+  private setupOAuthListener() {
+    // Listener para eventos de login OAuth
+    window.addEventListener('userLoggedIn', (event: any) => {
+      console.log('🔐 [AUTH SERVICE] Evento userLoggedIn recibido:', event.detail);
+
+      if (event.detail && event.detail.token) {
+        this.handleOAuthLogin(event.detail.token, event.detail.user);
+      }
+    });
+
+    // También escuchar cambios en localStorage como fallback
+    window.addEventListener('storage', (event) => {
+      if (event.key === 'auth_token' && event.newValue) {
+        console.log('🔐 [AUTH SERVICE] Token detectado en localStorage, verificando autenticación...');
+        this.checkAuthFromStorage();
+      }
+    });
+  }
+
+  private async handleOAuthLogin(token: string, user: any) {
+    console.log('🔐 [AUTH SERVICE] Procesando login OAuth:', { token, user });
+
+    try {
+      // Guardar token y usuario
+      await this.securityService.setSecureToken(token);
+      if (user) {
+        await this.securityService.setSecureUser(user);
+      }
+
+      // Actualizar estado de autenticación
+      this.authStateSubject.next({
+        isAuthenticated: true,
+        user: user || await this.securityService.getSecureUser(),
+        token,
+        loading: false,
+        error: null
+      });
+
+      console.log('✅ [AUTH SERVICE] Login OAuth procesado exitosamente');
+    } catch (error) {
+      console.error('❌ [AUTH SERVICE] Error procesando login OAuth:', error);
+    }
+  }
+
+  private async checkAuthFromStorage() {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const userStr = localStorage.getItem('auth_user');
+
+      if (token && userStr) {
+        const user = JSON.parse(userStr);
+        console.log('🔐 [AUTH SERVICE] Datos encontrados en localStorage:', { token, user });
+
+        // Actualizar estado de autenticación
+        this.authStateSubject.next({
+          isAuthenticated: true,
+          user,
+          token,
+          loading: false,
+          error: null
+        });
+
+        console.log('✅ [AUTH SERVICE] Estado de autenticación actualizado desde localStorage');
+      }
+    } catch (error) {
+      console.error('❌ [AUTH SERVICE] Error verificando autenticación desde localStorage:', error);
+    }
   }
 
   private async initializeAuth(): Promise<void> {
@@ -308,16 +378,16 @@ export class AuthService {
     return this.authApiService.verifyEmail(id, hash, expires, signature).pipe(
       tap(async (response) => {
         console.log('✅ [AUTH SERVICE] Email verificado exitosamente:', response);
-        
+
         // Si la respuesta incluye token y usuario, iniciar sesión automáticamente
         if (response.data?.token && response.data?.user) {
           console.log('🔑 [AUTH SERVICE] Iniciando sesión automática después de verificar email');
           const { token, user } = response.data;
-          
+
           // Guardar token y usuario
           await this.securityService.setSecureToken(token);
           await this.securityService.setSecureUser(user);
-          
+
           // Actualizar estado
           this.authStateSubject.next({
             isAuthenticated: true,
@@ -326,7 +396,7 @@ export class AuthService {
             loading: false,
             error: null
           });
-          
+
           // Emitir evento para que el CartService pueda fusionar el carrito
           console.log('🛒 [AUTH SERVICE] Emitiendo evento de login después de verificar email');
           setTimeout(() => {
@@ -336,7 +406,7 @@ export class AuthService {
             window.dispatchEvent(event);
             console.log('✅ [AUTH SERVICE] Evento userLoggedIn emitido correctamente');
           }, 100);
-          
+
           console.log('✅ [AUTH SERVICE] Sesión iniciada automáticamente');
         } else {
           // Si no viene token, solo actualizar el estado del usuario actual
@@ -499,7 +569,7 @@ export class AuthService {
   clearLocalSession(): void {
     console.log('🧹 [AUTH SERVICE] Limpiando sesión local (sin llamar API)...');
     this.clearAuthData();
-    
+
     // Disparar evento de logout
     try {
       window.dispatchEvent(new CustomEvent('userLoggedOut'));

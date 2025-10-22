@@ -11,7 +11,7 @@ export const environment = {
   // Configuración de OAuth para producción
   oauth: {
     google: {
-      clientId: '679269429706-d90a1dnes40rn3ra1lhrcnh83up9sal8.apps.googleusercontent.com',
+      clientId: '1000869383990-76t579i12qqeq7gi48bbqrks8kg4vcuf.apps.googleusercontent.com',
       redirectUri: 'https://ecommerceapi.toolaccess.tech/api/auth/google/callback'
     },
     facebook: {
