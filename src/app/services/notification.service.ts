@@ -10,6 +10,7 @@ import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
 import { Capacitor } from '@capacitor/core';
 import { environment } from '../../environments/environment';
 import { SecurityService } from './security.service';
+import { Router } from '@angular/router';
 import { NotificationsApiService, UserNotification } from './notifications-api.service';
 
 export interface NotificationToken {
@@ -67,7 +68,8 @@ export class NotificationService {
   constructor(
     private http: HttpClient, 
     private securityService: SecurityService,
-    private notificationsApi: NotificationsApiService
+    private notificationsApi: NotificationsApiService,
+    private router: Router
   ) {
     console.log('🏗️ [NotificationService] Constructor ejecutado');
     
@@ -754,11 +756,8 @@ export class NotificationService {
   private navigateByUrl(url: string) {
     // Intentar usar el Router si está accesible globalmente; fallback a location
     try {
-      const ng = (window as any).ng;
-      const injector = ng && ng.getInjector && ng.getInjector(document.body);
-      const router = injector && injector.get && injector.get((window as any).ng.coreTokens?.Router);
-      if (router && typeof router.navigateByUrl === 'function') {
-        router.navigateByUrl(url);
+      if (this.router && typeof this.router.navigateByUrl === 'function') {
+        this.router.navigateByUrl(url);
         return;
       }
     } catch {}
