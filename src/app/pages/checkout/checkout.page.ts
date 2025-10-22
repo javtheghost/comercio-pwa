@@ -322,11 +322,14 @@ export class CheckoutPage implements OnInit, OnDestroy {
     console.log('🔍 [DEBUG] isFormValid - addressMode:', this.addressMode);
     console.log('🔍 [DEBUG] isFormValid - selectedAddressId:', this.selectedAddressId);
     console.log('🔍 [DEBUG] isFormValid - paymentMethod:', this.paymentMethod);
+    console.log('🔍 [DEBUG] isFormValid - loading:', this.loading);
 
     // Si se usa dirección existente, sólo necesitamos selección y método de pago
     if (this.addressMode === 'existing') {
       const result = !!(this.selectedAddressId && this.paymentMethod);
       console.log('🔍 [DEBUG] isFormValid (existing) - result:', result);
+      console.log('🔍 [DEBUG] isFormValid (existing) - selectedAddressId truthy:', !!this.selectedAddressId);
+      console.log('🔍 [DEBUG] isFormValid (existing) - paymentMethod truthy:', !!this.paymentMethod);
       return result;
     }
     // Nueva dirección: validar campos usando servicio (modo silencioso para no mostrar aún errores)
@@ -393,6 +396,15 @@ export class CheckoutPage implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  // Método para verificar el estado del botón (se llama desde el template)
+  getButtonDisabled(): boolean {
+    const disabled = !this.isFormValid() || this.loading;
+    console.log('🔘 [DEBUG] getButtonDisabled - isFormValid():', this.isFormValid());
+    console.log('🔘 [DEBUG] getButtonDisabled - loading:', this.loading);
+    console.log('🔘 [DEBUG] getButtonDisabled - disabled:', disabled);
+    return disabled;
+  }
+
   // Método de debug para verificar si el click funciona
   onCheckoutButtonClick(): void {
     console.log('🖱️ [DEBUG] Botón de checkout clickeado');
@@ -414,6 +426,112 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
     console.log('✅ [DEBUG] Ejecutando processOrder...');
     this.processOrder();
+  }
+
+  // Método directo sin service worker ni notificaciones
+  async processOrderDirect(): Promise<void> {
+    console.log('🚀 [DIRECT] Procesando orden directamente (sin SW ni notificaciones)');
+
+    if (!this.user || !this.cart || this.isCartEmpty()) {
+      console.log('❌ [DIRECT] Datos básicos faltantes');
+      return;
+    }
+
+    const loading = await this.loadingController.create({
+      message: 'Procesando orden directa...',
+      spinner: 'crescent'
+    });
+    await loading.present();
+
+    try {
+      // Construir datos de la orden
+      const customer_id = this.user.id;
+      const items = this.cart.items.map(item => ({
+        product_id: item.product_id,
+        product_variant_id: item.product_variant_id,
+        quantity: item.quantity
+      }));
+
+      const shipping_address = {
+        street: this.shippingAddress.address,
+        city: this.shippingAddress.city,
+        state: this.shippingAddress.state,
+        postal_code: this.shippingAddress.zipCode,
+        country: this.shippingAddress.country,
+        phone: this.shippingAddress.phone
+      };
+
+      const billing_address = { ...shipping_address };
+      const notes = `Orden directa desde PWA - ${new Date().toLocaleString()}`;
+      const payment_method = this.paymentMethod;
+
+      const orderData = {
+        customer_id,
+        items,
+        shipping_address,
+        billing_address,
+        notes,
+        payment_method
+      };
+
+      console.log('📤 [DIRECT] Enviando orden:', orderData);
+
+      const token = this.authService.getToken();
+      const url = `${environment.apiUrl.replace(/\/+$/, '')}/orders`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(orderData)
+      });
+
+      const result = await response.json();
+      console.log('📥 [DIRECT] Respuesta recibida:', result);
+
+      if (response.ok && (result.success || result.id || result.data)) {
+        console.log('✅ [DIRECT] Orden creada exitosamente');
+
+        await loading.dismiss();
+
+        // Limpiar carrito
+        await firstValueFrom(this.cartService.clearCart());
+
+        // Mostrar mensaje de éxito
+        const toast = await this.toastController.create({
+          message: '¡Orden creada exitosamente! (Directa)',
+          duration: 3000,
+          color: 'success',
+          position: 'top'
+        });
+        await toast.present();
+
+        // Redirigir
+        this.router.navigate(['/order-confirmation'], {
+          queryParams: {
+            orderId: result.data?.id || result.id,
+            orderNumber: result.data?.order_number || result.order_number,
+            mode: 'thanks'
+          }
+        });
+      } else {
+        throw new Error(result.message || 'Error creando la orden');
+      }
+
+    } catch (error: any) {
+      console.error('❌ [DIRECT] Error:', error);
+      await loading.dismiss();
+
+      const toast = await this.toastController.create({
+        message: `Error: ${error.message || 'Error desconocido'}`,
+        duration: 4000,
+        color: 'danger',
+        position: 'top'
+      });
+      await toast.present();
+    }
   }
 
   async processOrder(): Promise<void> {

@@ -228,15 +228,34 @@
             </div>
           </div>
           <div class="checkout-actions">
-            <ion-button expand="block" size="large" [disabled]="!isFormValid() || loading" (click)="onCheckoutButtonClick()">
+            <ion-button expand="block" size="large" [disabled]="getButtonDisabled()" (click)="onCheckoutButtonClick()">
               <ion-icon name="bag-check-outline" slot="start"></ion-icon>
               Confirmar Pedido - ${{ getTotal() | number:'1.2-2' }}
             </ion-button>
+
+            <!-- Debug info para ver por qué el botón está deshabilitado -->
+            <div style="margin-top: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px; font-size: 12px;">
+              <strong>🔍 DEBUG INFO:</strong><br>
+              isFormValid(): {{ isFormValid() }}<br>
+              loading: {{ loading }}<br>
+              addressMode: {{ addressMode }}<br>
+              selectedAddressId: {{ selectedAddressId }}<br>
+              paymentMethod: {{ paymentMethod }}<br>
+              Botón deshabilitado: {{ getButtonDisabled() }}
+            </div>
             <!-- Botón de debug: forzar creación de orden (no altera el flujo principal) -->
             <div style="margin-top:8px">
               <ion-button expand="block" size="small" color="warning" fill="outline" [disabled]="loading" (click)="debugCreateOrder()">
                 <ion-icon name="bug-outline" slot="start"></ion-icon>
                 🔧 FORZAR ORDEN (DEBUG) - ${{ getTotal() | number:'1.2-2' }}
+              </ion-button>
+            </div>
+
+            <!-- Botón directo: sin service worker ni notificaciones -->
+            <div style="margin-top:8px">
+              <ion-button expand="block" size="small" color="success" fill="outline" [disabled]="loading" (click)="processOrderDirect()">
+                <ion-icon name="flash-outline" slot="start"></ion-icon>
+                ⚡ ORDEN DIRECTA (SIN SW) - ${{ getTotal() | number:'1.2-2' }}
               </ion-button>
             </div>
           </div>
