@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonicModule, ToastController, LoadingController } from '@ionic/angular';
+import { IonicModule, ToastController, LoadingController, AlertController } from '@ionic/angular';
 import { CartService, Cart, CartItem } from '../../services/cart.service';
 import { AuthService } from '../../services/auth.service';
 import { OrderService, CreateOrderRequest, Address } from '../../services/order.service';
@@ -54,8 +54,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
   savingAddress = false;
   addressSavedToastShown = false;
 
-  // Modal de confirmación de orden
-  showOrderSuccessModal = false;
+  // Datos de confirmación de orden
   orderConfirmation: {
     orderNumber?: string;
     orderId?: string;
@@ -74,6 +73,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
     private router: Router,
     private toastController: ToastController,
     private loadingController: LoadingController,
+    private alertController: AlertController,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -239,19 +239,25 @@ export class CheckoutPage implements OnInit, OnDestroy {
         // Limpiar el carrito
         await firstValueFrom(this.cartService.clearCart());
 
-        // Configurar datos de confirmación para el modal
+        // Navegar a página de confirmación
         const orderId = response.data?.id || response.id;
         const orderNumber = response.data?.order_number || response.order_number;
         const total = response.data?.total_amount || response.total_amount;
 
-        this.orderConfirmation = {
-          orderNumber: orderNumber,
-          orderId: orderId,
-          total: parseFloat(total || this.getTotal().toString())
-        };
+        console.log('🎉 [DEBUG] Navegando a confirmación:', {
+          orderId,
+          orderNumber,
+          total
+        });
 
-        // Mostrar modal de confirmación
-        this.showOrderSuccessModal = true;
+        this.router.navigate(['/order-confirmation'], {
+          queryParams: {
+            orderNumber: orderNumber,
+            orderId: orderId,
+            total: total || this.getTotal(),
+            mode: 'debug'
+          }
+        });
 
       } else {
         console.log('❌ [DEBUG] Error creando orden');
@@ -798,15 +804,15 @@ export class CheckoutPage implements OnInit, OnDestroy {
           console.warn('⚠️ [CHECKOUT] Error enviando notificación de orden:', notificationError);
         }
 
-        // Configurar datos de confirmación para el modal
-        this.orderConfirmation = {
-          orderNumber: response.data.order_number,
-          orderId: response.data.id,
-          total: parseFloat(response.data.total_amount)
-        };
-
-        // Mostrar modal de confirmación
-        this.showOrderSuccessModal = true;
+        // Navegar a página de confirmación
+        this.router.navigate(['/order-confirmation'], {
+          queryParams: {
+            orderNumber: response.data.order_number,
+            orderId: response.data.id,
+            total: response.data.total_amount,
+            mode: 'thanks'
+          }
+        });
 
       } else {
         console.log('❌ [CHECKOUT] Error en respuesta:', response);
@@ -916,21 +922,93 @@ export class CheckoutPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Navegar a la página de órdenes del usuario
+   * Mostrar alert de confirmación de orden exitosa
    */
-  goToOrders(): void {
-    this.showOrderSuccessModal = false;
-    this.router.navigate(['/tabs/account'], {
-      queryParams: { tab: 'orders' }
+  async showOrderSuccessAlert(): Promise<void> {
+    console.log('🎉 [ALERT] Mostrando alert de confirmación...');
+
+    const orderNumber = this.orderConfirmation?.orderNumber || 'N/A';
+    const total = this.orderConfirmation?.total?.toFixed(2) || '0.00';
+
+    const alert = await this.alertController.create({
+      header: '¡Orden Confirmada!',
+      subHeader: 'Tu pedido ha sido procesado exitosamente',
+      message: `
+        <div class="order-confirmation-alert">
+          <div class="success-icon">✓</div>
+          <h3>¡Tu pedido ha sido confirmado!</h3>
+
+          <div class="order-details">
+            <div class="detail-row">
+              <span class="label">Número de Orden:</span>
+              <span class="value">${orderNumber}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Total:</span>
+              <span class="value">$${total}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Método de Pago:</span>
+              <span class="value">Efectivo (Contra Entrega)</span>
+            </div>
+          </div>
+
+          <div class="email-notification">
+            <span class="email-icon">📧</span>
+            <p>Te enviaremos actualizaciones del estado de tu pedido a tu correo electrónico.</p>
+          </div>
+        </div>
+      `,
+      buttons: [
+        {
+          text: 'Ver Mis Órdenes',
+          cssClass: 'alert-button-primary',
+          handler: () => {
+            console.log('🔍 [ALERT] Navegando a órdenes...');
+            this.router.navigate(['/tabs/account']);
+          }
+        },
+        {
+          text: 'Ir al Inicio',
+          cssClass: 'alert-button-secondary',
+          handler: () => {
+            console.log('🔍 [ALERT] Navegando al inicio...');
+            this.router.navigate(['/tabs/home']);
+          }
+        }
+      ],
+      cssClass: 'order-success-alert'
+    });
+
+    await alert.present();
+  }
+
+  /**
+   * Método de debug para ir a la página de confirmación
+   */
+  goToConfirmation(): void {
+    console.log('🔧 [DEBUG] Navegando a confirmación...');
+    this.router.navigate(['/order-confirmation'], {
+      queryParams: {
+        orderNumber: 'DEBUG-12345',
+        orderId: 'debug-123',
+        total: this.getTotal(),
+        mode: 'debug'
+      }
     });
   }
 
   /**
-   * Navegar al inicio
+   * Método de debug para mostrar el alert mejorado
    */
-  goToHome(): void {
-    this.showOrderSuccessModal = false;
-    this.router.navigate(['/tabs/home']);
+  async showDebugAlert(): Promise<void> {
+    console.log('🔧 [DEBUG] Mostrando alert mejorado...');
+    this.orderConfirmation = {
+      orderNumber: 'DEBUG-12345',
+      orderId: 'debug-123',
+      total: this.getTotal()
+    };
+    await this.showOrderSuccessAlert();
   }
 
   // Métodos para manejar direcciones

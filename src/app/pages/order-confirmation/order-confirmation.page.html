@@ -1,87 +1,59 @@
 <ion-header [translucent]="true">
-  <ion-toolbar>
-    @if (!showNextSteps) {
-      <ion-buttons slot="start">
-        <ion-button class="back-btn" fill="clear" (click)="goBackToNotifications()" aria-label="Volver a notificaciones" color="primary">
-          <ion-icon name="arrow-back-outline"></ion-icon>
-        </ion-button>
-      </ion-buttons>
-    }
-    <ion-title>Orden Confirmada</ion-title>
+  <ion-toolbar color="success">
+    <ion-title>¡Orden Confirmada!</ion-title>
   </ion-toolbar>
- </ion-header>
+</ion-header>
 
-<ion-content [fullscreen]="true" class="has-footer-space" [class.has-many-items]="manyItems">
-  <div class="confirmation-container">
-    <ion-card class="success-card">
+<ion-content [fullscreen]="true" class="confirmation-content">
+  <div class="success-container">
+
+    <!-- Icono de éxito -->
+    <div class="success-icon">
+      <ion-icon name="checkmark-circle" size="large" color="success"></ion-icon>
+    </div>
+
+    <!-- Mensaje principal -->
+    <h1 class="success-title">¡Tu pedido ha sido confirmado!</h1>
+
+    <!-- Tarjeta de detalles del pedido -->
+    <ion-card class="order-details-card">
       <ion-card-content>
-        <div class="success-hero">
-          <div class="hero-badge">
-            <ion-icon name="checkmark" class="badge-icon"></ion-icon>
-          </div>
-          <h1>¡Orden confirmada!</h1>
-          <p class="order-id">N.º de orden <strong>#{{ order?.order_number || orderId }}</strong></p>
+        <div class="detail-row">
+          <span class="detail-label">Número de Orden:</span>
+          <span class="detail-value">{{ orderData?.orderNumber || 'N/A' }}</span>
         </div>
-
-        @if (order) {
-          @if (showNextSteps) {
-            <div class="next-steps">
-              <h3>¿Qué sigue?</h3>
-              <ul>
-                <li>Te enviaremos un correo con el resumen de tu compra y el seguimiento.</li>
-                <li>Puedes revisar el estado en <strong>Mis órdenes</strong> cuando quieras.</li>
-              </ul>
-              <div class="actions">
-                <ion-button expand="block" (click)="goToOrders()">Ver mis órdenes</ion-button>
-                <ion-button expand="block" fill="clear" (click)="goToHome()">Seguir comprando</ion-button>
-              </div>
-            </div>
-          } @else {
-            <div class="summary modern">
-              <div class="row"><span>Subtotal</span><span>${{ order.subtotal | number:'1.2-2' }}</span></div>
-              <div class="row"><span>IVA ({{ order.subtotal > 0 ? (order.tax_amount / order.subtotal * 100 | number:'1.0-0') : '16' }}%)</span><span>${{ order.tax_amount | number:'1.2-2' }}</span></div>
-              <div class="row"><span>Envío</span><span>${{ order.shipping_amount | number:'1.2-2' }}</span></div>
-              <div class="row total"><span>Total</span><span>${{ order.total_amount | number:'1.2-2' }}</span></div>
-            </div>
-
-            <ion-list class="items-list" *ngIf="(order?.items?.length || 0) > 0">
-              <ion-item *ngFor="let item of order.items" lines="full">
-                <ion-thumbnail slot="start">
-                  <img [src]="getProductImage(item)" alt="Producto" (error)="onImgError($event)" />
-                </ion-thumbnail>
-
-                <ion-label>
-                  <h3>{{ item.product?.name || 'Producto' }}</h3>
-                  <p class="variant">{{ getVariantSummary(item) }}</p>
-                </ion-label>
-
-                <div slot="end" class="line-total">
-                  ${{ item.total_price | number:'1.2-2' }}
-                </div>
-              </ion-item>
-            </ion-list>
-            
-
-          }
-        } @else if (loading) {
-          <div class="next-steps">
-            <ion-spinner name="crescent"></ion-spinner>
-            <p>Cargando orden...</p>
-          </div>
-        } @else {
-          <div class="next-steps">
-            <h3>No se pudo cargar la orden</h3>
-            <p>{{ error || 'Intenta de nuevo en un momento.' }}</p>
-            <ion-button fill="outline" (click)="orderId && fetchOrder(+orderId)">Reintentar</ion-button>
-          </div>
-        }
+        <div class="detail-row">
+          <span class="detail-label">Total:</span>
+          <span class="detail-value">${{ orderData?.total | number:'1.2-2' }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Método de Pago:</span>
+          <span class="detail-value">Efectivo (Contra Entrega)</span>
+        </div>
       </ion-card-content>
     </ion-card>
 
-    <!-- Acciones ocultas en contexto de notificaciones: solo mostrar detalle -->
+    <!-- Notificación de email -->
+    <div class="email-notification">
+      <ion-icon name="mail-outline" color="primary"></ion-icon>
+      <p>Te enviaremos actualizaciones del estado de tu pedido a tu correo electrónico.</p>
+    </div>
+
+    <!-- Botones de acción -->
+    <div class="action-buttons">
+      <ion-button expand="block" fill="outline" color="primary" (click)="goToOrders()">
+        <ion-icon name="list-outline" slot="start"></ion-icon>
+        Ver Mis Órdenes
+      </ion-button>
+
+      <ion-button expand="block" color="primary" (click)="goToHome()">
+        <ion-icon name="home-outline" slot="start"></ion-icon>
+        Ir al Inicio
+      </ion-button>
+    </div>
+
   </div>
-  
 </ion-content>
 
-<!-- Tabs Navigation (inline mode para solo mostrar la barra) -->
-<app-tabs [inline]="true"></app-tabs>
+<!-- Tabs Navigation -->
+<app-tabs></app-tabs>
