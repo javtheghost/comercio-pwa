@@ -109,6 +109,73 @@ export class CheckoutPage implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Debug helper: enviar la orden directamente via fetch para aislar HttpClient/interceptor/SW
+   */
+  async debugCreateOrder(): Promise<void> {
+    try {
+      console.log('🐞 [DEBUG] debugCreateOrder triggered');
+
+      if (!this.cart || this.isCartEmpty()) {
+        console.warn('[DEBUG] No hay items en el carrito');
+        const toast = await this.toastController.create({ message: 'Carrito vacío (debug)', duration: 3000, color: 'warning' });
+        await toast.present();
+        return;
+      }
+
+      if (!this.user) {
+        console.warn('[DEBUG] No hay usuario autenticado');
+        const toast = await this.toastController.create({ message: 'Usuario no autenticado (debug)', duration: 3000, color: 'warning' });
+        await toast.present();
+        return;
+      }
+
+      const customer_id = this.user.id;
+      const items = this.cart.items.map(item => ({ product_id: item.product_id, product_variant_id: item.product_variant_id, quantity: item.quantity }));
+      const shipping_address = {
+        street: this.shippingAddress.address,
+        city: this.shippingAddress.city,
+        state: this.shippingAddress.state,
+        postal_code: this.shippingAddress.zipCode,
+        country: this.shippingAddress.country,
+        phone: this.shippingAddress.phone
+      };
+      const billing_address = { ...shipping_address };
+      const notes = `Orden debug desde PWA - ${new Date().toLocaleString()}`;
+      const payment_method = this.paymentMethod;
+
+      const orderData: CreateOrderRequest = { customer_id, items, shipping_address, billing_address, notes, payment_method };
+
+      console.log('🐞 [DEBUG] orderData (debug):', orderData);
+
+      const token = this.authService.getToken();
+      const url = `${environment.apiUrl.replace(/\/+$/, '')}/orders`;
+
+      console.log('🐞 [DEBUG] Enviando fetch directo a', url);
+
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(orderData)
+      });
+
+      console.log('🐞 [DEBUG] fetch status:', resp.status);
+      const text = await resp.text();
+      console.log('🐞 [DEBUG] fetch body:', text);
+
+      const toast = await this.toastController.create({ message: `Debug fetch finished: ${resp.status}`, duration: 4000 });
+      await toast.present();
+
+    } catch (err) {
+      console.error('🐞 [DEBUG] Error en debugCreateOrder:', err);
+      const toast = await this.toastController.create({ message: 'Error debug fetch', duration: 4000, color: 'danger' });
+      try { await toast.present(); } catch {}
+    }
+  }
+
   ngOnDestroy() {
     this.cartSubscription.unsubscribe();
     this.authSubscription.unsubscribe();
