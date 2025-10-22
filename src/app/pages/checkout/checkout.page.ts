@@ -54,11 +54,6 @@ export class CheckoutPage implements OnInit, OnDestroy {
   savingAddress = false;
   addressSavedToastShown = false;
 
-  // Sistema de cacheo de toasts para evitar duplicados
-  private activeToasts = new Map<string, HTMLIonToastElement>();
-  private toastQueue: Array<{id: string, message: string, type: 'success' | 'warning' | 'danger' | 'info'}> = [];
-  private isProcessingToastQueue = false;
-
   private cartSubscription: Subscription = new Subscription();
   private authSubscription: Subscription = new Subscription();
 
@@ -75,8 +70,11 @@ export class CheckoutPage implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
+    console.log('🛒 [CHECKOUT] Inicializando página de checkout...');
+
     // Verificar autenticación
     if (!this.authService.isAuthenticated()) {
+      console.log('❌ [CHECKOUT] Usuario no autenticado, redirigiendo al login...');
       this.router.navigate(['/tabs/login'], {
         queryParams: { returnUrl: '/checkout' }
       });
@@ -93,43 +91,51 @@ export class CheckoutPage implements OnInit, OnDestroy {
     try {
       // @ts-ignore - debugging helper
       window.triggerCheckoutProcess = async () => {
+        console.log('🔬 [DEBUG] triggerCheckoutProcess called from window');
         try {
           await this.processOrder();
         } catch (e) {
-          console.error('Error invoking processOrder via trigger:', e);
+          console.error('🔬 [DEBUG] Error invoking processOrder via trigger:', e);
         }
       };
 
       // también escuchar un evento custom para forzar checkout
       window.addEventListener('force-checkout', async () => {
+        console.log('🔬 [DEBUG] force-checkout event received');
         try { await this.processOrder(); } catch (e) { console.error(e); }
       });
     } catch (e) {
-      // Silently handle error
+      console.warn('⚠️ [CHECKOUT] No se pudo exponer triggerCheckoutProcess:', e);
     }
   }
 
   /**
-   * Procesar orden usando fetch directamente para evitar problemas con HttpClient/interceptor
+   * Debug helper: enviar la orden directamente via fetch para aislar HttpClient/interceptor/SW
    */
-  async processOrder(): Promise<void> {
+  async debugCreateOrder(): Promise<void> {
     // Mostrar loading
     const loading = await this.loadingController.create({
-      message: 'Procesando orden...',
+      message: 'Procesando orden (Debug)...',
       spinner: 'crescent'
     });
     await loading.present();
 
     try {
+      console.log('🐞 [DEBUG] debugCreateOrder triggered');
+
       if (!this.cart || this.isCartEmpty()) {
+        console.warn('[DEBUG] No hay items en el carrito');
         await loading.dismiss();
-        await this.showWarningToast('empty_cart', 'El carrito está vacío');
+        const toast = await this.toastController.create({ message: 'Carrito vacío (debug)', duration: 3000, color: 'warning' });
+        await toast.present();
         return;
       }
 
       if (!this.user) {
+        console.warn('[DEBUG] No hay usuario autenticado');
         await loading.dismiss();
-        await this.showWarningToast('no_user', 'Usuario no autenticado');
+        const toast = await this.toastController.create({ message: 'Usuario no autenticado (debug)', duration: 3000, color: 'warning' });
+        await toast.present();
         return;
       }
 
@@ -167,7 +173,13 @@ export class CheckoutPage implements OnInit, OnDestroy {
       try {
         response = JSON.parse(text);
       } catch (e) {
-        await this.showErrorToast('parse_response', 'Error procesando respuesta del servidor');
+        console.error('🐞 [DEBUG] Error parsing response:', e);
+        const toast = await this.toastController.create({
+          message: 'Error parsing response',
+          duration: 4000,
+          color: 'danger'
+        });
+        await toast.present();
         return;
       }
 
@@ -176,187 +188,83 @@ export class CheckoutPage implements OnInit, OnDestroy {
         || (!!response && (response.id || response.order_number || response.data));
 
       if (success) {
+        console.log('✅ [DEBUG] Orden creada exitosamente');
+
         // Cerrar loading
         await loading.dismiss();
-
-        // ✅ Verificar si viene de carrito abandonado y marcarlo como recuperado
-        await this.handleAbandonedCartRecovery();
 
         // Limpiar el carrito
         await firstValueFrom(this.cartService.clearCart());
 
-        // Enviar notificación de nueva orden
-        try {
-          await this.notificationService.sendOrderNotification({
-            orderId: response.data?.id || response.id,
-            orderNumber: response.data?.order_number || response.order_number,
-            total: response.data?.total_amount || response.total_amount,
-            customerName: this.user?.first_name || 'Cliente'
-          });
-        } catch (notificationError) {
-          // Silently handle notification error
-        }
-
         // Mostrar mensaje de éxito
-        await this.showSuccessToast('order_created', '¡Orden creada exitosamente!');
+        const toast = await this.toastController.create({
+          message: '¡Orden creada exitosamente! (Debug)',
+          duration: 3000,
+          color: 'success',
+          position: 'top'
+        });
+        await toast.present();
 
-        // Redirigir a página de confirmación (modo "gracias")
+        // Redirigir a página de confirmación
         this.router.navigate(['/order-confirmation'], {
           queryParams: {
             orderId: response.data?.id || response.id,
             orderNumber: response.data?.order_number || response.order_number,
-            mode: 'thanks' // indica que venimos de la compra recién hecha
+            mode: 'thanks'
           }
         });
       } else {
+        console.log('❌ [DEBUG] Error creando orden');
         await loading.dismiss();
-        await this.showErrorToast('order_failed', `Error: ${response?.message || 'Error desconocido'}`);
+        const toast = await this.toastController.create({
+          message: `Error: ${response?.message || 'Error desconocido'}`,
+          duration: 4000,
+          color: 'danger'
+        });
+        await toast.present();
       }
 
     } catch (err) {
+      console.error('🐞 [DEBUG] Error en debugCreateOrder:', err);
       await loading.dismiss();
-      await this.showErrorToast('debug_operation', 'Error en la operación');
+      const toast = await this.toastController.create({ message: 'Error debug fetch', duration: 4000, color: 'danger' });
+      try { await toast.present(); } catch {}
     }
   }
 
   ngOnDestroy() {
     this.cartSubscription.unsubscribe();
     this.authSubscription.unsubscribe();
-    this.clearAllToasts();
-  }
-
-  /**
-   * Sistema de cacheo de toasts para evitar duplicados y mejorar UX
-   */
-  private async showCachedToast(
-    id: string,
-    message: string,
-    type: 'success' | 'warning' | 'danger' | 'info' = 'info',
-    duration: number = 4000,
-    position: 'top' | 'bottom' | 'middle' = 'top'
-  ): Promise<void> {
-    // Si ya existe un toast con este ID, no mostrar otro
-    if (this.activeToasts.has(id)) {
-      return;
-    }
-
-    // Agregar a la cola si hay toasts procesándose
-    if (this.isProcessingToastQueue) {
-      this.toastQueue.push({ id, message, type });
-      return;
-    }
-
-    await this.processToast(id, message, type, duration, position);
-  }
-
-  private async processToast(
-    id: string,
-    message: string,
-    type: 'success' | 'warning' | 'danger' | 'info',
-    duration: number,
-    position: 'top' | 'bottom' | 'middle'
-  ): Promise<void> {
-    this.isProcessingToastQueue = true;
-
-    try {
-      const toast = await this.toastController.create({
-        message,
-        duration,
-        color: type,
-        position,
-        buttons: [
-          {
-            text: 'Cerrar',
-            role: 'cancel',
-            handler: () => {
-              this.activeToasts.delete(id);
-            }
-          }
-        ]
-      });
-
-      // Guardar referencia del toast activo
-      this.activeToasts.set(id, toast);
-
-      // Configurar limpieza automática cuando se cierre
-      toast.onDidDismiss().then(() => {
-        this.activeToasts.delete(id);
-        this.processNextToast();
-      });
-
-      await toast.present();
-
-    } catch (error) {
-      // Si hay error creando el toast, limpiar y procesar siguiente
-      this.activeToasts.delete(id);
-      this.processNextToast();
-    }
-  }
-
-  private async processNextToast(): Promise<void> {
-    if (this.toastQueue.length === 0) {
-      this.isProcessingToastQueue = false;
-      return;
-    }
-
-    const nextToast = this.toastQueue.shift();
-    if (nextToast) {
-      await this.processToast(nextToast.id, nextToast.message, nextToast.type, 4000, 'top');
-    }
-  }
-
-  private clearAllToasts(): void {
-    this.activeToasts.forEach(toast => {
-      try {
-        toast.dismiss();
-      } catch (error) {
-        // Silently handle error
-      }
-    });
-    this.activeToasts.clear();
-    this.toastQueue = [];
-    this.isProcessingToastQueue = false;
-  }
-
-  /**
-   * Métodos específicos para diferentes tipos de errores
-   */
-  private async showErrorToast(errorType: string, message: string): Promise<void> {
-    await this.showCachedToast(`error_${errorType}`, message, 'danger', 5000);
-  }
-
-  private async showSuccessToast(successType: string, message: string): Promise<void> {
-    await this.showCachedToast(`success_${successType}`, message, 'success', 3000);
-  }
-
-  private async showWarningToast(warningType: string, message: string): Promise<void> {
-    await this.showCachedToast(`warning_${warningType}`, message, 'warning', 4000);
-  }
-
-  private async showInfoToast(infoType: string, message: string): Promise<void> {
-    await this.showCachedToast(`info_${infoType}`, message, 'info', 3000);
   }
 
   private loadCartData(): void {
+    console.log('🛒 [CHECKOUT] Cargando datos del carrito...');
+
     this.cartSubscription = this.cartService.cart$.subscribe({
       next: (cart) => {
+        console.log('🛒 [CHECKOUT] Carrito recibido:', cart);
         this.cart = cart;
 
         if (!cart || this.isCartEmpty()) {
+          console.log('❌ [CHECKOUT] Carrito vacío, redirigiendo al carrito...');
           this.router.navigate(['/tabs/cart']);
           return;
         }
       },
       error: (error) => {
+        console.error('❌ [CHECKOUT] Error cargando carrito:', error);
         this.error = 'Error cargando el carrito';
       }
     });
   }
 
   private loadUserData(): void {
+    console.log('👤 [CHECKOUT] Cargando datos del usuario...');
+
     this.authSubscription = this.authService.authState$.subscribe({
       next: (authState) => {
         if (authState.isAuthenticated && authState.user) {
+          console.log('👤 [CHECKOUT] Usuario cargado:', authState.user);
           this.user = authState.user;
 
           // Pre-llenar datos del usuario
@@ -368,6 +276,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
         }
       },
       error: (error) => {
+        console.error('❌ [CHECKOUT] Error cargando usuario:', error);
         this.error = 'Error cargando datos del usuario';
       }
     });
@@ -474,6 +383,243 @@ export class CheckoutPage implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  async processOrder(): Promise<void> {
+    console.log('💳 [CHECKOUT] Método de pago seleccionado:', this.paymentMethod);
+
+    // Marcar loading de UI para evitar que el botón quede habilitado
+    try {
+      this.loading = true;
+    } catch {}
+
+
+    if (!this.isFormValid()) {
+      this.error = 'Por favor completa todos los campos requeridos';
+      if (this.addressMode === 'new') {
+        this.validateNewAddress(false);
+      }
+      this.loading = false;
+      return;
+    }
+
+    if (this.isCartEmpty()) {
+      this.error = 'El carrito está vacío';
+      this.loading = false;
+      return;
+    }
+
+    if (!this.user) {
+      this.error = 'Usuario no autenticado';
+      this.loading = false;
+      return;
+    }
+
+    if (!this.paymentMethod) {
+      this.error = 'Por favor selecciona un método de pago';
+      this.loading = false;
+      return;
+    }
+
+    // Validar nueva dirección (en caso de modo 'new') antes de crear la orden
+    if (this.addressMode === 'new') {
+      const isAddressValid = this.validateNewAddress(false);
+      if (!isAddressValid) {
+        this.error = 'Corrige los errores de la dirección antes de continuar';
+        this.loading = false;
+        return;
+      }
+    }
+
+    let loading: HTMLIonLoadingElement | null = null;
+    try {
+      loading = await this.loadingController.create({
+        message: 'Procesando orden...',
+        spinner: 'crescent'
+      });
+
+      // Present con timeout para evitar bloqueo indefinido en algunos entornos
+      const presentPromise = loading.present();
+      try {
+        await Promise.race([presentPromise, new Promise((res) => setTimeout(res, 2500))]);
+        console.log('🔄 [CHECKOUT] Loading presentado (o timeout alcanzado)');
+      } catch (innerErr) {
+        console.warn('⚠️ [CHECKOUT] loading.present() fallo o timeout:', innerErr);
+      }
+    } catch (loadErr) {
+      // En producción algunos errores pueden ocurrir presentando el loading; no debe detener el flujo
+      console.warn('⚠️ [CHECKOUT] No se pudo presentar el loading (create failed):', loadErr);
+    }
+
+    this.error = null;
+
+    try {
+      console.log('💳 [CHECKOUT] Procesando orden...');
+
+      // Construir datos de la orden
+      const customer_id = this.user.id;
+      const items = this.cart!.items.map(item => ({
+        product_id: item.product_id,
+        product_variant_id: item.product_variant_id,
+        quantity: item.quantity
+      }));
+      const shipping_address = {
+        street: this.shippingAddress.address,
+        city: this.shippingAddress.city,
+        state: this.shippingAddress.state,
+        postal_code: this.shippingAddress.zipCode,
+        country: this.shippingAddress.country,
+        phone: this.shippingAddress.phone
+      };
+      const billing_address = { ...shipping_address };
+      const notes = `Orden creada desde PWA - ${new Date().toLocaleString()}`;
+      const payment_method = this.paymentMethod;
+      const orderData: CreateOrderRequest = {
+        customer_id,
+        items,
+        shipping_address,
+        billing_address,
+        notes,
+        payment_method
+      };
+      // Validar datos antes de enviar
+      const validation = this.orderService.validateOrderData(orderData);
+      if (!validation.isValid) {
+        throw new Error(validation.errors.join(', '));
+      }
+
+      // Crear la orden usando fetch directamente (como debug) para evitar problemas con interceptor
+      // NOTA: HttpClient con interceptor no funciona, por eso usamos fetch() directamente
+      console.log('⬆️ [CHECKOUT] Enviando orden...');
+
+      const token = this.authService.getToken();
+      const url = `${environment.apiUrl.replace(/\/+$/, '')}/orders`;
+
+      const TIMEOUT_MS = 15000; // 15s
+      let response: any;
+      try {
+        const fetchPromise = fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify(orderData)
+        });
+
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS)
+        );
+
+        const resp = await Promise.race([fetchPromise, timeoutPromise]) as Response;
+        const text = await resp.text();
+
+        try {
+          response = JSON.parse(text);
+        } catch (parseError) {
+          console.error('❌ [CHECKOUT] Error parsing response:', parseError);
+          throw new Error('Error parsing server response');
+        }
+
+        console.log('↪️ [CHECKOUT] Respuesta recibida');
+      } catch (err: any) {
+        console.error('❌ [CHECKOUT] Error al crear orden:', err);
+        // Mostrar mensaje más claro al usuario
+        const msg = (err && err.message === 'timeout') ? 'La petición tardó demasiado. Intenta nuevamente.' : (err?.message || 'Error enviando la orden');
+        this.error = msg;
+        try {
+          const toast = await this.toastController.create({ message: msg, duration: 4000, color: 'danger', position: 'top' });
+          await toast.present();
+        } catch (tErr) { console.warn('⚠️ [CHECKOUT] No se pudo mostrar toast de error:', tErr); }
+
+        // Asegurar que el loading se limpia y se intenta dismiss del spinner
+        try { this.loading = false; } catch {}
+        try { if (loading) await loading.dismiss(); } catch {}
+
+        // Re-lanzar para que el bloque externo lo maneje también (ya mostramos toast)
+        throw err;
+      }
+
+      // Verificar si la orden se creó exitosamente
+      const success = (response && (response.success === true || response.success === 'true'))
+        || (!!response && (response.id || response.order_number || response.data));
+      const responseData = response?.data || response;
+
+      if (success) {
+        console.log('✅ [CHECKOUT] Orden creada (aceptado):', responseData);
+
+        // ✅ Verificar si viene de carrito abandonado y marcarlo como recuperado
+        await this.handleAbandonedCartRecovery();
+
+        // Limpiar el carrito
+        await firstValueFrom(this.cartService.clearCart());
+
+        // Enviar notificación de nueva orden
+        try {
+          await this.notificationService.sendOrderNotification({
+            orderId: response.data.id,
+            orderNumber: response.data.order_number,
+            total: response.data.total_amount,
+            customerName: this.user?.first_name || 'Cliente'
+          });
+          console.log('✅ [CHECKOUT] Notificación de orden enviada');
+        } catch (notificationError) {
+          console.warn('⚠️ [CHECKOUT] Error enviando notificación de orden:', notificationError);
+        }
+
+        // Mostrar mensaje de éxito
+        const toast = await this.toastController.create({
+          message: '¡Orden creada exitosamente!',
+          duration: 3000,
+          color: 'success',
+          position: 'top'
+        });
+        await toast.present();
+
+        // Redirigir a página de confirmación (modo "gracias")
+        this.router.navigate(['/order-confirmation'], {
+          queryParams: {
+            orderId: response.data.id,
+            orderNumber: response.data.order_number,
+            mode: 'thanks' // indica que venimos de la compra recién hecha
+          }
+        });
+
+      } else {
+        console.log('❌ [CHECKOUT] Error en respuesta:', response);
+        throw new Error(response?.message || 'Error desconocido al crear la orden');
+      }
+
+    } catch (error: any) {
+      console.error('❌ [CHECKOUT] Error procesando orden:', error);
+
+      let errorMessage = 'Error procesando la orden. Por favor intenta nuevamente.';
+
+      if (error.error && error.error.message) {
+        errorMessage = error.error.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      this.error = errorMessage;
+
+      // Mostrar error en toast
+      const toast = await this.toastController.create({
+        message: errorMessage,
+        duration: 5000,
+        color: 'danger',
+        position: 'top'
+      });
+      await toast.present();
+
+    } finally {
+      try {
+        if (loading) await loading.dismiss();
+      } catch (dismissErr) {
+        console.warn('⚠️ [CHECKOUT] Error dismissing loading:', dismissErr);
+      }
+      // Reset UI loading flag
+      try { this.loading = false; } catch {}
+    }
+  }
 
   // Guardar la nueva dirección opcionalmente
   async saveNewAddress(): Promise<void> {
@@ -511,15 +657,28 @@ export class CheckoutPage implements OnInit, OnDestroy {
           this.useExistingAddress = true;
         }
         if (!this.addressSavedToastShown) {
-          await this.showSuccessToast('address_saved', 'Dirección guardada');
+          const toast = await this.toastController.create({
+            message: 'Dirección guardada',
+            duration: 2500,
+            color: 'success',
+            position: 'top'
+          });
+            await toast.present();
           this.addressSavedToastShown = true;
         }
       } else {
         throw new Error(resp?.message || 'No se pudo guardar la dirección');
       }
     } catch (e: any) {
+      console.error('[CHECKOUT] Error guardando dirección:', e);
       this.error = e?.message || 'Error guardando la dirección';
-      await this.showErrorToast('address_save_failed', this.error || 'Error guardando la dirección');
+      const toast = await this.toastController.create({
+        message: this.error || 'Error guardando la dirección',
+        duration: 4000,
+        color: 'danger',
+        position: 'top'
+      });
+      await toast.present();
     } finally {
       this.savingAddress = false;
       this.cdr.detectChanges();

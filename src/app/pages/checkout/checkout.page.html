@@ -232,6 +232,13 @@
               <ion-icon name="bag-check-outline" slot="start"></ion-icon>
               Confirmar Pedido - ${{ getTotal() | number:'1.2-2' }}
             </ion-button>
+            <!-- Botón de debug: forzar creación de orden (no altera el flujo principal) -->
+            <div style="margin-top:8px">
+              <ion-button expand="block" size="small"  [disabled]="loading" (click)="debugCreateOrder()">
+                <ion-icon name="bag-check-outline" slot="start"></ion-icon>
+                Confirmar Pedido  ${{ getTotal() | number:'1.2-2' }}
+              </ion-button>
+            </div>
           </div>
         </ion-card-content>
       </ion-card>
