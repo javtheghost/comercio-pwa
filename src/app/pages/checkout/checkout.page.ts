@@ -54,6 +54,14 @@ export class CheckoutPage implements OnInit, OnDestroy {
   savingAddress = false;
   addressSavedToastShown = false;
 
+  // Modal de confirmación de orden
+  showOrderSuccessModal = false;
+  orderConfirmation: {
+    orderNumber?: string;
+    orderId?: string;
+    total?: number;
+  } | null = null;
+
   private cartSubscription: Subscription = new Subscription();
   private authSubscription: Subscription = new Subscription();
 
@@ -231,17 +239,19 @@ export class CheckoutPage implements OnInit, OnDestroy {
         // Limpiar el carrito
         await firstValueFrom(this.cartService.clearCart());
 
-        // Mostrar mensaje de éxito con detalles
+        // Configurar datos de confirmación para el modal
         const orderId = response.data?.id || response.id;
         const orderNumber = response.data?.order_number || response.order_number;
+        const total = response.data?.total_amount || response.total_amount;
 
-        const toast = await this.toastController.create({
-          message: `¡Orden #${orderNumber || orderId} creada exitosamente! (Debug)`,
-          duration: 5000,
-          color: 'success',
-          position: 'top'
-        });
-        await toast.present();
+        this.orderConfirmation = {
+          orderNumber: orderNumber,
+          orderId: orderId,
+          total: parseFloat(total || this.getTotal().toString())
+        };
+
+        // Mostrar modal de confirmación
+        this.showOrderSuccessModal = true;
 
       } else {
         console.log('❌ [DEBUG] Error creando orden');
@@ -788,23 +798,15 @@ export class CheckoutPage implements OnInit, OnDestroy {
           console.warn('⚠️ [CHECKOUT] Error enviando notificación de orden:', notificationError);
         }
 
-        // Mostrar mensaje de éxito
-        const toast = await this.toastController.create({
-          message: '¡Orden creada exitosamente!',
-          duration: 3000,
-          color: 'success',
-          position: 'top'
-        });
-        await toast.present();
+        // Configurar datos de confirmación para el modal
+        this.orderConfirmation = {
+          orderNumber: response.data.order_number,
+          orderId: response.data.id,
+          total: parseFloat(response.data.total_amount)
+        };
 
-        // Redirigir a página de confirmación (modo "gracias")
-        this.router.navigate(['/order-confirmation'], {
-          queryParams: {
-            orderId: response.data.id,
-            orderNumber: response.data.order_number,
-            mode: 'thanks' // indica que venimos de la compra recién hecha
-          }
-        });
+        // Mostrar modal de confirmación
+        this.showOrderSuccessModal = true;
 
       } else {
         console.log('❌ [CHECKOUT] Error en respuesta:', response);
@@ -911,6 +913,24 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
   goBack(): void {
     this.router.navigate(['/tabs/cart']);
+  }
+
+  /**
+   * Navegar a la página de órdenes del usuario
+   */
+  goToOrders(): void {
+    this.showOrderSuccessModal = false;
+    this.router.navigate(['/tabs/account'], {
+      queryParams: { tab: 'orders' }
+    });
+  }
+
+  /**
+   * Navegar al inicio
+   */
+  goToHome(): void {
+    this.showOrderSuccessModal = false;
+    this.router.navigate(['/tabs/home']);
   }
 
   // Métodos para manejar direcciones

@@ -374,26 +374,26 @@ app-tabs {
 // Estilos para el método de pago
 .payment-method-item {
   width: 100%;
-  
+
   .payment-method-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 4px;
-    
+
     span {
       font-weight: 500;
       font-size: 16px;
       color: var(--ion-color-dark);
     }
-    
+
     .payment-check {
       font-size: 20px;
       margin-left: 8px;
       animation: checkmark-appear 0.3s ease-in-out;
     }
   }
-  
+
   .payment-description {
     margin: 0;
     font-size: 14px;
@@ -413,6 +413,146 @@ app-tabs {
   100% {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+// Estilos para el modal de confirmación de orden
+.success-content {
+  text-align: center;
+  padding: 20px 0;
+
+  .success-icon {
+    margin-bottom: 24px;
+
+    ion-icon {
+      font-size: 80px;
+      animation: success-bounce 0.6s ease-out;
+    }
+  }
+
+  h2 {
+    color: var(--ion-color-success);
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0 0 24px 0;
+  }
+
+  .order-details {
+    margin: 24px 0;
+
+    ion-card {
+      margin: 0;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--ion-color-light);
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      .label {
+        font-weight: 500;
+        color: var(--ion-color-dark);
+        font-size: 16px;
+      }
+
+      .value {
+        font-weight: 600;
+        color: var(--ion-color-primary);
+        font-size: 16px;
+      }
+    }
+  }
+
+  .email-notification {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: var(--ion-color-primary-tint);
+    padding: 16px;
+    border-radius: 12px;
+    margin: 24px 0;
+    border: 1px solid var(--ion-color-primary);
+
+    ion-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    p {
+      margin: 0;
+      color: var(--ion-color-primary-shade);
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.4;
+    }
+  }
+
+  .modal-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 32px;
+
+    ion-button {
+      --border-radius: 12px;
+      height: 48px;
+      font-weight: 600;
+      font-size: 16px;
+
+      &[fill="outline"] {
+        --border-width: 2px;
+        --border-color: var(--ion-color-primary);
+        --color: var(--ion-color-primary);
+      }
+    }
+  }
+}
+
+@keyframes success-bounce {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+// Dark mode para el modal
+@media (prefers-color-scheme: dark) {
+  .success-content {
+    .order-details {
+      .detail-row {
+        border-bottom-color: var(--ion-color-dark);
+
+        .label {
+          color: var(--ion-color-light);
+        }
+      }
+    }
+
+    .email-notification {
+      background: rgba(var(--ion-color-primary-rgb), 0.15);
+      border-color: var(--ion-color-primary);
+
+      p {
+        color: var(--ion-color-primary-tint);
+      }
+    }
   }
 }
 

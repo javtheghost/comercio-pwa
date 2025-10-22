@@ -228,34 +228,15 @@
             </div>
           </div>
           <div class="checkout-actions">
-            <ion-button expand="block" size="large" [disabled]="getButtonDisabled()" (click)="onCheckoutButtonClick()">
+            <ion-button expand="block" size="large" [disabled]="!isFormValid() || loading" (click)="processOrder()">
               <ion-icon name="bag-check-outline" slot="start"></ion-icon>
               Confirmar Pedido - ${{ getTotal() | number:'1.2-2' }}
             </ion-button>
-
-            <!-- Debug info para ver por qué el botón está deshabilitado -->
-            <div style="margin-top: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px; font-size: 12px;">
-              <strong>🔍 DEBUG INFO:</strong><br>
-              isFormValid(): {{ isFormValid() }}<br>
-              loading: {{ loading }}<br>
-              addressMode: {{ addressMode }}<br>
-              selectedAddressId: {{ selectedAddressId }}<br>
-              paymentMethod: {{ paymentMethod }}<br>
-              Botón deshabilitado: {{ getButtonDisabled() }}
-            </div>
             <!-- Botón de debug: forzar creación de orden (no altera el flujo principal) -->
             <div style="margin-top:8px">
-              <ion-button expand="block" size="small" color="warning" fill="outline" [disabled]="loading" (click)="debugCreateOrder()">
-                <ion-icon name="bug-outline" slot="start"></ion-icon>
-                🔧 FORZAR ORDEN (DEBUG) - ${{ getTotal() | number:'1.2-2' }}
-              </ion-button>
-            </div>
-
-            <!-- Botón directo: sin service worker ni notificaciones -->
-            <div style="margin-top:8px">
-              <ion-button expand="block" size="small" color="success" fill="outline" [disabled]="loading" (click)="processOrderDirect()">
-                <ion-icon name="flash-outline" slot="start"></ion-icon>
-                ⚡ ORDEN DIRECTA (SIN SW) - ${{ getTotal() | number:'1.2-2' }}
+              <ion-button expand="block" size="small"  [disabled]="loading" (click)="debugCreateOrder()">
+                <ion-icon name="bag-check-outline" slot="start"></ion-icon>
+                Confirmar Pedido  ${{ getTotal() | number:'1.2-2' }}
               </ion-button>
             </div>
           </div>
@@ -280,6 +261,62 @@
     }
   </div>
 </ion-content>
+
+<!-- Modal de Confirmación de Orden -->
+<ion-modal [isOpen]="showOrderSuccessModal" [backdropDismiss]="false">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar color="success">
+        <ion-title>¡Orden Confirmada!</ion-title>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding">
+      <div class="success-content">
+        <div class="success-icon">
+          <ion-icon name="checkmark-circle" size="large" color="success"></ion-icon>
+        </div>
+
+        <h2>¡Tu pedido ha sido confirmado!</h2>
+
+        <div class="order-details">
+          <ion-card>
+            <ion-card-content>
+              <div class="detail-row">
+                <span class="label">Número de Orden:</span>
+                <span class="value">{{ orderConfirmation?.orderNumber || 'N/A' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Total:</span>
+                <span class="value">${{ orderConfirmation?.total | number:'1.2-2' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Método de Pago:</span>
+                <span class="value">Efectivo (Contra Entrega)</span>
+              </div>
+            </ion-card-content>
+          </ion-card>
+        </div>
+
+        <div class="email-notification">
+          <ion-icon name="mail-outline" color="primary"></ion-icon>
+          <p>Te enviaremos actualizaciones del estado de tu pedido a tu correo electrónico.</p>
+        </div>
+
+        <div class="modal-actions">
+          <ion-button expand="block" fill="outline" (click)="goToOrders()">
+            <ion-icon name="list-outline" slot="start"></ion-icon>
+            Ver Mis Órdenes
+          </ion-button>
+
+          <ion-button expand="block" (click)="goToHome()">
+            <ion-icon name="home-outline" slot="start"></ion-icon>
+            Ir al Inicio
+          </ion-button>
+        </div>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>
 
 <!-- Tabs Navigation -->
 <app-tabs></app-tabs>
