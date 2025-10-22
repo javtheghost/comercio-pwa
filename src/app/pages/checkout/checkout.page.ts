@@ -113,34 +113,38 @@ export class CheckoutPage implements OnInit, OnDestroy {
    * Debug helper: enviar la orden directamente via fetch para aislar HttpClient/interceptor/SW
    */
   async debugCreateOrder(): Promise<void> {
-    // Mostrar loading
-    const loading = await this.loadingController.create({
-      message: 'Procesando orden (Debug)...',
-      spinner: 'crescent'
-    });
-    await loading.present();
+    console.log('🐞 [DEBUG] debugCreateOrder triggered');
+
+    if (!this.cart || this.isCartEmpty()) {
+      console.warn('[DEBUG] No hay items en el carrito');
+      const toast = await this.toastController.create({
+        message: 'Carrito vacío (debug)',
+        duration: 3000,
+        color: 'warning'
+      });
+      await toast.present();
+      return;
+    }
+
+    if (!this.user) {
+      console.warn('[DEBUG] No hay usuario autenticado');
+      const toast = await this.toastController.create({
+        message: 'Usuario no autenticado (debug)',
+        duration: 3000,
+        color: 'warning'
+      });
+      await toast.present();
+      return;
+    }
 
     try {
-      console.log('🐞 [DEBUG] debugCreateOrder triggered');
-
-      if (!this.cart || this.isCartEmpty()) {
-        console.warn('[DEBUG] No hay items en el carrito');
-        await loading.dismiss();
-        const toast = await this.toastController.create({ message: 'Carrito vacío (debug)', duration: 3000, color: 'warning' });
-        await toast.present();
-        return;
-      }
-
-      if (!this.user) {
-        console.warn('[DEBUG] No hay usuario autenticado');
-        await loading.dismiss();
-        const toast = await this.toastController.create({ message: 'Usuario no autenticado (debug)', duration: 3000, color: 'warning' });
-        await toast.present();
-        return;
-      }
-
       const customer_id = this.user.id;
-      const items = this.cart.items.map(item => ({ product_id: item.product_id, product_variant_id: item.product_variant_id, quantity: item.quantity }));
+      const items = this.cart.items.map(item => ({
+        product_id: item.product_id,
+        product_variant_id: item.product_variant_id,
+        quantity: item.quantity
+      }));
+
       const shipping_address = {
         street: this.shippingAddress.address,
         city: this.shippingAddress.city,
@@ -149,14 +153,24 @@ export class CheckoutPage implements OnInit, OnDestroy {
         country: this.shippingAddress.country,
         phone: this.shippingAddress.phone
       };
+
       const billing_address = { ...shipping_address };
       const notes = `Orden debug desde PWA - ${new Date().toLocaleString()}`;
       const payment_method = this.paymentMethod;
 
-      const orderData: CreateOrderRequest = { customer_id, items, shipping_address, billing_address, notes, payment_method };
+      const orderData: CreateOrderRequest = {
+        customer_id,
+        items,
+        shipping_address,
+        billing_address,
+        notes,
+        payment_method
+      };
 
       const token = this.authService.getToken();
       const url = `${environment.apiUrl.replace(/\/+$/, '')}/orders`;
+
+      console.log('🐞 [DEBUG] Enviando orden:', orderData);
 
       const resp = await fetch(url, {
         method: 'POST',
@@ -168,6 +182,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
       });
 
       const text = await resp.text();
+      console.log('🐞 [DEBUG] Respuesta del servidor:', text);
 
       let response;
       try {
@@ -175,7 +190,7 @@ export class CheckoutPage implements OnInit, OnDestroy {
       } catch (e) {
         console.error('🐞 [DEBUG] Error parsing response:', e);
         const toast = await this.toastController.create({
-          message: 'Error parsing response',
+          message: 'Error parsing response del servidor',
           duration: 4000,
           color: 'danger'
         });
@@ -188,47 +203,41 @@ export class CheckoutPage implements OnInit, OnDestroy {
         || (!!response && (response.id || response.order_number || response.data));
 
       if (success) {
-        console.log('✅ [DEBUG] Orden creada exitosamente');
-
-        // Cerrar loading
-        await loading.dismiss();
+        console.log('✅ [DEBUG] Orden creada exitosamente:', response);
 
         // Limpiar el carrito
         await firstValueFrom(this.cartService.clearCart());
 
-        // Mostrar mensaje de éxito
+        // Mostrar mensaje de éxito con detalles
+        const orderId = response.data?.id || response.id;
+        const orderNumber = response.data?.order_number || response.order_number;
+
         const toast = await this.toastController.create({
-          message: '¡Orden creada exitosamente! (Debug)',
-          duration: 3000,
+          message: `¡Orden #${orderNumber || orderId} creada exitosamente! (Debug)`,
+          duration: 5000,
           color: 'success',
           position: 'top'
         });
         await toast.present();
 
-        // Redirigir a página de confirmación
-        this.router.navigate(['/order-confirmation'], {
-          queryParams: {
-            orderId: response.data?.id || response.id,
-            orderNumber: response.data?.order_number || response.order_number,
-            mode: 'thanks'
-          }
-        });
       } else {
-        console.log('❌ [DEBUG] Error creando orden');
-        await loading.dismiss();
+        console.log('❌ [DEBUG] Error creando orden:', response);
         const toast = await this.toastController.create({
-          message: `Error: ${response?.message || 'Error desconocido'}`,
+          message: `Error: ${response?.message || 'Error desconocido del servidor'}`,
           duration: 4000,
           color: 'danger'
         });
         await toast.present();
       }
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('🐞 [DEBUG] Error en debugCreateOrder:', err);
-      await loading.dismiss();
-      const toast = await this.toastController.create({ message: 'Error debug fetch', duration: 4000, color: 'danger' });
-      try { await toast.present(); } catch {}
+      const toast = await this.toastController.create({
+        message: `Error debug: ${err?.message || 'Error desconocido'}`,
+        duration: 4000,
+        color: 'danger'
+      });
+      await toast.present();
     }
   }
 
@@ -529,7 +538,9 @@ export class CheckoutPage implements OnInit, OnDestroy {
       if (response.ok && (result.success || result.id || result.data)) {
         console.log('✅ [DIRECT] Orden creada exitosamente');
 
-        await loading.dismiss();
+        if (loading) {
+          await loading.dismiss();
+        }
 
         // Limpiar carrito
         await firstValueFrom(this.cartService.clearCart());
@@ -557,7 +568,9 @@ export class CheckoutPage implements OnInit, OnDestroy {
 
     } catch (error: any) {
       console.error('❌ [DIRECT] Error:', error);
-      await loading.dismiss();
+      if (loading) {
+        await loading.dismiss();
+      }
 
       const toast = await this.toastController.create({
         message: `Error: ${error.message || 'Error desconocido'}`,
