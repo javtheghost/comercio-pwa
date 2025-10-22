@@ -314,6 +314,11 @@ export class OauthSuccessPage implements OnInit {
       }
     }
 
+    // Verificar si el usuario está verificado (OAuth siempre está verificado)
+    const isEmailVerified = userData?.email_verified_at || userData?.oauth_provider;
+    console.log('🔐 [OAUTH] Usuario verificado:', isEmailVerified);
+    console.log('🔐 [OAUTH] Proveedor OAuth:', userData?.oauth_provider);
+
     // Emitir evento personalizado para notificar al AuthService
     const event = new CustomEvent('userLoggedIn', {
       detail: {
@@ -329,7 +334,8 @@ export class OauthSuccessPage implements OnInit {
     console.log('🔐 [OAUTH] Token en localStorage:', localStorage.getItem('auth_token'));
     console.log('🔐 [OAUTH] Usuario en localStorage:', localStorage.getItem('auth_user'));
 
-    // Forzar recarga del estado de autenticación inmediatamente
+    // Redirigir directamente al home (OAuth no necesita verificación de email)
+    console.log('🔐 [OAUTH] Redirigiendo al home (OAuth no requiere verificación)');
     window.location.href = '/tabs/home';
   }
 

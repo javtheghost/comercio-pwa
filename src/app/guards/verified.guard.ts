@@ -41,7 +41,8 @@ export class VerifiedGuard implements CanActivate, CanActivateChild {
     return this.authService.getCurrentUser().pipe(
       map((fresh) => {
         VerifiedGuard.checking = false;
-        if (fresh?.email_verified_at) {
+        // Verificar si el usuario está verificado O si viene de OAuth
+        if (fresh?.email_verified_at || fresh?.oauth_provider) {
           return true;
         }
         this.presentVerifyToast();
