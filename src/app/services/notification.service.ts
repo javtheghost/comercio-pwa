@@ -736,8 +736,11 @@ export class NotificationService {
       const orderId = data?.orderId ?? data?.order_id;
       const url = data?.url;
       if (orderId) {
-        // Preferir la pantalla de confirmación con el detalle de la orden
-        this.navigateByUrl(`/order-confirmation?orderId=${orderId}`);
+        // Abrir el detalle de la orden: esto debe mostrar siempre el detalle completo
+        // en lugar de la pantalla de confirmación que solo se muestra justo después
+        // de crear la orden. Usamos la ruta de detalle dentro de tabs para garantizar
+        // que el componente OrderDetailPage reciba el parámetro :id correctamente.
+        this.navigateByUrl(`/tabs/orders/${orderId}`);
         return;
       }
       if (url) {
@@ -1165,7 +1168,12 @@ export class NotificationService {
     // Cuando viene del backend sync, ya está guardada, no duplicar
     if (saveToStorage) {
       console.log('💾 [showLocalNotification] Guardando en localStorage...');
-      this.saveNotificationToStorage(payload);
+      // Guardar y emitir evento para que UI se actualice inmediatamente
+      this.saveNotificationToStorage(payload).then(() => {
+        try { window.dispatchEvent(new CustomEvent('notifications:updated')); } catch {}
+      }).catch((e) => {
+        console.error('❌ Error guardando notificación (showLocalNotification):', e);
+      });
     } else {
       console.log('⏭️ [showLocalNotification] Saltando guardado (ya está en localStorage)');
     }
@@ -1176,7 +1184,12 @@ export class NotificationService {
    */
   private addToRealNotifications(payload: NotificationPayload): void {
     // Unificar persistencia vía localStorage para permitir dedupe entre optimista y real
-    this.saveNotificationToStorage(payload);
+    // Guardar y asegurar la UI se actualice
+    this.saveNotificationToStorage(payload).then(() => {
+      try { window.dispatchEvent(new CustomEvent('notifications:updated')); } catch {}
+    }).catch((e) => {
+      console.error('❌ Error guardando notificación real:', e);
+    });
   }
 
   /**
@@ -1478,7 +1491,8 @@ export class NotificationService {
           type: 'new_order',
           orderId: idNum,
           orderNumber: orderNumberVal || `#${idNum}`,
-          url: `/order-confirmation?orderId=${idNum}`
+          // Cambiado a ruta de detalle para que al hacer click abra el order detail
+          url: `/tabs/orders/${idNum}`
         }
       };
 
@@ -1599,7 +1613,7 @@ export class NotificationService {
           type: 'order_status',
           orderId: idNum,
           status: newStatus,
-          url: `/order-confirmation?orderId=${idNum}`
+          url: `/tabs/orders/${idNum}`
         }
       };
 
@@ -1886,10 +1900,33 @@ export class NotificationService {
             // Convertir Map a Array
             const dedupedNotifications = Array.from(uniqueNotifications.values());
 
-            // ✅ REEMPLAZAR completamente localStorage con notificaciones únicas
-            localStorage.setItem(key, JSON.stringify(dedupedNotifications));
+            // ---------- MERGE: preservar notificaciones locales (optimistas) que aún no tienen backendId ----------
+            // Evitar perder notificaciones mostradas localmente (por ejemplo, optimista tras crear una orden)
+            try {
+              const localsToKeep = (previousNotifications || []).filter((n: any) => {
+                // Mantener solo las que NO tienen backendId (local-only) o que no están presentes en el backend sync
+                if (!n) return false;
+                if (!n.backendId) return true;
+                return !uniqueNotifications.has(n.backendId);
+              });
 
-            console.log(`✅ [NOTIFICATIONS] ${dedupedNotifications.length} notificaciones únicas sincronizadas desde backend`);
+              if (localsToKeep.length) {
+                console.log(`🔁 [NOTIFICATIONS] Preservando ${localsToKeep.length} notificaciones locales no sincronizadas`);
+                // Insertar locales al final para mantener orden cronológico: backend (server) primero, luego locales pendientes
+                const merged = dedupedNotifications.concat(localsToKeep);
+                localStorage.setItem(key, JSON.stringify(merged));
+                console.log(`✅ [NOTIFICATIONS] ${merged.length} notificaciones sincronizadas (incluyendo locales preservadas)`);
+              } else {
+                localStorage.setItem(key, JSON.stringify(dedupedNotifications));
+                console.log(`✅ [NOTIFICATIONS] ${dedupedNotifications.length} notificaciones únicas sincronizadas desde backend`);
+              }
+            } catch (mergeError) {
+              // Si algo falla en el merge, fallback a reemplazo simple
+              console.warn('⚠️ [NOTIFICATIONS] Merge fallo, reemplazando localStorage con backend:', mergeError);
+              localStorage.setItem(key, JSON.stringify(dedupedNotifications));
+              console.log(`✅ [NOTIFICATIONS] ${dedupedNotifications.length} notificaciones únicas sincronizadas desde backend (fallback)`);
+            }
+
             if (localNotifications.length !== dedupedNotifications.length) {
               console.log(`🗑️ [NOTIFICATIONS] ${localNotifications.length - dedupedNotifications.length} duplicados eliminados`);
             }

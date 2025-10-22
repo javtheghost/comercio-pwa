@@ -331,7 +331,14 @@ export class NotificationsPage implements OnInit, OnDestroy {
     }
     
     if (orderId) {
-      this.router.navigate(['/order-confirmation'], { queryParams: { orderId } });
+      // Navegar al detalle de la orden dentro de las tabs para mostrar la vista completa de la orden
+      try {
+        this.router.navigate([`/tabs/orders/${orderId}`]);
+      } catch (e) {
+        // Fallback: si falla, usar la ruta antigua
+        console.warn('⚠️ Navegación a order detail falló, usando fallback:', e);
+        this.router.navigate(['/order-confirmation'], { queryParams: { orderId } });
+      }
       return;
     }
     if (url) {
