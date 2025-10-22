@@ -407,11 +407,18 @@ export class CheckoutPage implements OnInit, OnDestroy {
         message: 'Procesando orden...',
         spinner: 'crescent'
       });
-      await loading.present();
-      console.log('🔄 [CHECKOUT] Loading presentado');
+
+      // Present con timeout para evitar bloqueo indefinido en algunos entornos
+      const presentPromise = loading.present();
+      try {
+        await Promise.race([presentPromise, new Promise((res) => setTimeout(res, 2500))]);
+        console.log('🔄 [CHECKOUT] Loading presentado (o timeout alcanzado)');
+      } catch (innerErr) {
+        console.warn('⚠️ [CHECKOUT] loading.present() fallo o timeout:', innerErr);
+      }
     } catch (loadErr) {
       // En producción algunos errores pueden ocurrir presentando el loading; no debe detener el flujo
-      console.warn('⚠️ [CHECKOUT] No se pudo presentar el loading:', loadErr);
+      console.warn('⚠️ [CHECKOUT] No se pudo presentar el loading (create failed):', loadErr);
     }
 
     this.error = null;
