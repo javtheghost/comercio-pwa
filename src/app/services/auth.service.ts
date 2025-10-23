@@ -149,12 +149,9 @@ export class AuthService {
         // Manejar caso especial de cuenta OAuth-only
         if (error.error?.error_type === 'oauth_only_account') {
           console.log('🔐 [AUTH SERVICE] Usuario tiene cuenta OAuth-only');
-          this.setError({
-            message: error.error.message,
-            type: 'oauth_only',
-            providers: error.error.oauth_providers,
-            suggestedAction: error.error.suggested_action
-          });
+          const providers = error.error.oauth_providers || [];
+          const providerNames = providers.map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(' o ');
+          this.setError(`Esta cuenta está vinculada con ${providerNames}. Por favor inicia sesión con tu cuenta social.`);
         } else {
           this.setError(error.error?.message || 'Login failed');
         }
