@@ -298,6 +298,19 @@ onSkip() {
           this.submitting = false;
           this.setVerifyingOverlay(false);
 
+          // Manejar caso especial de cuenta OAuth-only
+          if (error.error?.error_type === 'oauth_only_account') {
+            console.log('🔐 [LOGIN] Usuario tiene cuenta OAuth-only');
+            const providers = error.error.oauth_providers || [];
+            const providerNames = providers.map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(' o ');
+
+            this.showToastMessage(`Esta cuenta está vinculada con ${providerNames}. Por favor inicia sesión con tu cuenta social.`);
+
+            // Mostrar botones de OAuth disponibles
+            this.showOAuthOptions(providers);
+            return;
+          }
+
           // Aplicar errores específicos a los campos correspondientes
           if (error.error && error.error.errors) {
             const errors = error.error.errors;
@@ -547,6 +560,22 @@ onSkip() {
   onForgotPassword(event: Event) {
     event.preventDefault();
     this.showToastMessage('Funcionalidad de restablecimiento de contraseña no implementada aún');
+  }
+
+  /**
+   * Mostrar opciones de OAuth disponibles para cuentas vinculadas
+   */
+  showOAuthOptions(providers: string[]) {
+    console.log('🔐 [LOGIN] Mostrando opciones OAuth para proveedores:', providers);
+
+    // Aquí podrías mostrar un modal o alert con las opciones disponibles
+    // Por ahora, solo logueamos la información
+    if (providers.includes('google')) {
+      console.log('🔐 [LOGIN] Usuario puede usar Google OAuth');
+    }
+    if (providers.includes('facebook')) {
+      console.log('🔐 [LOGIN] Usuario puede usar Facebook OAuth');
+    }
   }
 
   onSignUp(event: Event) {

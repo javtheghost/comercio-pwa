@@ -145,7 +145,20 @@ export class AuthService {
       }),
       catchError((error) => {
         console.error('❌ [AUTH SERVICE] Error en login:', error);
-        this.setError(error.error?.message || 'Login failed');
+
+        // Manejar caso especial de cuenta OAuth-only
+        if (error.error?.error_type === 'oauth_only_account') {
+          console.log('🔐 [AUTH SERVICE] Usuario tiene cuenta OAuth-only');
+          this.setError({
+            message: error.error.message,
+            type: 'oauth_only',
+            providers: error.error.oauth_providers,
+            suggestedAction: error.error.suggested_action
+          });
+        } else {
+          this.setError(error.error?.message || 'Login failed');
+        }
+
         return throwError(() => error);
       }),
       tap(() => {
