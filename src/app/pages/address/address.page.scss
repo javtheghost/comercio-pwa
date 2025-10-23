@@ -56,3 +56,98 @@ ion-radio-group {
 ion-radio {
   margin: 0;
 }
+
+.error-text {
+  display: block;
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+  padding-left: 1rem;
+  font-size: 0.875rem;
+
+  small {
+    color: var(--ion-color-danger);
+    font-weight: 500;
+  }
+}
+
+// Estilo para campos con error
+ion-item.error {
+  --border-color: var(--ion-color-danger);
+  --highlight-color: var(--ion-color-danger);
+}
+
+// Estilo para inputs con error
+ion-input.error,
+ion-textarea.error {
+  --border-color: var(--ion-color-danger);
+  --highlight-color: var(--ion-color-danger);
+}
+
+// Resumen de errores
+.error-summary {
+  margin: 1rem 0;
+
+  ion-card-content {
+    padding: 1rem;
+  }
+
+  h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 1.5rem;
+
+    li {
+      margin-bottom: 0.25rem;
+      font-size: 0.875rem;
+    }
+  }
+}
+
+// Sugerencias de direcciones
+.suggestions-card {
+  margin: 0.5rem 0;
+  border: 1px solid var(--ion-color-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  ion-card-content {
+    padding: 0.5rem;
+  }
+
+  h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+}
+
+.suggestion-item {
+  --padding-start: 0.5rem;
+  --padding-end: 0.5rem;
+  --inner-padding-end: 0;
+  margin-bottom: 0.25rem;
+  border-radius: 4px;
+
+  &:hover {
+    background-color: var(--ion-color-light);
+  }
+
+  ion-label {
+    h3 {
+      margin: 0 0 0.25rem 0;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--ion-color-dark);
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.75rem;
+      color: var(--ion-color-medium);
+    }
+  }
+}

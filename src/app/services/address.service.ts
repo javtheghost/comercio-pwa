@@ -87,7 +87,7 @@ export class AddressService {
       next: (res) => {
         if (res && (res as any).success) {
           const list = Array.isArray((res as any).data) ? ((res as any).data as Address[]) : [];
-          
+
           // 🔍 DEBUG: Log de respuesta del backend
           console.log('🔍 [ADDRESS DEBUG] getUserAddresses respuesta:', {
             count: list.length,
@@ -98,11 +98,11 @@ export class AddressService {
               cp: a.postal_code
             }))
           });
-          
+
           // Verificar si el backend devolvió IDs duplicados
           const ids = list.map(a => a.id).filter(id => id !== null && id !== undefined);
           const uniqueIds = new Set(ids);
-          
+
           if (ids.length !== uniqueIds.size) {
             console.error('❌ [ADDRESS DEBUG] ¡BACKEND DEVOLVIÓ DUPLICADOS POR ID!', {
               total: ids.length,
@@ -110,16 +110,16 @@ export class AddressService {
               duplicados: ids.filter((id, i) => ids.indexOf(id) !== i)
             });
           }
-          
+
           const cleaned = this.dedupeAndNormalize(list);
-          
+
           console.log('🔍 [ADDRESS DEBUG] Después de dedupe:', {
             antes: list.length,
             despues: cleaned.length,
             eliminados: list.length - cleaned.length,
             ids_finales: cleaned.map(a => a.id)
           });
-          
+
           this.addressesSubject.next(cleaned);
           this.exposeDebug();
         } else {
@@ -165,30 +165,30 @@ export class AddressService {
           dataType: Array.isArray(res.data) ? 'ARRAY' : 'OBJECT',
           data: res.data
         });
-        
+
         if (res && res.success && res.data && !Array.isArray(res.data)) {
           const current = this.addressesSubject.value.slice();
           const created = this.normalizeAddress(res.data as Address);
           const sigCreated = this.buildAddressSignature(created);
-          
+
           console.log('🔍 [ADDRESS DEBUG] Dirección creada:', {
             id: created.id,
             nombre: `${created.first_name} ${created.last_name}`,
             direccion: created.address_line_1,
             firma: sigCreated
           });
-          
+
           console.log('🔍 [ADDRESS DEBUG] Lista actual ANTES de agregar:', {
             count: current.length,
             ids: current.map(a => a.id),
             firmas: current.map(a => this.buildAddressSignature(a))
           });
-          
+
           // Limpiar firmas viejas
           for (const [sig, ts] of Array.from(this.recentCreateSignatures.entries())) {
             if (now - ts > AddressService.CREATE_DUP_WINDOW_MS) this.recentCreateSignatures.delete(sig);
           }
-          
+
           // Si ya existe por firma, sólo actualizar id si falta
           const existingIdxBySig = current.findIndex(a => this.buildAddressSignature(a) === sigCreated);
           if (existingIdxBySig !== -1) {
@@ -198,7 +198,7 @@ export class AddressService {
             this.addressesSubject.next(this.dedupeAndNormalize(current));
             return;
           }
-          
+
           const idx = current.findIndex(a => this.safeId(a.id) === this.safeId(created.id));
           if (idx !== -1) {
             console.log('🔍 [ADDRESS DEBUG] Dirección YA EXISTE por ID, actualizando...');
@@ -207,14 +207,14 @@ export class AddressService {
             console.log('🔍 [ADDRESS DEBUG] Dirección NUEVA, agregando al inicio...');
             current.unshift(created);
           }
-          
+
           const final = this.dedupeAndNormalize(current);
-          
+
           console.log('🔍 [ADDRESS DEBUG] Lista DESPUÉS de agregar:', {
             count: final.length,
             ids: final.map(a => a.id)
           });
-          
+
           this.addressesSubject.next(final);
         }
       }
@@ -337,52 +337,143 @@ export class AddressService {
   validateAddressData(address: Partial<Address>): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
 
+    // Validar nombre
     if (!address.first_name?.trim()) {
       errors.push('El nombre es requerido');
+    } else if (address.first_name.trim().length < 2) {
+      errors.push('El nombre debe tener al menos 2 caracteres');
+    } else if (address.first_name.trim().length > 50) {
+      errors.push('El nombre no puede tener más de 50 caracteres');
+    } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(address.first_name.trim())) {
+      errors.push('El nombre solo puede contener letras y espacios');
     }
 
+    // Validar apellido
     if (!address.last_name?.trim()) {
       errors.push('El apellido es requerido');
+    } else if (address.last_name.trim().length < 2) {
+      errors.push('El apellido debe tener al menos 2 caracteres');
+    } else if (address.last_name.trim().length > 50) {
+      errors.push('El apellido no puede tener más de 50 caracteres');
+    } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(address.last_name.trim())) {
+      errors.push('El apellido solo puede contener letras y espacios');
     }
 
+    // Validar dirección principal
     if (!address.address_line_1?.trim()) {
       errors.push('La dirección es requerida');
+    } else if (address.address_line_1.trim().length < 10) {
+      errors.push('La dirección debe tener al menos 10 caracteres');
+    } else if (address.address_line_1.trim().length > 200) {
+      errors.push('La dirección no puede tener más de 200 caracteres');
     }
 
+    // Validar dirección secundaria (opcional)
+    if (address.address_line_2 && address.address_line_2.trim().length > 200) {
+      errors.push('La dirección secundaria no puede tener más de 200 caracteres');
+    }
+
+    // Validar ciudad
     if (!address.city?.trim()) {
       errors.push('La ciudad es requerida');
+    } else if (address.city.trim().length < 2) {
+      errors.push('La ciudad debe tener al menos 2 caracteres');
+    } else if (address.city.trim().length > 100) {
+      errors.push('La ciudad no puede tener más de 100 caracteres');
+    } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(address.city.trim())) {
+      errors.push('La ciudad solo puede contener letras y espacios');
     }
 
+    // Validar estado
     if (!address.state?.trim()) {
       errors.push('El estado es requerido');
+    } else if (address.state.trim().length < 2) {
+      errors.push('El estado debe tener al menos 2 caracteres');
+    } else if (address.state.trim().length > 100) {
+      errors.push('El estado no puede tener más de 100 caracteres');
+    } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(address.state.trim())) {
+      errors.push('El estado solo puede contener letras y espacios');
     }
 
+    // Validar código postal
     if (!address.postal_code?.trim()) {
       errors.push('El código postal es requerido');
+    } else if (!/^\d{3,5}$/.test(address.postal_code.trim())) {
+      errors.push('El código postal debe tener entre 3 y 5 dígitos');
     }
 
+    // Validar país
     if (!address.country?.trim()) {
       errors.push('El país es requerido');
+    } else if (address.country.trim().length < 2) {
+      errors.push('El país debe tener al menos 2 caracteres');
+    } else if (address.country.trim().length > 100) {
+      errors.push('El país no puede tener más de 100 caracteres');
+    } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(address.country.trim())) {
+      errors.push('El país solo puede contener letras y espacios');
     }
 
+    // Validar teléfono
     if (!address.phone?.trim()) {
       errors.push('El teléfono es requerido');
-    }
+    } else {
+      // Limpiar teléfono para validación
+      const cleanPhone = address.phone.replace(/[\s\-\+\(\)]/g, '');
 
-    // Validar formato de teléfono (básico)
-    if (address.phone && !/^[\d\s\-\+\(\)]+$/.test(address.phone)) {
-      errors.push('El formato del teléfono no es válido');
-    }
-
-    // Validar código postal (básico) ahora permite de 3 a 5 dígitos
-    if (address.postal_code && !/^\d{3,5}$/.test(address.postal_code)) {
-      errors.push('El código postal debe tener entre 3 y 5 dígitos');
+      if (cleanPhone.length < 10) {
+        errors.push('El teléfono debe tener al menos 10 dígitos');
+      } else if (cleanPhone.length > 15) {
+        errors.push('El teléfono no puede tener más de 15 dígitos');
+      } else if (!/^\d+$/.test(cleanPhone)) {
+        errors.push('El teléfono solo puede contener números, espacios, guiones, paréntesis y el símbolo +');
+      }
     }
 
     return {
       isValid: errors.length === 0,
       errors
     };
+  }
+
+  /**
+   * Obtener sugerencias de direcciones usando OpenStreetMap
+   */
+  async getAddressSuggestions(query: string): Promise<any[]> {
+    if (!query || query.length < 3) {
+      return [];
+    }
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=mx&limit=5&addressdetails=1`
+      );
+
+      if (!response.ok) {
+        throw new Error('Error en la API de geocodificación');
+      }
+
+      const data = await response.json();
+
+      // Formatear datos para nuestra interfaz
+      return data.map((item: any) => ({
+        id: item.place_id,
+        display_name: item.display_name,
+        lat: parseFloat(item.lat),
+        lon: parseFloat(item.lon),
+        address: {
+          address_line_1: item.address?.house_number && item.address?.road
+            ? `${item.address.road} ${item.address.house_number}`.trim()
+            : item.address?.road || '',
+          city: item.address?.city || item.address?.town || item.address?.village || '',
+          state: item.address?.state || '',
+          postal_code: item.address?.postcode || '',
+          country: item.address?.country || 'México'
+        }
+      }));
+    } catch (error) {
+      console.error('Error obteniendo sugerencias de dirección:', error);
+      return [];
+    }
   }
 
   /**

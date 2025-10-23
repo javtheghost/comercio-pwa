@@ -50,6 +50,9 @@
             required>
           </ion-input>
         </ion-item>
+        <ion-text *ngIf="getFieldError('first_name')" color="danger" class="error-text">
+          <small>{{ getFieldError('first_name') }}</small>
+        </ion-text>
 
         <!-- Apellido -->
         <ion-item>
@@ -61,17 +64,49 @@
             required>
           </ion-input>
         </ion-item>
+        <ion-text *ngIf="getFieldError('last_name')" color="danger" class="error-text">
+          <small>{{ getFieldError('last_name') }}</small>
+        </ion-text>
 
-        <!-- Dirección -->
+        <!-- Dirección con autocompletado -->
         <ion-item>
           <ion-label position="stacked">Dirección *</ion-label>
           <ion-textarea
             [(ngModel)]="address.address_line_1"
             name="address_line_1"
             placeholder="Calle, número, colonia"
+            (ionInput)="searchAddressSuggestions($event.detail.value)"
+            (ionBlur)="hideSuggestions()"
             required>
           </ion-textarea>
         </ion-item>
+
+        <!-- Sugerencias de direcciones -->
+        <ion-card *ngIf="showSuggestions && addressSuggestions.length > 0" class="suggestions-card">
+          <ion-card-content>
+            <ion-text color="primary">
+              <h4>📍 Sugerencias de direcciones:</h4>
+            </ion-text>
+            <ion-list>
+              <ion-item
+                *ngFor="let suggestion of addressSuggestions"
+                button
+                (click)="selectAddressSuggestion(suggestion)"
+                class="suggestion-item">
+                <ion-label>
+                  <h3>{{ suggestion.display_name }}</h3>
+                  <p *ngIf="suggestion.address.city && suggestion.address.state">
+                    {{ suggestion.address.city }}, {{ suggestion.address.state }}
+                  </p>
+                </ion-label>
+              </ion-item>
+            </ion-list>
+          </ion-card-content>
+        </ion-card>
+
+        <ion-text *ngIf="getFieldError('address_line_1')" color="danger" class="error-text">
+          <small>{{ getFieldError('address_line_1') }}</small>
+        </ion-text>
 
         <!-- Dirección línea 2 (opcional) -->
         <ion-item>
@@ -93,6 +128,9 @@
             required>
           </ion-input>
         </ion-item>
+        <ion-text *ngIf="getFieldError('city')" color="danger" class="error-text">
+          <small>{{ getFieldError('city') }}</small>
+        </ion-text>
 
         <!-- Estado -->
         <ion-item>
@@ -104,6 +142,9 @@
             required>
           </ion-input>
         </ion-item>
+        <ion-text *ngIf="getFieldError('state')" color="danger" class="error-text">
+          <small>{{ getFieldError('state') }}</small>
+        </ion-text>
 
         <!-- Código Postal -->
         <ion-item>
@@ -116,6 +157,9 @@
             required>
           </ion-input>
         </ion-item>
+        <ion-text *ngIf="getFieldError('postal_code')" color="danger" class="error-text">
+          <small>{{ getFieldError('postal_code') }}</small>
+        </ion-text>
 
         <!-- País -->
         <ion-item>
@@ -127,6 +171,9 @@
             required>
           </ion-input>
         </ion-item>
+        <ion-text *ngIf="getFieldError('country')" color="danger" class="error-text">
+          <small>{{ getFieldError('country') }}</small>
+        </ion-text>
 
         <!-- Teléfono -->
         <ion-item>
@@ -139,6 +186,9 @@
             required>
           </ion-input>
         </ion-item>
+        <ion-text *ngIf="getFieldError('phone')" color="danger" class="error-text">
+          <small>{{ getFieldError('phone') }}</small>
+        </ion-text>
 
 
         <!-- Dirección predeterminada -->
@@ -148,6 +198,18 @@
             <ion-label>Establecer como dirección predeterminada</ion-label>
           </ion-radio-group>
         </ion-item>
+
+        <!-- Resumen de errores -->
+        <ion-card *ngIf="!isFormValid() && hasValidationErrors()" color="danger" class="error-summary">
+          <ion-card-content>
+            <ion-text color="danger">
+              <h3>Por favor corrige los siguientes errores:</h3>
+              <ul>
+                <li *ngFor="let error of getValidationErrors()">{{ error }}</li>
+              </ul>
+            </ion-text>
+          </ion-card-content>
+        </ion-card>
 
         <!-- Botones -->
         <div class="form-actions">

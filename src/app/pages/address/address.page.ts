@@ -34,6 +34,11 @@ export class AddressPage implements OnInit {
   loading = false;
   saving = false;
 
+  // Para autocompletado de direcciones
+  addressSuggestions: any[] = [];
+  showSuggestions = false;
+  searchTimeout: any = null;
+
   constructor(
     private addressService: AddressService,
     private router: Router,
@@ -135,19 +140,133 @@ export class AddressPage implements OnInit {
   }
 
   isFormValid(): boolean {
-    return !!(
-      this.address.first_name &&
-      this.address.last_name &&
-      this.address.address_line_1 &&
-      this.address.city &&
-      this.address.state &&
-      this.address.postal_code &&
-      this.address.phone
+    // Validación básica de campos requeridos
+    const hasRequiredFields = !!(
+      this.address.first_name?.trim() &&
+      this.address.last_name?.trim() &&
+      this.address.address_line_1?.trim() &&
+      this.address.city?.trim() &&
+      this.address.state?.trim() &&
+      this.address.postal_code?.trim() &&
+      this.address.country?.trim() &&
+      this.address.phone?.trim()
     );
+
+    if (!hasRequiredFields) {
+      return false;
+    }
+
+    // Validación de formatos usando el servicio
+    const validation = this.addressService.validateAddressData(this.address);
+    return validation.isValid;
   }
 
   goBack(): void {
     this.router.navigate(['/tabs/profile']);
+  }
+
+  getFieldError(fieldName: string): string | null {
+    const validation = this.addressService.validateAddressData(this.address);
+    const fieldErrors: { [key: string]: string } = {
+      'first_name': 'El nombre es requerido',
+      'last_name': 'El apellido es requerido',
+      'address_line_1': 'La dirección es requerida',
+      'city': 'La ciudad es requerida',
+      'state': 'El estado es requerido',
+      'postal_code': 'El código postal es requerido',
+      'country': 'El país es requerido',
+      'phone': 'El teléfono es requerido'
+    };
+
+    // Si el campo está vacío, mostrar error básico
+    if (!this.address[fieldName as keyof typeof this.address]?.trim()) {
+      return fieldErrors[fieldName] || null;
+    }
+
+    // Si hay errores de validación, buscar el específico del campo
+    if (!validation.isValid) {
+      const fieldSpecificErrors = validation.errors.filter(error =>
+        error.toLowerCase().includes(fieldName.replace('_', ' ')) ||
+        (fieldName === 'first_name' && error.includes('nombre')) ||
+        (fieldName === 'last_name' && error.includes('apellido')) ||
+        (fieldName === 'address_line_1' && error.includes('dirección')) ||
+        (fieldName === 'city' && error.includes('ciudad')) ||
+        (fieldName === 'state' && error.includes('estado')) ||
+        (fieldName === 'postal_code' && error.includes('código postal')) ||
+        (fieldName === 'country' && error.includes('país')) ||
+        (fieldName === 'phone' && error.includes('teléfono'))
+      );
+
+      return fieldSpecificErrors.length > 0 ? fieldSpecificErrors[0] : null;
+    }
+
+    return null;
+  }
+
+  hasValidationErrors(): boolean {
+    const validation = this.addressService.validateAddressData(this.address);
+    return !validation.isValid && validation.errors.length > 0;
+  }
+
+  getValidationErrors(): string[] {
+    const validation = this.addressService.validateAddressData(this.address);
+    return validation.errors;
+  }
+
+  /**
+   * Buscar sugerencias de direcciones
+   */
+  async searchAddressSuggestions(query: string): Promise<void> {
+    if (!query || query.length < 3) {
+      this.addressSuggestions = [];
+      this.showSuggestions = false;
+      return;
+    }
+
+    // Limpiar timeout anterior
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
+
+    // Debounce: esperar 500ms antes de buscar
+    this.searchTimeout = setTimeout(async () => {
+      try {
+        this.addressSuggestions = await this.addressService.getAddressSuggestions(query);
+        this.showSuggestions = this.addressSuggestions.length > 0;
+        console.log('📍 Sugerencias encontradas:', this.addressSuggestions);
+      } catch (error) {
+        console.error('Error buscando sugerencias:', error);
+        this.addressSuggestions = [];
+        this.showSuggestions = false;
+      }
+    }, 500);
+  }
+
+  /**
+   * Seleccionar una sugerencia de dirección
+   */
+  selectAddressSuggestion(suggestion: any): void {
+    console.log('📍 Dirección seleccionada:', suggestion);
+
+    // Rellenar campos automáticamente
+    this.address.address_line_1 = suggestion.address.address_line_1;
+    this.address.city = suggestion.address.city;
+    this.address.state = suggestion.address.state;
+    this.address.postal_code = suggestion.address.postal_code;
+    this.address.country = suggestion.address.country;
+
+    // Ocultar sugerencias
+    this.showSuggestions = false;
+    this.addressSuggestions = [];
+  }
+
+  /**
+   * Ocultar sugerencias
+   */
+  hideSuggestions(): void {
+    setTimeout(() => {
+      this.showSuggestions = false;
+    }, 200);
   }
 
   debugForm(): void {
