@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
-import { IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonSpinner, IonIcon, IonTextarea, IonSelect, IonSelectOption, IonRadioGroup, IonRadio, IonButtons, IonBackButton, ToastController } from '@ionic/angular/standalone';
+import { IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonSpinner, IonIcon, IonTextarea, IonSelect, IonSelectOption, IonRadioGroup, IonRadio, IonButtons, IonBackButton, IonText, IonList, ToastController } from '@ionic/angular/standalone';
 import { AddressService } from '../../services/address.service';
 import { Address } from '../../interfaces/address.interfaces';
 import { firstValueFrom } from 'rxjs';
@@ -10,7 +10,7 @@ import { firstValueFrom } from 'rxjs';
 @Component({
   selector: 'app-address',
   standalone: true,
-  imports: [CommonModule, FormsModule, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonSpinner, IonIcon, IonTextarea, IonSelect, IonSelectOption, IonRadioGroup, IonRadio, IonButtons, IonBackButton],
+  imports: [CommonModule, FormsModule, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonSpinner, IonIcon, IonTextarea, IonSelect, IonSelectOption, IonRadioGroup, IonRadio, IonButtons, IonBackButton, IonText, IonList],
   templateUrl: './address.page.html',
   styleUrls: ['./address.page.scss']
 })
@@ -179,7 +179,8 @@ export class AddressPage implements OnInit {
     };
 
     // Si el campo está vacío, mostrar error básico
-    if (!this.address[fieldName as keyof typeof this.address]?.trim()) {
+    const fieldValue = this.address[fieldName as keyof typeof this.address];
+    if (!fieldValue || (typeof fieldValue === 'string' && !fieldValue.trim())) {
       return fieldErrors[fieldName] || null;
     }
 

@@ -75,7 +75,7 @@
             [(ngModel)]="address.address_line_1"
             name="address_line_1"
             placeholder="Calle, número, colonia"
-            (ionInput)="searchAddressSuggestions($event.detail.value)"
+            (ionInput)="searchAddressSuggestions($event.detail.value || '')"
             (ionBlur)="hideSuggestions()"
             required>
           </ion-textarea>
