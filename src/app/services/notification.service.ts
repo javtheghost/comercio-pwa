@@ -10,6 +10,7 @@ import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
 import { Capacitor } from '@capacitor/core';
 import { environment } from '../../environments/environment';
 import { SecurityService } from './security.service';
+import { AuthService } from './auth.service';
 import { Router } from '@angular/router';
 import { NotificationsApiService, UserNotification } from './notifications-api.service';
 
@@ -69,7 +70,8 @@ export class NotificationService {
     private http: HttpClient, 
     private securityService: SecurityService,
     private notificationsApi: NotificationsApiService,
-    private router: Router
+    private router: Router,
+    private authService: AuthService
   ) {
     console.log('🏗️ [NotificationService] Constructor ejecutado');
     
@@ -79,25 +81,57 @@ export class NotificationService {
     // Reintentar registro de suscripción pendiente cuando el usuario inicia sesión
     if (typeof window !== 'undefined') {
       window.addEventListener('userLoggedIn', () => {
-        console.log('👤 [NotificationService] Evento userLoggedIn recibido');
-        // Sincronizar notificaciones desde backend
-        this.syncNotificationsFromBackend();
-        
-        // ✅ Iniciar polling automático cuando el usuario hace login
-        this.startAutoSync();
-        
-        if (this.pendingSubscription) {
-          console.log('🔄 Reintentando registro de suscripción pendiente tras login...');
-          // Guardar referencia local y limpiar para evitar loops
-          const sub = this.pendingSubscription;
-          this.pendingSubscription = null;
-          this.sendSubscriptionToServer(sub)
-            .then(() => console.log('✅ Suscripción pendiente registrada correctamente tras login'))
-            .catch(err => {
-              console.error('❌ Error reenviando suscripción tras login:', err);
-              // Si vuelve a fallar por 401, se almacenará de nuevo dentro del método sendSubscriptionToServer
+        console.log('👤 [NotificationService] Evento userLoggedIn recibido — esperando confirmación de AuthService antes de sincronizar');
+
+        // Esperar a que AuthService confirme la sesión (isAuthenticated === true)
+        const confirmedHandler = (stateSub: any) => {
+          try {
+            const sub = this.authService.authState$.subscribe((state) => {
+              if (state.isAuthenticated) {
+                console.log('👤 [NotificationService] AuthService confirma sesión iniciada — realizando sincronización');
+                try { sub.unsubscribe(); } catch (e) {}
+
+                // Sincronizar notificaciones desde backend
+                this.syncNotificationsFromBackend().catch(err => console.error('❌ Error sincronizando notificaciones tras login:', err));
+
+                // Iniciar polling automático
+                this.startAutoSync();
+
+                if (this.pendingSubscription) {
+                  console.log('🔄 Reintentando registro de suscripción pendiente tras login...');
+                  const pending = this.pendingSubscription;
+                  this.pendingSubscription = null;
+                  this.sendSubscriptionToServer(pending)
+                    .then(() => console.log('✅ Suscripción pendiente registrada correctamente tras login'))
+                    .catch(err => {
+                      console.error('❌ Error reenviando suscripción tras login:', err);
+                    });
+                }
+              }
             });
-        }
+
+            // Fallback: si AuthService no confirma en X ms, forzar la sincronización (evita bloqueo indefinido)
+            setTimeout(() => {
+              try {
+                const current = this.authService.getCurrentUserValue();
+                if (current && current.id) {
+                  console.log('⏱️ [NotificationService] Fallback: usuario presente en AuthService, forzando sincronización');
+                  this.syncNotificationsFromBackend().catch(e => console.error('❌ Error en fallback sync tras login:', e));
+                  this.startAutoSync();
+                } else {
+                  console.log('⏱️ [NotificationService] Fallback: no hay usuario confirmado, no iniciar sync para evitar 401');
+                }
+              } catch (e) {
+                console.warn('⚠️ [NotificationService] Fallback error comprobando AuthService:', e);
+              }
+            }, 3000);
+          } catch (e) {
+            console.error('⚠️ [NotificationService] Error esperando confirmación de AuthService:', e);
+          }
+        };
+
+        // Ejecutar el handler
+        confirmedHandler(null);
       });
 
       // Limpiar estado y desuscribir si el usuario hace logout
