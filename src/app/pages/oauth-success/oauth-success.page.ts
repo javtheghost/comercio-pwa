@@ -329,6 +329,22 @@ export class OauthSuccessPage implements OnInit {
         user: userData
       }
     });
+    // First try to notify the opener/parent via postMessage (if available)
+    try {
+      const targetWindow = window.opener || window.parent;
+      if (targetWindow && targetWindow !== window) {
+        try {
+          targetWindow.postMessage({ type: 'OAUTH_CALLBACK', token: params['token'], user: userData }, window.location.origin || '*');
+          console.log('🔐 [OAUTH] PostMessage enviado al parent/opener');
+        } catch (pmErr) {
+          console.warn('🔐 [OAUTH] PostMessage falló:', pmErr);
+        }
+      }
+    } catch (err) {
+      console.warn('🔐 [OAUTH] Error intentando postMessage:', err);
+    }
+
+    // Emitir evento personalizado para notificar al AuthService
     window.dispatchEvent(event);
     console.log('🔐 [OAUTH] Evento userLoggedIn emitido con datos:', { token: params['token'], user: userData });
 
@@ -337,12 +353,24 @@ export class OauthSuccessPage implements OnInit {
     console.log('🔐 [OAUTH] Token en localStorage:', localStorage.getItem('auth_token'));
     console.log('🔐 [OAUTH] Usuario en localStorage:', localStorage.getItem('auth_user'));
 
-    // Redirigir directamente al home (OAuth no necesita verificación de email)
-    console.log('🔐 [OAUTH] Redirigiendo al home (OAuth no requiere verificación)');
-    // Usar el sistema de navegación de Angular en lugar de window.location
+    // Redirigir / cerrar ventana: esperar un momento breve para dar tiempo al parent a procesar el evento
+    console.log('🔐 [OAUTH] Esperando breve intervalo para asegurar que el parent procese el evento...');
     setTimeout(() => {
-      window.location.href = '/tabs/home';
-    }, 100);
+      try {
+        // Si hay un opener, preferimos cerrar la ventana
+        if (window.opener && !window.opener.closed) {
+          console.log('🔐 [OAUTH] Cerrando popup (opener presente)');
+          window.close();
+          return;
+        }
+      } catch (e) {
+        console.warn('🔐 [OAUTH] Error verificando opener al cerrar:', e);
+      }
+
+      // Si no hay opener o no se pudo cerrar, redirigir en 100ms
+      console.log('🔐 [OAUTH] Redirigiendo al home (fallback)');
+      setTimeout(() => { window.location.href = '/tabs/home'; }, 100);
+    }, 400);
   }
 
   private redirectWithToken(params: any) {
