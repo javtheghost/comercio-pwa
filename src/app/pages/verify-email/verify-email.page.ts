@@ -37,6 +37,36 @@ export class VerifyEmailPage implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     console.log('📧 [VERIFY EMAIL] Página iniciada');
+    // Quick check: if we already have an OAuth user/token in localStorage, avoid showing the verify screen
+    try {
+      const token = localStorage.getItem('auth_token');
+      const userStr = localStorage.getItem('auth_user');
+      if (userStr) {
+        const parsed = JSON.parse(userStr);
+        if (parsed?.oauth_provider) {
+          console.log('📧 [VERIFY EMAIL] auth_user indicates OAuth provider, redirecting to home');
+          this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
+          return;
+        }
+      }
+
+      // If there's a token but AuthService hasn't restored the session yet, show verifying spinner
+      if (token && !this.authService.isAuthenticated()) {
+        console.log('📧 [VERIFY EMAIL] Token found in storage but session not yet restored — showing processing state');
+        this.verifying = true;
+        this.loading = true;
+        // Fallback: stop waiting after 5s to avoid blocking UI indefinitely
+        setTimeout(() => {
+          if (this.verifying) {
+            console.log('📧 [VERIFY EMAIL] Timeout waiting for session restore — hiding processing state');
+            this.verifying = false;
+            this.loading = false;
+          }
+        }, 5000);
+      }
+    } catch (e) {
+      console.warn('📧 [VERIFY EMAIL] Error parsing localStorage auth_user:', e);
+    }
     
     // Capturar parámetros de la URL para verificación automática
     this.route.queryParamMap.subscribe((params) => {
