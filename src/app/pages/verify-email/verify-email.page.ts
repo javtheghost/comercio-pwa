@@ -4,7 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { NavController } from '@ionic/angular';
 import { IonContent, IonButton, IonIcon, IonSpinner, IonToast } from '@ionic/angular/standalone';
 import { AuthService } from '../../services/auth.service';
-import { environment } from '../../../environments/environment';
+import { environment } from '../../../environments/environment.prod';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -83,8 +83,8 @@ export class VerifyEmailPage implements OnInit, OnDestroy {
       if (this.authService.isAuthenticated()) {
         this.email = user?.email || emailParam || undefined;
         
-        // Si ya está verificado, redirigir a home
-        if (user?.email_verified_at) {
+        // Si ya está verificado o es cuenta OAuth, redirigir a home
+        if (user?.email_verified_at || user?.oauth_provider) {
           console.log('✅ [VERIFY EMAIL] Usuario ya verificado, redirigiendo a home');
           this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
           return;
@@ -111,7 +111,7 @@ export class VerifyEmailPage implements OnInit, OnDestroy {
     this.authSub = this.authService.authState$.subscribe(state => {
       this.unauthenticated = !state.isAuthenticated;
       this.email = state.user?.email || this.email;
-      if (state.user?.email_verified_at && !this.verifying) {
+      if ((state.user?.email_verified_at || state.user?.oauth_provider) && !this.verifying) {
         console.log('✅ [VERIFY EMAIL] Usuario verificado detectado, redirigiendo a home');
         setTimeout(() => {
           this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
