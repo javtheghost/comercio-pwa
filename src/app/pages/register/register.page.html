@@ -191,3 +191,14 @@
   [duration]="3000"
   (didDismiss)="showToast = false"
 ></ion-toast>
+
+<!-- OAuth processing modal -->
+<div class="oauth-processing-overlay" *ngIf="oauthProcessing">
+  <div class="oauth-processing-modal">
+    <div class="oauth-processing-content">
+      <ion-spinner name="crescent" class="modal-spinner"></ion-spinner>
+      <h3>Verificando tu cuenta...</h3>
+      <p>Estamos finalizando el registro. Serás redirigido en breve.</p>
+    </div>
+  </div>
+</div>

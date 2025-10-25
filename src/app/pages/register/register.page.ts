@@ -30,6 +30,8 @@ import { RegisterRequest } from '../../interfaces/auth.interfaces';
 export class RegisterPage implements OnInit {
   registerForm: FormGroup;
   loading = false;
+  // Show processing modal specifically for OAuth flows
+  oauthProcessing = false;
   showPassword = false;
   showConfirmPassword = false;
   showToast = false;
@@ -87,36 +89,63 @@ export class RegisterPage implements OnInit {
     console.log('🔐 [REGISTER] Procesando éxito OAuth:', data);
 
     try {
-      // Mostrar loading
-      this.loading = true;
+      // Mostrar processing modal para OAuth
+      this.oauthProcessing = true;
 
-      // Guardar token y datos del usuario
+      // Guardar token y datos del usuario localmente
       if (data.token) {
         localStorage.setItem('auth_token', data.token);
         console.log('🔐 [REGISTER] Token guardado en localStorage');
       }
 
-      if (data.user && data.token) {
-        console.log('🔐 [REGISTER] Usuario registrado:', data.user);
-        console.log('🔐 [REGISTER] Estado de autenticación se actualizará automáticamente');
+      if (data.user) {
+        try {
+          localStorage.setItem('auth_user', JSON.stringify(data.user));
+        } catch (e) {
+          console.warn('🔐 [REGISTER] No se pudo guardar auth_user en localStorage:', e);
+        }
+        console.log('🔐 [REGISTER] Usuario recibido del provider:', data.user);
+      }
+
+      // Emitir evento para que AuthService procese el login OAuth
+      try {
+        window.dispatchEvent(new CustomEvent('userLoggedIn', { detail: { token: data.token, user: data.user } }));
+        console.log('🔐 [REGISTER] Evento userLoggedIn disparado');
+      } catch (e) {
+        console.warn('🔐 [REGISTER] No se pudo emitir userLoggedIn:', e);
       }
 
       // Mostrar mensaje de éxito
       const provider = data.user?.oauth_provider === 'google' ? 'Google' : 'Facebook';
       this.showToastMessage(`¡Registro con ${provider} exitoso!`);
 
-      // Redirigir al home
+      // Esperar a que AuthService confirme la sesión antes de navegar (con timeout de fallback)
+      const timeoutMs = 5000;
+      let navigated = false;
+
+      const sub = this.authService.authState$.subscribe((state) => {
+        if (state.isAuthenticated && !navigated) {
+          navigated = true;
+          sub.unsubscribe();
+          this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
+          this.oauthProcessing = false;
+        }
+      });
+
+      // Fallback: si no se autentica en X ms, navegar igualmente
       setTimeout(() => {
-        this.navCtrl.navigateRoot(['/tabs/home'], {
-          animationDirection: 'forward'
-        });
-      }, 1500);
+        if (!navigated) {
+          navigated = true;
+          try { sub.unsubscribe(); } catch (e) {}
+          this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
+          this.oauthProcessing = false;
+        }
+      }, timeoutMs);
 
     } catch (error: any) {
       console.error('🔐 [REGISTER] Error procesando OAuth:', error);
       this.showToastMessage(`Error procesando registro: ${error.message}`);
-    } finally {
-      this.loading = false;
+      this.oauthProcessing = false;
     }
   }
 
@@ -489,35 +518,58 @@ export class RegisterPage implements OnInit {
     console.log('✅ [REGISTER] Procesando registro exitoso con Google:', data);
 
     try {
-      // Mostrar loading
-      this.loading = true;
+      // Mostrar processing modal para OAuth
+      this.oauthProcessing = true;
 
-      // Guardar token y datos del usuario
+      // Guardar token y datos del usuario localmente
       if (data.token) {
         localStorage.setItem('auth_token', data.token);
         console.log('✅ [REGISTER] Token guardado en localStorage');
       }
 
-      if (data.user && data.token) {
+      if (data.user) {
+        try {
+          localStorage.setItem('auth_user', JSON.stringify(data.user));
+        } catch (e) {
+          console.warn('✅ [REGISTER] No se pudo guardar auth_user en localStorage:', e);
+        }
         console.log('✅ [REGISTER] Usuario registrado con Google:', data.user);
-        console.log('✅ [REGISTER] Estado de autenticación se actualizará automáticamente');
       }
 
-      // Mostrar mensaje de éxito
+      // Emitir evento para que AuthService procese el login OAuth
+      try {
+        window.dispatchEvent(new CustomEvent('userLoggedIn', { detail: { token: data.token, user: data.user } }));
+        console.log('✅ [REGISTER] Evento userLoggedIn disparado (Google)');
+      } catch (e) {
+        console.warn('✅ [REGISTER] No se pudo emitir userLoggedIn (Google):', e);
+      }
+
       this.showToastMessage('¡Registro con Google exitoso!');
 
-      // Redirigir al home
+      // Esperar a que AuthService confirme la sesión antes de navegar (con timeout de fallback)
+      const timeoutMs = 5000;
+      let navigated = false;
+      const sub = this.authService.authState$.subscribe((state) => {
+        if (state.isAuthenticated && !navigated) {
+          navigated = true;
+          sub.unsubscribe();
+          this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
+          this.oauthProcessing = false;
+        }
+      });
       setTimeout(() => {
-        this.navCtrl.navigateRoot(['/tabs/home'], {
-          animationDirection: 'forward'
-        });
-      }, 1500);
+        if (!navigated) {
+          navigated = true;
+          try { sub.unsubscribe(); } catch (e) {}
+          this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
+          this.oauthProcessing = false;
+        }
+      }, timeoutMs);
 
     } catch (error: any) {
       console.error('❌ [REGISTER] Error procesando registro con Google:', error);
       this.showToastMessage(`Error procesando registro: ${error.message}`);
-    } finally {
-      this.loading = false;
+      this.oauthProcessing = false;
     }
   }
 
@@ -525,35 +577,58 @@ export class RegisterPage implements OnInit {
     console.log('✅ [REGISTER] Procesando registro exitoso con Facebook:', data);
 
     try {
-      // Mostrar loading
-      this.loading = true;
+      // Mostrar processing modal para OAuth
+      this.oauthProcessing = true;
 
-      // Guardar token y datos del usuario
+      // Guardar token y datos del usuario localmente
       if (data.token) {
         localStorage.setItem('auth_token', data.token);
         console.log('✅ [REGISTER] Token guardado en localStorage');
       }
 
-      if (data.user && data.token) {
+      if (data.user) {
+        try {
+          localStorage.setItem('auth_user', JSON.stringify(data.user));
+        } catch (e) {
+          console.warn('✅ [REGISTER] No se pudo guardar auth_user en localStorage:', e);
+        }
         console.log('✅ [REGISTER] Usuario registrado con Facebook:', data.user);
-        console.log('✅ [REGISTER] Estado de autenticación se actualizará automáticamente');
       }
 
-      // Mostrar mensaje de éxito
+      // Emitir evento para que AuthService procese el login OAuth
+      try {
+        window.dispatchEvent(new CustomEvent('userLoggedIn', { detail: { token: data.token, user: data.user } }));
+        console.log('✅ [REGISTER] Evento userLoggedIn disparado (Facebook)');
+      } catch (e) {
+        console.warn('✅ [REGISTER] No se pudo emitir userLoggedIn (Facebook):', e);
+      }
+
       this.showToastMessage('¡Registro con Facebook exitoso!');
 
-      // Redirigir al home
+      // Esperar a que AuthService confirme la sesión antes de navegar (con timeout de fallback)
+      const timeoutMs = 5000;
+      let navigated = false;
+      const sub = this.authService.authState$.subscribe((state) => {
+        if (state.isAuthenticated && !navigated) {
+          navigated = true;
+          sub.unsubscribe();
+          this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
+          this.oauthProcessing = false;
+        }
+      });
       setTimeout(() => {
-        this.navCtrl.navigateRoot(['/tabs/home'], {
-          animationDirection: 'forward'
-        });
-      }, 1500);
+        if (!navigated) {
+          navigated = true;
+          try { sub.unsubscribe(); } catch (e) {}
+          this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
+          this.oauthProcessing = false;
+        }
+      }, timeoutMs);
 
     } catch (error: any) {
       console.error('❌ [REGISTER] Error procesando registro con Facebook:', error);
       this.showToastMessage(`Error procesando registro: ${error.message}`);
-    } finally {
-      this.loading = false;
+      this.oauthProcessing = false;
     }
   }
 }

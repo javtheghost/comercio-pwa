@@ -111,34 +111,58 @@ onSkip() {
     console.log('🔐 [LOGIN] Procesando éxito OAuth:', data);
 
     try {
-      // Mostrar loading
-      this.authLoading = true;
+      // Mostrar overlay de verificación de sesión
+      this.verifyingSession = true;
+      this.setVerifyingOverlay(true);
 
-      // Guardar token y datos del usuario
+      // Guardar token y datos del usuario localmente
       if (data.token) {
         localStorage.setItem('auth_token', data.token);
         console.log('🔐 [LOGIN] Token guardado en localStorage');
       }
 
-      if (data.user && data.token) {
+      if (data.user) {
+        try { localStorage.setItem('auth_user', JSON.stringify(data.user)); } catch (e) { /* ignore */ }
         console.log('🔐 [LOGIN] Usuario autenticado:', data.user);
-        console.log('🔐 [LOGIN] Estado de autenticación se actualizará automáticamente');
       }
 
-      // Mostrar mensaje de éxito
-      const provider = data.user?.oauth_provider === 'google' ? 'Google' : 'Facebook';
-      this.showToastMessage(`¡Inicio de sesión con ${provider} exitoso!`);
+      // Emitir evento para que AuthService procese el login OAuth
+      try {
+        window.dispatchEvent(new CustomEvent('userLoggedIn', { detail: { token: data.token, user: data.user } }));
+        console.log('🔐 [LOGIN] Evento userLoggedIn disparado');
+      } catch (e) {
+        console.warn('🔐 [LOGIN] No se pudo emitir userLoggedIn:', e);
+      }
 
-      // Redirigir al home
+      this.showToastMessage(`¡Inicio de sesión exitoso!`);
+
+      // Esperar a que AuthService confirme la sesión antes de navegar
+      const timeoutMs = 5000;
+      let navigated = false;
+      const sub = this.authService.authState$.subscribe((state) => {
+        if (state.isAuthenticated && !navigated) {
+          navigated = true;
+          sub.unsubscribe();
+          this.verifyingSession = false;
+          this.setVerifyingOverlay(false);
+          this.router.navigate(['/tabs/home']);
+        }
+      });
       setTimeout(() => {
-        this.router.navigate(['/tabs/home']);
-      }, 1500);
+        if (!navigated) {
+          navigated = true;
+          try { sub.unsubscribe(); } catch (e) {}
+          this.verifyingSession = false;
+          this.setVerifyingOverlay(false);
+          this.router.navigate(['/tabs/home']);
+        }
+      }, timeoutMs);
 
     } catch (error: any) {
       console.error('🔐 [LOGIN] Error procesando OAuth:', error);
       this.showToastMessage(`Error procesando login: ${error.message}`);
-    } finally {
-      this.authLoading = false;
+      this.verifyingSession = false;
+      this.setVerifyingOverlay(false);
     }
   }
 
@@ -480,38 +504,52 @@ onSkip() {
     console.log('🔐 [LOGIN] Procesando éxito de Google:', data);
 
     try {
-      // Mostrar loading
-      this.authLoading = true;
+      // Mostrar overlay de verificación de sesión
+      this.verifyingSession = true;
+      this.setVerifyingOverlay(true);
 
       // Guardar token y datos del usuario
       if (data.token) {
         localStorage.setItem('auth_token', data.token);
         console.log('🔐 [LOGIN] Token guardado en localStorage');
       }
-
-      if (data.user && data.token) {
-        // Simular un login exitoso usando el AuthService
-        // El AuthService manejará automáticamente el estado
+      if (data.user) {
+        try { localStorage.setItem('auth_user', JSON.stringify(data.user)); } catch (e) {}
         console.log('🔐 [LOGIN] Usuario autenticado con Google:', data.user);
-
-        // El token ya se guardó en localStorage arriba
-        // El AuthService detectará automáticamente el token en la próxima verificación
-        console.log('🔐 [LOGIN] Estado de autenticación se actualizará automáticamente');
       }
 
-      // Mostrar mensaje de éxito
+      // Emitir evento para que AuthService procese el login OAuth
+      try { window.dispatchEvent(new CustomEvent('userLoggedIn', { detail: { token: data.token, user: data.user } })); } catch (e) {}
+
       this.showToastMessage('¡Inicio de sesión con Google exitoso!');
 
-      // Redirigir al home
+      // Esperar a que AuthService confirme la sesión antes de navegar
+      const timeoutMs = 5000;
+      let navigated = false;
+      const sub = this.authService.authState$.subscribe((state) => {
+        if (state.isAuthenticated && !navigated) {
+          navigated = true;
+          sub.unsubscribe();
+          this.verifyingSession = false;
+          this.setVerifyingOverlay(false);
+          this.router.navigate(['/tabs/home']);
+        }
+      });
       setTimeout(() => {
-        this.router.navigate(['/tabs/home']);
-      }, 1500);
+        if (!navigated) {
+          navigated = true;
+          try { sub.unsubscribe(); } catch (e) {}
+          this.verifyingSession = false;
+          this.setVerifyingOverlay(false);
+          this.router.navigate(['/tabs/home']);
+        }
+      }, timeoutMs);
 
     } catch (error: any) {
       console.error('🔐 [LOGIN] Error procesando login con Google:', error);
       this.showToastMessage(`Error procesando login: ${error.message}`);
-    } finally {
-      this.authLoading = false;
+      this.verifyingSession = false;
+      this.setVerifyingOverlay(false);
     }
   }
 
@@ -522,38 +560,52 @@ onSkip() {
     console.log('🔐 [LOGIN] Procesando éxito de Facebook:', data);
 
     try {
-      // Mostrar loading
-      this.authLoading = true;
+      // Mostrar overlay de verificación de sesión
+      this.verifyingSession = true;
+      this.setVerifyingOverlay(true);
 
       // Guardar token y datos del usuario
       if (data.token) {
         localStorage.setItem('auth_token', data.token);
         console.log('🔐 [LOGIN] Token guardado en localStorage');
       }
-
-      if (data.user && data.token) {
-        // Simular un login exitoso usando el AuthService
-        // El AuthService manejará automáticamente el estado
+      if (data.user) {
+        try { localStorage.setItem('auth_user', JSON.stringify(data.user)); } catch (e) {}
         console.log('🔐 [LOGIN] Usuario autenticado con Facebook:', data.user);
-
-        // El token ya se guardó en localStorage arriba
-        // El AuthService detectará automáticamente el token en la próxima verificación
-        console.log('🔐 [LOGIN] Estado de autenticación se actualizará automáticamente');
       }
 
-      // Mostrar mensaje de éxito
+      // Emitir evento para que AuthService procese el login OAuth
+      try { window.dispatchEvent(new CustomEvent('userLoggedIn', { detail: { token: data.token, user: data.user } })); } catch (e) {}
+
       this.showToastMessage('¡Inicio de sesión con Facebook exitoso!');
 
-      // Redirigir al home
+      // Esperar a que AuthService confirme la sesión antes de navegar
+      const timeoutMs = 5000;
+      let navigated = false;
+      const sub = this.authService.authState$.subscribe((state) => {
+        if (state.isAuthenticated && !navigated) {
+          navigated = true;
+          sub.unsubscribe();
+          this.verifyingSession = false;
+          this.setVerifyingOverlay(false);
+          this.router.navigate(['/tabs/home']);
+        }
+      });
       setTimeout(() => {
-        this.router.navigate(['/tabs/home']);
-      }, 1500);
+        if (!navigated) {
+          navigated = true;
+          try { sub.unsubscribe(); } catch (e) {}
+          this.verifyingSession = false;
+          this.setVerifyingOverlay(false);
+          this.router.navigate(['/tabs/home']);
+        }
+      }, timeoutMs);
 
     } catch (error: any) {
       console.error('🔐 [LOGIN] Error procesando login con Facebook:', error);
       this.showToastMessage(`Error procesando login: ${error.message}`);
-    } finally {
-      this.authLoading = false;
+      this.verifyingSession = false;
+      this.setVerifyingOverlay(false);
     }
   }
 
