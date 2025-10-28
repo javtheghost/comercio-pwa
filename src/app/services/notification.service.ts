@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Inject, forwardRef } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
 // import {
@@ -71,7 +71,7 @@ export class NotificationService {
     private securityService: SecurityService,
     private notificationsApi: NotificationsApiService,
     private router: Router,
-    private authService: AuthService
+    @Inject(forwardRef(() => AuthService)) private authService: AuthService
   ) {
     console.log('🏗️ [NotificationService] Constructor ejecutado');
     

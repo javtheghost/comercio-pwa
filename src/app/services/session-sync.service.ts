@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Inject, forwardRef } from '@angular/core';
 import { AuthService } from './auth.service';
 import { FavoritesService } from './favorites.service';
 import { NotificationService } from './notification.service';
@@ -24,7 +24,7 @@ export class SessionSyncService {
   constructor(
     private authService: AuthService,
     private favoritesService: FavoritesService,
-    private notificationService: NotificationService
+    @Inject(forwardRef(() => NotificationService)) private notificationService: NotificationService
   ) {}
 
   /**

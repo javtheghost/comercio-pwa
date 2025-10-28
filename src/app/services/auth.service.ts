@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Inject, forwardRef } from '@angular/core';
 import { BehaviorSubject, Observable, throwError, firstValueFrom } from 'rxjs';
 import { catchError, tap, finalize } from 'rxjs/operators';
 import { LoginRequest, LoginResponse, User, AuthState, RegisterRequest, ForgotPasswordRequest, ResetPasswordRequest } from '../interfaces/auth.interfaces';
@@ -23,7 +23,7 @@ export class AuthService {
   constructor(
     private authApiService: AuthApiService,
     private securityService: SecurityService,
-    private notificationService: NotificationService
+    @Inject(forwardRef(() => NotificationService)) private notificationService: NotificationService
   ) {
     this.initializeAuth();
     this.setupOAuthListener();
