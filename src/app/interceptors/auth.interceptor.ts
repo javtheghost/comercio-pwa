@@ -13,9 +13,20 @@ export const authInterceptor: HttpInterceptorFn = (
   request: HttpRequest<unknown>,
   next: HttpHandlerFn
 ): Observable<any> => {
-  const authService = inject(AuthService);
-  const securityService = inject(SecurityService);
-  const httpClient = inject(HttpClient);
+  // Usar inject() de forma más segura para evitar problemas de inyección circular
+  let authService: AuthService;
+  let securityService: SecurityService;
+  let httpClient: HttpClient;
+  
+  try {
+    authService = inject(AuthService);
+    securityService = inject(SecurityService);
+    httpClient = inject(HttpClient);
+  } catch (error) {
+    console.error('❌ [AUTH INTERCEPTOR] Error inyectando servicios:', error);
+    // Si hay error de inyección, continuar sin interceptar
+    return next(request);
+  }
 
   // Agregar token a las peticiones autenticadas
   const modifiedRequest = addTokenToRequest(request, authService, securityService);

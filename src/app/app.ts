@@ -13,11 +13,20 @@ import { SessionSyncService } from './services/session-sync.service';
 })
 export class App implements OnInit {
   protected readonly title = signal('comercio-pwa');
-  private authService = inject(AuthService);
-  private notificationService = inject(NotificationService);
-  private sessionSync = inject(SessionSyncService);
+  private authService: AuthService;
+  private notificationService: NotificationService;
+  private sessionSync: SessionSyncService;
 
   constructor() {
+    // Inyectar servicios de forma más segura
+    try {
+      this.authService = inject(AuthService);
+      this.notificationService = inject(NotificationService);
+      this.sessionSync = inject(SessionSyncService);
+    } catch (error) {
+      console.error('❌ [APP] Error inyectando servicios:', error);
+      throw error;
+    }
     // Hacer el método de debug disponible globalmente para desarrollo
     if (typeof window !== 'undefined') {
       (window as any).debugAuth = () => this.authService.debugAuthState();
