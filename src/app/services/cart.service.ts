@@ -88,13 +88,16 @@ export class CartService {
     private securityService: SecurityService,
     private offlineCartService: OfflineCartService
   ) {
-    this.initializeSession();
-    this.setupEventListeners();
-
-    // Esperar un poco antes de cargar el carrito inicial para asegurar que el token esté disponible
+    // ✅ IMPORTANTE: Retrasar la inicialización para evitar problemas de dependencias circulares
     setTimeout(() => {
-      this.loadInitialCart();
-    }, 100);
+      this.initializeSession();
+      this.setupEventListeners();
+      
+      // Esperar un poco antes de cargar el carrito inicial para asegurar que el token esté disponible
+      setTimeout(() => {
+        this.loadInitialCart();
+      }, 100);
+    }, 0);
   }
 
   /**

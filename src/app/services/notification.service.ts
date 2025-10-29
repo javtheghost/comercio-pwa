@@ -75,8 +75,10 @@ export class NotificationService {
   ) {
     console.log('🏗️ [NotificationService] Constructor ejecutado');
     
-    // ✅ IMPORTANTE: Verificar si el usuario YA está logueado al cargar
-    this.checkAndStartAutoSync();
+    // ✅ IMPORTANTE: Retrasar la inicialización para evitar problemas de dependencias circulares
+    setTimeout(() => {
+      this.checkAndStartAutoSync();
+    }, 0);
     
     // Reintentar registro de suscripción pendiente cuando el usuario inicia sesión
     if (typeof window !== 'undefined') {

@@ -25,8 +25,11 @@ export class AuthService {
     private securityService: SecurityService,
     @Inject(forwardRef(() => NotificationService)) private notificationService: NotificationService
   ) {
-    this.initializeAuth();
-    this.setupOAuthListener();
+    // ✅ IMPORTANTE: Retrasar la inicialización para evitar problemas de dependencias circulares
+    setTimeout(() => {
+      this.initializeAuth();
+      this.setupOAuthListener();
+    }, 0);
   }
 
   private setupOAuthListener() {
