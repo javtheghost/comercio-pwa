@@ -1,59 +1,84 @@
-# ComercioPwa
+ComercioPwa
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.2.1.
+ComercioPwa es una aplicación Progressive Web App (PWA) de comercio electrónico desarrollada con Angular y un backend en Laravel.
+Permite a los usuarios navegar y comprar productos incluso sin conexión, gracias al uso de Service Workers, caché offline y sincronización con el servidor.
+Incluye integración de códigos QR para una experiencia rápida y moderna en tiendas físicas o catálogos.
 
-## Development server
+Características principales
 
-To start a local development server, run:
+PWA completa: instalable en dispositivos móviles y de escritorio.
 
-```bash
+Modo offline: los productos se almacenan en caché para su consulta sin conexión.
+
+Sincronización inteligente: cuando se recupera la conexión, los datos se sincronizan con el backend Laravel.
+
+Escáner QR integrado: permite agregar o buscar productos escaneando su código.
+
+Arquitectura moderna con Angular 20 y Laravel REST API.
+
+Autenticación segura basada en tokens JWT.
+
+Optimización de rendimiento con precarga de módulos y lazy loading.
+
+Requisitos previos
+
+Asegúrate de tener instalados:
+
+Node.js v18 o superior
+
+Angular CLI v20.2.1
+
+Composer y Laravel
+
+Base de datos Postgres
+
+Instalación y configuración
+1. Clonar el repositorio
+git clone https://github.com/tuusuario/ComercioPwa.git
+cd ComercioPwa
+
+2. Instalar dependencias del frontend
+npm install
+
+3. Instalar y configurar el backend Laravel
+cd backend
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --seed
+php artisan serve
+
+4. Conectar el frontend con la API
+
+En el archivo src/environments/environment.ts, actualiza la URL base de tu API:
+
+export const environment = {
+  production: false,
+  apiUrl: 'http://localhost:8000/api'
+};
+
+Ejecución del proyecto
+Frontend (Angular)
 ng serve
-```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
 
-## Code scaffolding
+Abre en el navegador: http://localhost:4200
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Backend (Laravel)
+php artisan serve
 
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
+Pruebas
+Pruebas unitarias (Karma)
 ng test
-```
 
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
+Pruebas end-to-end
 ng e2e
-```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+Build de producción
+ng build --configuration production
 
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Tecnologías utilizadas
+Frontend	Backend	Otras herramientas
+Angular 20	Laravel 11	Postgres
+RxJS	Sanctum/JWT	Service Workers
+Angular PWA	QR Scanner
