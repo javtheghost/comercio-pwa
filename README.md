@@ -81,4 +81,4 @@ Tecnologías utilizadas
 Frontend	Backend	Otras herramientas
 Angular 20	Laravel 11	Postgres
 RxJS	Sanctum/JWT	Service Workers
-Angular PWA	QR Scanner
+Angular PWA	QR Scanner Ionic, Capacitor Push notifications
