@@ -165,72 +165,80 @@ export class VerifyEmailPage implements OnInit, OnDestroy {
     console.log('🔄 [VERIFY EMAIL] Verificando email con token...');
     this.verifying = true;
     this.loading = true;
-    const start = Date.now();
-
-    const finishWithUserCheck = (minDelay = 500) => {
-      const elapsed = Date.now() - start;
-      const wait = Math.max(0, minDelay - elapsed);
-      setTimeout(() => {
-        console.log('🔎 [VERIFY EMAIL] Comprobando estado de sesión con getCurrentUser()...');
-        this.authService.getCurrentUser().subscribe({
-          next: (user) => {
-            console.log('🔎 [VERIFY EMAIL] getCurrentUser() devolvió:', user);
-            if (user?.email_verified_at) {
-              console.log('🚀 [VERIFY EMAIL] Usuario verificado, redirigiendo a home...');
-              this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
-            } else {
-              console.warn('⚠️ [VERIFY EMAIL] Usuario NO verificado tras verify call. Mostrando mensaje.');
-              this.verifying = false;
-              this.loading = false;
-              this.isVerifyingFromLink = false;
-              this.show('Tu correo fue verificado pero la sesión no se inició automáticamente. Inicia sesión manualmente.');
-            }
-          },
-          error: (e) => {
-            console.error('❌ [VERIFY EMAIL] getCurrentUser() falló después de verify:', e);
-            this.verifying = false;
-            this.loading = false;
-            this.isVerifyingFromLink = false;
-            this.show('Verificación completada, pero no se pudo restaurar la sesión automáticamente. Inicia sesión.');
-          }
-        });
-      }, wait);
-    };
+    const wasAuthenticatedBefore = this.authService.isAuthenticated();
+    console.log('🔐 [VERIFY EMAIL] Usuario estaba autenticado antes de verificar:', wasAuthenticatedBefore);
 
     this.authService.verifyEmail(id, hash, expires, signature).subscribe({
       next: (response) => {
         console.log('✅ [VERIFY EMAIL] Email verificado exitosamente (API):', response);
-        // Si la respuesta incluye token y user, AuthService ya iniciará sesión.
-        // Aun así confirmamos con getCurrentUser antes de redirigir.
-        finishWithUserCheck(500);
+        
+        // Caso 1: El backend devolvió token y user (auto-login)
+        if (response.data?.token && response.data?.user) {
+          console.log('🔑 [VERIFY EMAIL] Backend devolvió token, esperando a que AuthService actualice estado...');
+          
+          // Esperar un poco a que AuthService procese la respuesta
+          setTimeout(() => {
+            console.log('� [VERIFY EMAIL] Redirigiendo a home después de auto-login');
+            this.verifying = false;
+            this.loading = false;
+            this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
+          }, 1000);
+          return;
+        }
+
+        // Caso 2: Usuario estaba autenticado, solo necesitamos refrescar su estado
+        if (wasAuthenticatedBefore) {
+          console.log('🔄 [VERIFY EMAIL] Usuario autenticado, refrescando estado...');
+          this.authService.getCurrentUser().subscribe({
+            next: (user) => {
+              console.log('✅ [VERIFY EMAIL] Estado actualizado, usuario:', user);
+              if (user?.email_verified_at) {
+                console.log('🚀 [VERIFY EMAIL] Email verificado, redirigiendo a home');
+                this.verifying = false;
+                this.loading = false;
+                this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'forward' });
+              } else {
+                console.warn('⚠️ [VERIFY EMAIL] Email aún no verificado según getCurrentUser');
+                this.verifying = false;
+                this.loading = false;
+                this.isVerifyingFromLink = false;
+                this.show('Verificación completada. Por favor, actualiza la página.');
+              }
+            },
+            error: (err) => {
+              console.error('❌ [VERIFY EMAIL] Error obteniendo usuario actualizado:', err);
+              this.verifying = false;
+              this.loading = false;
+              this.isVerifyingFromLink = false;
+              this.show('Email verificado, pero hubo un error al actualizar tu sesión. Inicia sesión nuevamente.');
+            }
+          });
+          return;
+        }
+
+        // Caso 3: Usuario NO estaba autenticado y el backend NO devolvió token
+        // Redirigir al login con mensaje de éxito
+        console.log('✅ [VERIFY EMAIL] Email verificado. Usuario no autenticado, redirigiendo a login');
+        this.verifying = false;
+        this.loading = false;
+        
+        // Guardar mensaje de éxito en localStorage para mostrarlo en login
+        localStorage.setItem('email_verified_message', 'Tu correo ha sido verificado exitosamente. Ahora puedes iniciar sesión.');
+        
+        this.navCtrl.navigateRoot(['/tabs/login'], { 
+          animationDirection: 'forward',
+          queryParams: { verified: '1' }
+        });
       },
       error: (error) => {
         console.error('❌ [VERIFY EMAIL] Error verificando email (API):', error);
-        // Intentar fallback con fetch que incluya cookies/redirects
-        const base = environment.apiUrl.replace(/\/$/, '');
-        const verifyPath = `${base}/auth/email/verify/${encodeURIComponent(id)}/${encodeURIComponent(hash)}`;
-        const params: string[] = [];
-        if (expires) params.push(`expires=${encodeURIComponent(expires)}`);
-        if (signature) params.push(`signature=${encodeURIComponent(signature)}`);
-        const fullUrl = params.length ? `${verifyPath}?${params.join('&')}` : verifyPath;
-
-        console.log('🔁 [VERIFY EMAIL] Intentando fetch fallback a:', fullUrl);
-
-        fetch(fullUrl, { method: 'GET', credentials: 'include', redirect: 'follow' })
-          .then(resp => {
-            console.log('🔁 [VERIFY EMAIL] fetch fallback status:', resp.status);
-            // Después del fetch, consultamos getCurrentUser para confirmar sesión
-            finishWithUserCheck(800);
-          })
-          .catch((fe) => {
-            console.error('❌ [VERIFY EMAIL] fetch fallback falló:', fe);
-            this.verifying = false;
-            this.loading = false;
-            this.verificationError = true;
-            this.isVerifyingFromLink = false;
-            const errorMsg = error?.error?.message || 'No se pudo verificar el email. El link puede haber expirado.';
-            this.show(errorMsg);
-          });
+        this.verifying = false;
+        this.loading = false;
+        this.verificationError = true;
+        this.isVerifyingFromLink = false;
+        
+        const errorMsg = error?.error?.message || error?.message || 'No se pudo verificar el email. El link puede haber expirado o ya fue usado.';
+        this.show(errorMsg);
       }
     });
   }

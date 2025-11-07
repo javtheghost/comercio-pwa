@@ -71,6 +71,13 @@ onSkip() {
       this.navCtrl.navigateRoot(['/tabs/home'], { animationDirection: 'back' });
     }
 
+    // Verificar si viene desde verificación de email exitosa
+    const emailVerifiedMessage = localStorage.getItem('email_verified_message');
+    if (emailVerifiedMessage) {
+      this.showToastMessage(emailVerifiedMessage);
+      localStorage.removeItem('email_verified_message');
+    }
+
     // Suscribirse a cambios en el estado de autenticación
     this.authService.authState$.subscribe(authState => {
       this.authLoading = authState.loading;
