@@ -70,8 +70,9 @@ export class VerifyEmailPage implements OnInit, OnDestroy {
     
     // Capturar parámetros de la URL para verificación automática
     this.route.queryParamMap.subscribe((params) => {
-      const id = params.get('id');
-      const hash = params.get('hash');
+      // Soportar ambos formatos: Laravel Sanctum (id/hash) y Laravel tradicional (user_id/token)
+      const id = params.get('id') || params.get('user_id');
+      const hash = params.get('hash') || params.get('token');
       const expires = params.get('expires') || undefined;
       const signature = params.get('signature') || undefined;
       const emailParam = params.get('email') || undefined;
