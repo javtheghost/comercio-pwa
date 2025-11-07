@@ -140,8 +140,8 @@ export class AuthApiService {
    * @param id ID del usuario
    */
   verifyEmail(id: string, hash: string, expires?: string, signature?: string): Observable<any> {
-    // Construir la URL con query params según Laravel
-    let url = `${this.baseUrl}/auth/email/verify/${id}/${hash}`;
+    // Construir la URL con la ruta correcta del backend
+    let url = `${this.baseUrl}/auth/verify-email/${id}/${hash}`;
     const params: string[] = [];
     
     if (expires) params.push(`expires=${expires}`);
