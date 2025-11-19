@@ -96,14 +96,23 @@
     <!-- Primera fila: Ordenar y Precio -->
     <div class="filter-row">
       <ion-label class="sort-label">Ordenar:</ion-label>
-      <ion-select interface="popover" [value]="sortOption" (ionChange)="onSortChange($event)" class="sort-select">
+      <ion-select 
+        interface="popover" 
+        [value]="sortOption" 
+        (ionChange)="onSortChange($event)" 
+        class="sort-select">
         <ion-select-option value="relevance">Relevancia</ion-select-option>
         <ion-select-option value="name_asc">Nombre: A-Z</ion-select-option>
         <ion-select-option value="name_desc">Nombre: Z-A</ion-select-option>
         <ion-select-option value="newest">Más nuevos</ion-select-option>
       </ion-select>
+
       <ion-label class="sort-label">Precio:</ion-label>
-      <ion-select interface="popover" [value]="priceFilter" (ionChange)="onPriceFilterChange($event)" class="sort-select">
+      <ion-select 
+        interface="popover" 
+        [value]="priceFilter" 
+        (ionChange)="onPriceFilterChange($event)" 
+        class="sort-select">
         <ion-select-option value="all">Todos</ion-select-option>
         <ion-select-option value="lt100">Menor a $100</ion-select-option>
         <ion-select-option value="100to500">$100 a $500</ion-select-option>
@@ -112,13 +121,22 @@
       </ion-select>
     </div>
 
-    <!-- Segunda fila: Ofertas -->
+    <!-- Segunda fila: Ofertas y Descuento mínimo -->
     <div class="filter-row">
       <ion-label class="sort-label">Ofertas:</ion-label>
-      <ion-toggle [checked]="offerOnly" (ionChange)="onOfferChange($event)"></ion-toggle>
+      <ion-toggle 
+        [checked]="offerOnly" 
+        (ionChange)="onOfferChange($event)">
+      </ion-toggle>
+
       <ng-container *ngIf="offerOnly">
         <ion-label class="sort-label">Descuento mínimo:</ion-label>
-        <ion-select interface="popover" [value]="minDiscount" (ionChange)="onMinDiscountChange($event)" class="sort-select" [compareWith]="compareDiscount">
+        <ion-select 
+          interface="popover" 
+          [value]="minDiscount" 
+          (ionChange)="onMinDiscountChange($event)" 
+          class="sort-select" 
+          [compareWith]="compareDiscount">
           <ion-select-option value="0">Todos</ion-select-option>
           <ion-select-option value="10">10%</ion-select-option>
           <ion-select-option value="20">20%</ion-select-option>
@@ -128,18 +146,35 @@
       </ng-container>
     </div>
 
-    <!-- Tercera fila: Color y Talla (si existen) -->
-    <div class="filter-row" *ngIf="availableColors.length || availableSizes.length">
-      <ion-label *ngIf="availableColors.length" class="sort-label">Color:</ion-label>
-      <ion-select *ngIf="availableColors.length" interface="popover" [value]="colorFilter" (ionChange)="onColorChange($event)" class="sort-select">
-        <ion-select-option value="">Todos</ion-select-option>
-        <ion-select-option *ngFor="let color of availableColors" [value]="color">{{ color }}</ion-select-option>
-      </ion-select>
-      <ion-label *ngIf="availableSizes.length" class="sort-label">Talla:</ion-label>
-      <ion-select *ngIf="availableSizes.length" interface="popover" [value]="sizeFilter" (ionChange)="onSizeChange($event)" class="sort-select">
-        <ion-select-option value="">Todas</ion-select-option>
-        <ion-select-option *ngFor="let size of availableSizes" [value]="size">{{ size }}</ion-select-option>
-      </ion-select>
+    <!-- Tercera fila: Color y Talla -->
+    <div class="filter-row" *ngIf="availableColors.length > 0 || availableSizes.length > 0">
+      <ng-container *ngIf="availableColors.length > 0">
+        <ion-label class="sort-label">Color:</ion-label>
+        <ion-select 
+          interface="popover" 
+          [value]="colorFilter" 
+          (ionChange)="onColorChange($event)" 
+          class="sort-select">
+          <ion-select-option value="">Todos</ion-select-option>
+          <ion-select-option *ngFor="let color of availableColors" [value]="color">
+            {{ color }}
+          </ion-select-option>
+        </ion-select>
+      </ng-container>
+
+      <ng-container *ngIf="availableSizes.length > 0">
+        <ion-label class="sort-label">Talla:</ion-label>
+        <ion-select 
+          interface="popover" 
+          [value]="sizeFilter" 
+          (ionChange)="onSizeChange($event)" 
+          class="sort-select">
+          <ion-select-option value="">Todas</ion-select-option>
+          <ion-select-option *ngFor="let size of availableSizes" [value]="size">
+            {{ size }}
+          </ion-select-option>
+        </ion-select>
+      </ng-container>
     </div>
   </div>
 
