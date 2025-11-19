@@ -391,23 +391,20 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
 .sort-bar {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   margin: 12px 0 16px 0;
-  padding: 16px 12px;
-  background: #e3f2fd;
+  padding: 14px 12px;
+  background: #f8f9fa;
   border-radius: 12px;
-  border: 2px solid #2196f3;
-  box-shadow: 0 2px 8px rgba(33,150,243,0.2);
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .filter-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding: 8px;
-  background: rgba(255,255,255,0.7);
-  border-radius: 8px;
+  gap: 10px;
+  padding: 6px 0;
 }
 
 .offer-toggle-item {
@@ -423,22 +420,71 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
 }
 
 .sort-label {
-  font-size: 15px;
-  color: #1976d2;
+  font-size: 14px;
+  color: #333;
   font-weight: 600;
   margin-right: 4px;
+  min-width: 100px;
 }
 .sort-select {
-  min-width: 120px;
-  max-width: 160px;
-  --padding-start: 4px;
-  --padding-end: 4px;
+  flex: 1;
+  max-width: 200px;
+  --padding-start: 8px;
+  --padding-end: 8px;
   --background: #fff;
   --border-radius: 8px;
-  --box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  border: 1px solid #ddd;
 }
 
-// Estilos para el toggle de ofertas
+// Switch personalizado para ofertas
+.switch-container {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 28px;
+  margin: 0;
+}
+
+.switch-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 28px;
+}
+
+.switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 22px;
+  width: 22px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.switch-input:checked + .switch-slider {
+  background-color: #3880ff;
+}
+
+.switch-input:checked + .switch-slider:before {
+  transform: translateX(22px);
+}
+
+// Estilos para el toggle de ofertas (deprecated)
 .toggle-wrapper {
   display: flex;
   align-items: center;
