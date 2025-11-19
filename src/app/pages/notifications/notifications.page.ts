@@ -336,9 +336,18 @@ export class NotificationsPage implements OnInit, OnDestroy {
         // Intentar pasar la orden por navigation state si está disponible en data
         const stateOrder = notification.data?.order || notification.data?.payload?.order;
         if (stateOrder) {
-          this.router.navigateByUrl(`/tabs/orders/${orderId}`, { state: { order: stateOrder } });
+          this.router.navigateByUrl(`/tabs/orders/${orderId}`, { 
+            state: { 
+              order: stateOrder,
+              returnUrl: '/tabs/notifications'
+            } 
+          });
         } else {
-          this.router.navigateByUrl(`/tabs/orders/${orderId}`);
+          this.router.navigateByUrl(`/tabs/orders/${orderId}`, {
+            state: {
+              returnUrl: '/tabs/notifications'
+            }
+          });
         }
       } catch (e) {
         // Fallback: si falla, usar la ruta antigua

@@ -20,6 +20,7 @@ export class OrderDetailPage implements OnInit, OnDestroy {
   order: Order | null = null;
   loading = false;
   private routeSub?: Subscription;
+  private returnUrl: string = '/tabs/orders'; // URL por defecto
 
   constructor(
     public orderService: OrderService,
@@ -30,6 +31,13 @@ export class OrderDetailPage implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    // Detectar de dónde viene el usuario
+    const navigation = this.router.getCurrentNavigation();
+    const state = navigation?.extras?.state;
+    if (state && state['returnUrl']) {
+      this.returnUrl = state['returnUrl'];
+    }
+
     this.routeSub = this.route.paramMap.subscribe(params => {
       const idParam = params.get('id');
       const idNum = Number(idParam);
@@ -145,5 +153,9 @@ export class OrderDetailPage implements OnInit, OnDestroy {
 
   goToOrders(): void {
     this.router.navigate(['/tabs/orders']);
+  }
+
+  goBack(): void {
+    this.router.navigate([this.returnUrl]);
   }
 }
