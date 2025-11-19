@@ -1,5 +1,6 @@
 .order-detail-content {
   --background: var(--ion-color-light, #f6f7fb);
+  --padding-bottom: 100px;
 }
 
 .loading-container, .empty-state {
@@ -58,8 +59,8 @@
 
 .notes-card ion-card-content { font-size:.8rem; line-height:1.15rem; }
 
-.actions { margin-top:1.3rem; }
-.actions ion-button { --border-radius:18px; font-weight:600; letter-spacing:.3px; }
+.actions { margin-top:1.3rem; margin-bottom: 2rem; }
+.actions ion-button { --border-radius:18px; font-weight:600; letter-spacing:.3px; margin-bottom: 12px; }
 
 @media (min-width:600px){
   .hero-card { max-width:520px; margin-left:auto; margin-right:auto; }
