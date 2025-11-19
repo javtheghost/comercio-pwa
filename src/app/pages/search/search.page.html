@@ -124,10 +124,12 @@
     <!-- Segunda fila: Ofertas y Descuento mínimo -->
     <div class="filter-row">
       <ion-label class="sort-label">Ofertas:</ion-label>
-      <ion-toggle 
-        [checked]="offerOnly" 
-        (ionChange)="onOfferChange($event)">
-      </ion-toggle>
+      <div class="toggle-wrapper">
+        <ion-toggle 
+          [checked]="offerOnly" 
+          (ionChange)="onOfferChange($event)">
+        </ion-toggle>
+      </div>
 
       <ng-container *ngIf="offerOnly">
         <ion-label class="sort-label">Descuento mínimo:</ion-label>

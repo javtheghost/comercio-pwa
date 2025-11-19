@@ -393,17 +393,21 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
   flex-direction: column;
   gap: 12px;
   margin: 12px 0 16px 0;
-  padding: 12px 8px;
-  background: #f8f9fa;
-  border-radius: 10px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+  padding: 16px 12px;
+  background: #e3f2fd;
+  border-radius: 12px;
+  border: 2px solid #2196f3;
+  box-shadow: 0 2px 8px rgba(33,150,243,0.2);
 }
 
 .filter-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding: 8px;
+  background: rgba(255,255,255,0.7);
+  border-radius: 8px;
 }
 
 .offer-toggle-item {
@@ -419,10 +423,10 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
 }
 
 .sort-label {
-  font-size: 14px;
-  color: #333;
-  font-weight: 500;
-  margin-right: 2px;
+  font-size: 15px;
+  color: #1976d2;
+  font-weight: 600;
+  margin-right: 4px;
 }
 .sort-select {
   min-width: 120px;
@@ -435,16 +439,26 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
 }
 
 // Estilos para el toggle de ofertas
+.toggle-wrapper {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  padding: 4px 8px;
+  border-radius: 20px;
+  border: 2px solid #ff9800;
+}
+
 ion-toggle {
-  --background: #ccc;
-  --background-checked: var(--ion-color-primary);
+  --background: #ffccbc;
+  --background-checked: #ff5722;
   --handle-background: #fff;
   --handle-background-checked: #fff;
-  --handle-width: 20px;
-  --handle-height: 20px;
-  --handle-spacing: 2px;
-  min-width: 48px;
-  min-height: 28px;
+  --handle-width: 22px;
+  --handle-height: 22px;
+  --handle-spacing: 3px;
+  min-width: 52px;
+  min-height: 32px;
+  margin: 0;
 }
 
 .recommended-section {
