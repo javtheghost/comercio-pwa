@@ -47,17 +47,6 @@
     </div>
     <h3>No hay notificaciones</h3>
     <p>Te notificaremos cuando tengas actualizaciones sobre tus órdenes, promociones y más</p>
-    <ion-button 
-      expand="block"
-      fill="outline" 
-      (click)="sendTestNotification()" 
-      [disabled]="isSendingTest"
-      class="test-btn">
-      <ion-icon name="notifications" slot="start" *ngIf="!isSendingTest"></ion-icon>
-      <ion-spinner name="crescent" *ngIf="isSendingTest"></ion-spinner>
-      <span *ngIf="!isSendingTest">Probar Notificación</span>
-      <span *ngIf="isSendingTest">Enviando…</span>
-    </ion-button>
   </div>
 
   <!-- Notifications list -->

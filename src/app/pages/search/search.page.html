@@ -109,8 +109,10 @@
   <ion-select-option value="gt1000">Mayor a $1000</ion-select-option>
   <!-- opción menor a $1000 eliminada -->
     </ion-select>
-    <ion-label class="sort-label">Ofertas:</ion-label>
-    <ion-toggle [checked]="offerOnly" (ionChange)="onOfferChange($event)"></ion-toggle>
+    <ion-item lines="none" class="offer-toggle-item">
+      <ion-label class="sort-label">Ofertas:</ion-label>
+      <ion-toggle slot="end" [checked]="offerOnly" (ionChange)="onOfferChange($event)"></ion-toggle>
+    </ion-item>
     <ng-container *ngIf="offerOnly">
       <ion-label class="sort-label">Descuento mínimo:</ion-label>
   <ion-select interface="popover" [value]="minDiscount" (ionChange)="onMinDiscountChange($event)" class="sort-select" [compareWith]="compareDiscount">
