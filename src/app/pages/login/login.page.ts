@@ -618,7 +618,7 @@ onSkip() {
 
   onForgotPassword(event: Event) {
     event.preventDefault();
-    this.showToastMessage('Funcionalidad de restablecimiento de contraseña no implementada aún');
+    this.router.navigate(['/forgot-password']);
   }
 
   /**

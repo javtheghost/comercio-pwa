@@ -11,6 +11,8 @@ import { OrderConfirmationPage } from './pages/order-confirmation/order-confirma
 import { AddressPage } from './pages/address/address.page';
 import { NotificationsPage } from './pages/notifications/notifications.page';
 import { OauthSuccessPage } from './pages/oauth-success/oauth-success.page';
+import { ForgotPasswordPage } from './pages/forgot-password/forgot-password.page';
+import { ResetPasswordPage } from './pages/reset-password/reset-password.page';
 import { AuthGuard } from './guards/auth.guard';
 import { VerifiedGuard } from './guards/verified.guard';
 import { VerifyEmailPage } from './pages/verify-email/verify-email.page';
@@ -24,6 +26,14 @@ export const routes: Routes = [
   {
     path: 'verify-email',
     component: VerifyEmailPage
+  },
+  {
+    path: 'forgot-password',
+    component: ForgotPasswordPage
+  },
+  {
+    path: 'reset-password',
+    component: ResetPasswordPage
   },
   {
     path: 'auth/oauth-success',
