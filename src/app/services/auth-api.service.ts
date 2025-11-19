@@ -101,7 +101,7 @@ export class AuthApiService {
    * @param data Datos para restablecer contraseña
    */
   forgotPassword(data: ForgotPasswordRequest): Observable<any> {
-    return this.http.post(`${this.baseUrl}/password/email`, data);
+    return this.http.post(`${this.baseUrl}/forgot-password`, data);
   }
 
   /**
@@ -109,7 +109,7 @@ export class AuthApiService {
    * @param data Datos para restablecer contraseña
    */
   resetPassword(data: ResetPasswordRequest): Observable<any> {
-    return this.http.post(`${this.baseUrl}/password/reset`, data);
+    return this.http.post(`${this.baseUrl}/auth/reset-password`, data);
   }
 
   /**
