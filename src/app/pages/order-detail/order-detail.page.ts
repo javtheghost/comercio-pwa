@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { IonicModule, ToastController } from '@ionic/angular';
+import { IonicModule, ToastController, NavController } from '@ionic/angular';
 import { Subscription, firstValueFrom, timeout } from 'rxjs';
 import { OrderService, Order } from '../../services/order.service';
 import { NotificationService } from '../../services/notification.service';
@@ -26,6 +26,7 @@ export class OrderDetailPage implements OnInit, OnDestroy {
     public orderService: OrderService,
     private route: ActivatedRoute,
     private router: Router,
+    private navCtrl: NavController,
     private toastController: ToastController,
     private notificationService: NotificationService
   ) {}
@@ -152,16 +153,10 @@ export class OrderDetailPage implements OnInit, OnDestroy {
   }
 
   goToOrders(): void {
-    this.router.navigate(['/tabs/orders'], {
-      replaceUrl: false,
-      animationDirection: 'back'
-    });
+    this.navCtrl.navigateBack('/tabs/orders');
   }
 
   goBack(): void {
-    this.router.navigate([this.returnUrl], {
-      replaceUrl: false,
-      animationDirection: 'back'
-    });
+    this.navCtrl.navigateBack(this.returnUrl);
   }
 }
