@@ -142,4 +142,8 @@ export class OrderDetailPage implements OnInit, OnDestroy {
       await toast.present();
     }
   }
+
+  goToOrders(): void {
+    this.router.navigate(['/tabs/orders']);
+  }
 }
