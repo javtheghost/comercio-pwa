@@ -58,6 +58,7 @@ export class ForgotPasswordPage {
     this.authService.forgotPassword(this.forgotPasswordForm.value).subscribe({
       next: async (response) => {
         this.submitting = false;
+        console.log('✅ Forgot password response:', response);
         
         const toast = await this.toastController.create({
           message: response.message || 'Se ha enviado un correo con instrucciones para restablecer tu contraseña',
@@ -69,14 +70,15 @@ export class ForgotPasswordPage {
 
         // Redirigir al login después de 2 segundos
         setTimeout(() => {
-          this.router.navigate(['/login']);
+          this.router.navigate(['/tabs/login']);
         }, 2000);
       },
       error: async (error) => {
         this.submitting = false;
+        console.error('❌ Forgot password error:', error);
         
         const toast = await this.toastController.create({
-          message: error.error?.message || 'Error al enviar el correo de recuperación',
+          message: error.error?.message || error.message || 'Error al enviar el correo de recuperación',
           duration: 3000,
           color: 'danger',
           position: 'top'

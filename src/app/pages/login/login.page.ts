@@ -618,7 +618,7 @@ onSkip() {
 
   onForgotPassword(event: Event) {
     event.preventDefault();
-    this.router.navigate(['/forgot-password']);
+    this.router.navigate(['/tabs/forgot-password']);
   }
 
   /**

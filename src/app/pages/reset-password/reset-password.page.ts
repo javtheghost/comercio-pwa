@@ -42,7 +42,7 @@ export class ResetPasswordPage implements OnInit {
       
       if (!this.token || !email) {
         this.showErrorToast('Enlace de recuperación inválido o expirado');
-        this.router.navigate(['/forgot-password']);
+        this.router.navigate(['/tabs/forgot-password']);
         return;
       }
 
@@ -106,10 +106,13 @@ export class ResetPasswordPage implements OnInit {
     }
 
     this.submitting = true;
+    
+    console.log('📤 Enviando reset password con datos:', this.resetPasswordForm.value);
 
     this.authService.resetPassword(this.resetPasswordForm.value).subscribe({
       next: async (response) => {
         this.submitting = false;
+        console.log('✅ Reset password response:', response);
         
         const toast = await this.toastController.create({
           message: response.message || 'Contraseña restablecida exitosamente',
@@ -121,13 +124,14 @@ export class ResetPasswordPage implements OnInit {
 
         // Redirigir al login después de 1 segundo
         setTimeout(() => {
-          this.router.navigate(['/login']);
+          this.router.navigate(['/tabs/login']);
         }, 1000);
       },
       error: async (error) => {
         this.submitting = false;
+        console.error('❌ Reset password error:', error);
         
-        const message = error.error?.message || 'Error al restablecer la contraseña. El enlace puede haber expirado.';
+        const message = error.error?.message || error.message || 'Error al restablecer la contraseña. El enlace puede haber expirado.';
         await this.showErrorToast(message);
       }
     });
