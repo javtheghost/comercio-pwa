@@ -38,29 +38,9 @@
       </ion-item>
 
       <ion-item>
-  <ion-label position="stacked">Miembro desde</ion-label>
-        <div class="read-only-value">{{ getMemberSince() }}</div>
-      </ion-item>
-
-      <ion-item>
         <ion-label position="stacked">Tipo de Cuenta</ion-label>
         <ion-input value="Cliente" readonly></ion-input>
       </ion-item>
-
-      <!-- Botón de prueba de notificaciones -->
-      <ion-button
-        expand="block"
-        fill="solid"
-        color="secondary"
-        class="test-notif-button"
-        (click)="testNotification()"
-        *ngIf="isAuthenticated"
-        [disabled]="isSendingTest">
-        <ion-icon name="notifications-outline" slot="start" *ngIf="!isSendingTest"></ion-icon>
-        <ion-spinner *ngIf="isSendingTest" name="crescent" class="button-spinner" slot="start"></ion-spinner>
-        <span *ngIf="!isSendingTest">Probar Notificación</span>
-        <span *ngIf="isSendingTest">Enviando…</span>
-      </ion-button>
 
       <ion-button
         expand="block"
