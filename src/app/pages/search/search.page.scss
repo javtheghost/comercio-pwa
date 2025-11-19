@@ -448,6 +448,17 @@ ion-fab-button.custom-scrolltop-btn ion-icon {
   border: 2px solid #ff9800;
 }
 
+.offer-button {
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 6px;
+  --padding-bottom: 6px;
+  height: 32px;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 0;
+}
+
 ion-toggle {
   --background: #ffccbc;
   --background-checked: #ff5722;

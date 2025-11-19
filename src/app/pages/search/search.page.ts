@@ -142,6 +142,14 @@ export class SearchPage {
     this.applyFiltersAndSort();
   }
 
+  toggleOffer() {
+    this.offerOnly = !this.offerOnly;
+    if (!this.offerOnly) {
+      this.minDiscount = 0;
+    }
+    this.applyFiltersAndSort();
+  }
+
   applyFiltersAndSort() {
     let filtered = [...this.products];
     switch (this.priceFilter) {
