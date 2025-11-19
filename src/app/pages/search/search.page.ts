@@ -2,6 +2,7 @@
 import { Component, inject, ChangeDetectorRef } from '@angular/core';
 import { IonicModule, ToastController } from '@ionic/angular';
 import { CommonModule, NgIf, NgFor } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
 import { BarcodeFormat } from '@zxing/library';
 import { Router } from '@angular/router';
@@ -18,7 +19,7 @@ function isOnline(): boolean {
 @Component({
   selector: 'app-search',
   standalone: true,
-  imports: [IonicModule, ZXingScannerModule, CommonModule, NgIf, NgFor],
+  imports: [IonicModule, ZXingScannerModule, CommonModule, NgIf, NgFor, FormsModule],
   templateUrl: './search.page.html',
   styleUrls: ['./search.page.scss']
 })
