@@ -152,10 +152,16 @@ export class OrderDetailPage implements OnInit, OnDestroy {
   }
 
   goToOrders(): void {
-    this.router.navigate(['/tabs/orders']);
+    this.router.navigate(['/tabs/orders'], {
+      replaceUrl: false,
+      animationDirection: 'back'
+    });
   }
 
   goBack(): void {
-    this.router.navigate([this.returnUrl]);
+    this.router.navigate([this.returnUrl], {
+      replaceUrl: false,
+      animationDirection: 'back'
+    });
   }
 }
