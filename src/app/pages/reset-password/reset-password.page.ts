@@ -146,4 +146,8 @@ export class ResetPasswordPage implements OnInit {
     });
     await toast.present();
   }
+
+  goToLogin() {
+    this.router.navigate(['/tabs/login']);
+  }
 }

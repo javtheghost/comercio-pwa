@@ -87,4 +87,8 @@ export class ForgotPasswordPage {
       }
     });
   }
+
+  goToLogin() {
+    this.router.navigate(['/tabs/login']);
+  }
 }
