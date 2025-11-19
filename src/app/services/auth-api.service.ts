@@ -101,7 +101,7 @@ export class AuthApiService {
    * @param data Datos para restablecer contraseña
    */
   forgotPassword(data: ForgotPasswordRequest): Observable<any> {
-    return this.http.post(`${this.baseUrl}/forgot-password`, data);
+    return this.http.post(`${this.baseUrl}/auth/forgot-password`, data);
   }
 
   /**
