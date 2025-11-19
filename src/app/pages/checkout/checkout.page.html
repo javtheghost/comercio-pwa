@@ -46,15 +46,25 @@
         </ion-card-header>
         <ion-card-content>
           @if (userAddresses.length > 0) {
-            <div class="address-mode-switch">
-              <ion-segment [(ngModel)]="addressMode" (ionChange)="onAddressModeChange()">
-                <ion-segment-button value="existing">
-                  <ion-label>Guardadas</ion-label>
-                </ion-segment-button>
-                <ion-segment-button value="new">
-                  <ion-label>Nueva</ion-label>
-                </ion-segment-button>
-              </ion-segment>
+            <div class="address-mode-buttons">
+              <ion-button 
+                [fill]="addressMode === 'existing' ? 'solid' : 'outline'" 
+                [color]="addressMode === 'existing' ? 'primary' : 'medium'"
+                (click)="setAddressMode('existing')"
+                expand="block"
+                size="default">
+                <ion-icon name="bookmark" slot="start"></ion-icon>
+                Guardadas
+              </ion-button>
+              <ion-button 
+                [fill]="addressMode === 'new' ? 'solid' : 'outline'"
+                [color]="addressMode === 'new' ? 'primary' : 'medium'"
+                (click)="setAddressMode('new')"
+                expand="block"
+                size="default">
+                <ion-icon name="add-circle" slot="start"></ion-icon>
+                Nueva
+              </ion-button>
             </div>
           }
 

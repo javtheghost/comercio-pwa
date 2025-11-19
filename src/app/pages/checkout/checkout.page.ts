@@ -482,6 +482,11 @@ export class CheckoutPage implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  setAddressMode(mode: 'existing' | 'new'): void {
+    this.addressMode = mode;
+    this.onAddressModeChange();
+  }
+
   onExistingAddressSelected(): void {
     if (!this.selectedAddressId) return;
     const selectedAddress = this.userAddresses.find(a => a.id === this.selectedAddressId);
