@@ -80,40 +80,6 @@
       </ion-card-content>
     </ion-card>
 
-    <!-- Addresses -->
-  <ion-card class="address-card" *ngIf="order?.shipping_address">
-      <ion-card-header>
-        <ion-card-title>Envío</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <p class="address-line">{{ order.shipping_address.street }}</p>
-        <p class="address-line">{{ order.shipping_address.city }}, {{ order.shipping_address.state }} {{ order.shipping_address.postal_code }}</p>
-        <p class="address-line">{{ order.shipping_address.country }}</p>
-        <p class="address-line" *ngIf="order.shipping_address.phone">Tel: {{ order.shipping_address.phone }}</p>
-      </ion-card-content>
-    </ion-card>
-
-  <ion-card class="address-card" *ngIf="order?.billing_address && order.billing_address !== order.shipping_address">
-      <ion-card-header>
-        <ion-card-title>Facturación</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <p class="address-line">{{ order.billing_address.street }}</p>
-        <p class="address-line">{{ order.billing_address.city }}, {{ order.billing_address.state }} {{ order.billing_address.postal_code }}</p>
-        <p class="address-line">{{ order.billing_address.country }}</p>
-      </ion-card-content>
-    </ion-card>
-
-    <!-- Notes -->
-  <ion-card *ngIf="order?.notes" class="notes-card">
-      <ion-card-header>
-        <ion-card-title>Notas</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <p>{{ order.notes }}</p>
-      </ion-card-content>
-    </ion-card>
-
     <!-- Actions -->
     <div class="actions ion-padding-horizontal ion-padding-bottom">
       <ion-button expand="block" color="primary" *ngIf="order?.status === 'pending'" (click)="onCancelOrder()">
