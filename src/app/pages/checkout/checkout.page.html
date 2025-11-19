@@ -255,36 +255,11 @@
             </div>
           </div>
           <div class="checkout-actions">
-
-            <!-- Botón de debug: forzar creación de orden (no altera el flujo principal) -->
+            <!-- Botón principal de confirmación -->
             <div style="margin-top:8px">
               <ion-button expand="block" size="small"  [disabled]="loading" (click)="debugCreateOrder()">
                 <ion-icon name="bag-check-outline" slot="start"></ion-icon>
                 Confirmar Pedido ${{ getTotal() | number:'1.2-2' }}
-              </ion-button>
-            </div>
-
-            <!-- Botón de debug: ir a confirmación -->
-            <div style="margin-top:8px">
-              <ion-button expand="block" size="small" fill="outline" color="warning" (click)="goToConfirmation()">
-                <ion-icon name="eye-outline" slot="start"></ion-icon>
-                Ver Confirmación (Debug)
-              </ion-button>
-            </div>
-
-            <!-- Botón de debug: mostrar alert mejorado -->
-            <div style="margin-top:8px">
-              <ion-button expand="block" size="small" fill="outline" color="success" (click)="showDebugAlert()">
-                <ion-icon name="checkmark-circle-outline" slot="start"></ion-icon>
-                Mostrar Alert Mejorado (Debug)
-              </ion-button>
-            </div>
-
-            <!-- Botón de debug: mostrar modal de confirmación -->
-            <div style="margin-top:8px">
-              <ion-button expand="block" size="small" fill="outline" color="tertiary" (click)="showDebugModal()">
-                <ion-icon name="eye-outline" slot="start"></ion-icon>
-                Mostrar Modal (Debug)
               </ion-button>
             </div>
           </div>
