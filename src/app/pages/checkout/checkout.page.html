@@ -102,35 +102,52 @@
               <div class="form-grid">
                 <ion-item>
                   <ion-label position="stacked">Nombre *</ion-label>
-                  <ion-input [(ngModel)]="shippingAddress.firstName" (ionInput)="onAddressFieldChange()" placeholder="Nombre" required></ion-input>
+                  <ion-input [(ngModel)]="shippingAddress.firstName" (ionInput)="onNameInput($event, 'firstName')" placeholder="Nombre" maxlength="50" required></ion-input>
                 </ion-item>
                 <ion-item>
                   <ion-label position="stacked">Apellido *</ion-label>
-                  <ion-input [(ngModel)]="shippingAddress.lastName" (ionInput)="onAddressFieldChange()" placeholder="Apellido" required></ion-input>
+                  <ion-input [(ngModel)]="shippingAddress.lastName" (ionInput)="onNameInput($event, 'lastName')" placeholder="Apellido" maxlength="50" required></ion-input>
                 </ion-item>
               </div>
               <ion-item>
                 <ion-label position="stacked">Dirección *</ion-label>
-                <ion-textarea auto-grow="true" [(ngModel)]="shippingAddress.address" (ionInput)="onAddressFieldChange()" placeholder="Calle, número, colonia" required></ion-textarea>
+                <ion-textarea auto-grow="true" [(ngModel)]="shippingAddress.address" (ionInput)="onAddressInput($event)" placeholder="Calle, número, colonia" maxlength="200" required></ion-textarea>
               </ion-item>
               <div class="form-grid">
                 <ion-item>
                   <ion-label position="stacked">Ciudad *</ion-label>
-                  <ion-input [(ngModel)]="shippingAddress.city" (ionInput)="onAddressFieldChange()" placeholder="Ciudad" required></ion-input>
+                  <ion-select 
+                    [(ngModel)]="shippingAddress.city" 
+                    (ionChange)="onAddressFieldChange()" 
+                    placeholder="Selecciona ciudad"
+                    interface="action-sheet"
+                    [disabled]="!shippingAddress.state || ciudadesFiltradas.length === 0">
+                    <ion-select-option *ngFor="let ciudad of ciudadesFiltradas" [value]="ciudad">
+                      {{ ciudad }}
+                    </ion-select-option>
+                  </ion-select>
                 </ion-item>
                 <ion-item>
                   <ion-label position="stacked">Estado *</ion-label>
-                  <ion-input [(ngModel)]="shippingAddress.state" (ionInput)="onAddressFieldChange()" placeholder="Estado" required></ion-input>
+                  <ion-select 
+                    [(ngModel)]="shippingAddress.state" 
+                    (ionChange)="onStateChange(); onAddressFieldChange()" 
+                    placeholder="Selecciona estado"
+                    interface="action-sheet">
+                    <ion-select-option *ngFor="let estado of estados" [value]="estado">
+                      {{ estado }}
+                    </ion-select-option>
+                  </ion-select>
                 </ion-item>
               </div>
               <div class="form-grid">
                 <ion-item>
                   <ion-label position="stacked">Código Postal *</ion-label>
-                  <ion-input [(ngModel)]="shippingAddress.zipCode" (ionInput)="onAddressFieldChange()" placeholder="C.P." inputmode="numeric" required></ion-input>
+                  <ion-input [(ngModel)]="shippingAddress.zipCode" (ionInput)="onZipCodeInput($event)" placeholder="C.P." inputmode="numeric" maxlength="5" required></ion-input>
                 </ion-item>
                 <ion-item>
                   <ion-label position="stacked">Teléfono *</ion-label>
-                  <ion-input [(ngModel)]="shippingAddress.phone" (ionInput)="onAddressFieldChange()" placeholder="Teléfono" type="tel" required></ion-input>
+                  <ion-input [(ngModel)]="shippingAddress.phone" (ionInput)="onPhoneInput($event)" placeholder="Teléfono" type="tel" inputmode="numeric" maxlength="10" required></ion-input>
                 </ion-item>
               </div>
               <div class="save-address-action">

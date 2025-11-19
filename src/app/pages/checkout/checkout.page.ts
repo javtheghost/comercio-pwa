@@ -64,6 +64,52 @@ export class CheckoutPage implements OnInit, OnDestroy {
   // Modal de confirmación
   showOrderSuccessModal = false;
 
+  // Estados y ciudades de México
+  estados: string[] = [
+    'Aguascalientes', 'Baja California', 'Baja California Sur', 'Campeche', 'Chiapas',
+    'Chihuahua', 'Coahuila', 'Colima', 'Ciudad de México', 'Durango', 'Guanajuato',
+    'Guerrero', 'Hidalgo', 'Jalisco', 'México', 'Michoacán', 'Morelos', 'Nayarit',
+    'Nuevo León', 'Oaxaca', 'Puebla', 'Querétaro', 'Quintana Roo', 'San Luis Potosí',
+    'Sinaloa', 'Sonora', 'Tabasco', 'Tamaulipas', 'Tlaxcala', 'Veracruz', 'Yucatán', 'Zacatecas'
+  ];
+
+  ciudadesPorEstado: { [key: string]: string[] } = {
+    'Aguascalientes': ['Aguascalientes', 'Asientos', 'Calvillo', 'Cosío', 'Jesús María', 'Pabellón de Arteaga', 'Rincón de Romos', 'San José de Gracia', 'Tepezalá', 'El Llano', 'San Francisco de los Romo'],
+    'Baja California': ['Tijuana', 'Mexicali', 'Ensenada', 'Rosarito', 'Tecate', 'San Felipe', 'San Quintín'],
+    'Baja California Sur': ['La Paz', 'Cabo San Lucas', 'San José del Cabo', 'Loreto', 'Mulegé', 'Comondú', 'Los Cabos'],
+    'Campeche': ['Campeche', 'Ciudad del Carmen', 'Champotón', 'Escárcega', 'Calkiní', 'Hecelchakán'],
+    'Chiapas': ['Tuxtla Gutiérrez', 'San Cristóbal de las Casas', 'Tapachula', 'Comitán', 'Palenque', 'Tonalá', 'Chiapa de Corzo'],
+    'Chihuahua': ['Chihuahua', 'Ciudad Juárez', 'Cuauhtémoc', 'Delicias', 'Parral', 'Nuevo Casas Grandes', 'Camargo'],
+    'Coahuila': ['Saltillo', 'Torreón', 'Monclova', 'Piedras Negras', 'Acuña', 'Ramos Arizpe', 'Sabinas', 'Frontera', 'Matamoros', 'San Pedro'],
+    'Colima': ['Colima', 'Manzanillo', 'Tecomán', 'Villa de Álvarez', 'Armería', 'Comala'],
+    'Ciudad de México': ['Álvaro Obregón', 'Azcapotzalco', 'Benito Juárez', 'Coyoacán', 'Cuajimalpa', 'Cuauhtémoc', 'Gustavo A. Madero', 'Iztacalco', 'Iztapalapa', 'Magdalena Contreras', 'Miguel Hidalgo', 'Milpa Alta', 'Tláhuac', 'Tlalpan', 'Venustiano Carranza', 'Xochimilco'],
+    'Durango': ['Durango', 'Gómez Palacio', 'Lerdo', 'Santiago Papasquiaro', 'Guadalupe Victoria'],
+    'Guanajuato': ['León', 'Guanajuato', 'Irapuato', 'Celaya', 'Salamanca', 'San Miguel de Allende', 'Dolores Hidalgo', 'Silao', 'Valle de Santiago', 'Pénjamo', 'San Francisco del Rincón'],
+    'Guerrero': ['Acapulco', 'Chilpancingo', 'Zihuatanejo', 'Iguala', 'Taxco', 'Chilapa'],
+    'Hidalgo': ['Pachuca', 'Tulancingo', 'Tula', 'Tepeji del Río', 'Actopan', 'Huejutla', 'Ixmiquilpan'],
+    'Jalisco': ['Guadalajara', 'Zapopan', 'Tlaquepaque', 'Tonalá', 'Puerto Vallarta', 'Lagos de Moreno', 'Tepatitlán', 'Tlajomulco', 'El Salto', 'Ocotlán'],
+    'México': ['Toluca', 'Ecatepec', 'Nezahualcóyotl', 'Naucalpan', 'Tlalnepantla', 'Atizapán', 'Cuautitlán Izcalli', 'Metepec', 'Texcoco', 'Valle de Chalco', 'Chimalhuacán'],
+    'Michoacán': ['Morelia', 'Uruapan', 'Zamora', 'Lázaro Cárdenas', 'Apatzingán', 'Zitácuaro', 'Pátzcuaro'],
+    'Morelos': ['Cuernavaca', 'Jiutepec', 'Cuautla', 'Temixco', 'Yautepec', 'Emiliano Zapata'],
+    'Nayarit': ['Tepic', 'Bahía de Banderas', 'Santiago Ixcuintla', 'Compostela', 'Tuxpan'],
+    'Nuevo León': ['Monterrey', 'Guadalupe', 'San Nicolás de los Garza', 'Apodaca', 'San Pedro Garza García', 'Santa Catarina', 'Escobedo', 'García', 'Cadereyta'],
+    'Oaxaca': ['Oaxaca de Juárez', 'Salina Cruz', 'Juchitán', 'Tuxtepec', 'Huajuapan', 'Puerto Escondido'],
+    'Puebla': ['Puebla', 'Tehuacán', 'San Martín Texmelucan', 'Atlixco', 'Cholula', 'Huauchinango'],
+    'Querétaro': ['Querétaro', 'San Juan del Río', 'Corregidora', 'El Marqués', 'Tequisquiapan'],
+    'Quintana Roo': ['Cancún', 'Playa del Carmen', 'Chetumal', 'Cozumel', 'Tulum', 'Isla Mujeres'],
+    'San Luis Potosí': ['San Luis Potosí', 'Soledad de Graciano Sánchez', 'Ciudad Valles', 'Matehuala', 'Rioverde'],
+    'Sinaloa': ['Culiacán', 'Mazatlán', 'Los Mochis', 'Guasave', 'Guamúchil', 'Navolato'],
+    'Sonora': ['Hermosillo', 'Cajeme', 'Nogales', 'San Luis Río Colorado', 'Navojoa', 'Guaymas'],
+    'Tabasco': ['Villahermosa', 'Cárdenas', 'Comalcalco', 'Huimanguillo', 'Macuspana', 'Paraíso'],
+    'Tamaulipas': ['Reynosa', 'Matamoros', 'Nuevo Laredo', 'Tampico', 'Ciudad Victoria', 'Altamira', 'Ciudad Madero'],
+    'Tlaxcala': ['Tlaxcala', 'Apizaco', 'Huamantla', 'Chiautempan', 'San Pablo del Monte'],
+    'Veracruz': ['Veracruz', 'Xalapa', 'Coatzacoalcos', 'Poza Rica', 'Córdoba', 'Orizaba', 'Minatitlán', 'Boca del Río', 'Tuxpan'],
+    'Yucatán': ['Mérida', 'Valladolid', 'Tizimín', 'Progreso', 'Kanasín', 'Ticul'],
+    'Zacatecas': ['Zacatecas', 'Fresnillo', 'Guadalupe', 'Jerez', 'Río Grande', 'Sombrerete']
+  };
+
+  ciudadesFiltradas: string[] = [];
+
   private cartSubscription: Subscription = new Subscription();
   private authSubscription: Subscription = new Subscription();
 
@@ -1140,6 +1186,106 @@ export class CheckoutPage implements OnInit, OnDestroy {
       // Revalidar en vivo sólo si ya se mostraron
       this.validateNewAddress(true);
     }
+  }
+
+  // Validaciones en tiempo real para campos específicos
+  onPhoneInput(event: any): void {
+    let value = event.target.value;
+    // Remover todo excepto números
+    value = value.replace(/[^0-9]/g, '');
+    // Limitar a 10 dígitos
+    if (value.length > 10) {
+      value = value.substring(0, 10);
+    }
+    this.shippingAddress.phone = value;
+    event.target.value = value;
+    this.onAddressFieldChange();
+  }
+
+  onZipCodeInput(event: any): void {
+    let value = event.target.value;
+    // Remover todo excepto números
+    value = value.replace(/[^0-9]/g, '');
+    // Limitar a 5 dígitos
+    if (value.length > 5) {
+      value = value.substring(0, 5);
+    }
+    this.shippingAddress.zipCode = value;
+    event.target.value = value;
+    this.onAddressFieldChange();
+  }
+
+  onNameInput(event: any, field: 'firstName' | 'lastName'): void {
+    let value = event.target.value;
+    // Permitir solo letras, espacios, acentos y ñ
+    value = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+    // Limitar a 50 caracteres
+    if (value.length > 50) {
+      value = value.substring(0, 50);
+    }
+    this.shippingAddress[field] = value;
+    event.target.value = value;
+    this.onAddressFieldChange();
+  }
+
+  onCityInput(event: any): void {
+    let value = event.target.value;
+    // Permitir solo letras, espacios, acentos y ñ
+    value = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+    // Limitar a 50 caracteres
+    if (value.length > 50) {
+      value = value.substring(0, 50);
+    }
+    this.shippingAddress.city = value;
+    event.target.value = value;
+    this.onAddressFieldChange();
+  }
+
+  onStateInput(event: any): void {
+    let value = event.target.value;
+    // Permitir solo letras, espacios, acentos y ñ
+    value = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+    // Limitar a 50 caracteres
+    if (value.length > 50) {
+      value = value.substring(0, 50);
+    }
+    this.shippingAddress.state = value;
+    event.target.value = value;
+    
+    // Filtrar ciudades según el estado seleccionado
+    this.onStateChange();
+    
+    this.onAddressFieldChange();
+  }
+
+  onStateChange(): void {
+    const estadoSeleccionado = this.shippingAddress.state;
+    
+    // Buscar coincidencia exacta o parcial con los estados
+    const estadoEncontrado = this.estados.find(estado => 
+      estado.toLowerCase() === estadoSeleccionado.toLowerCase()
+    );
+    
+    if (estadoEncontrado && this.ciudadesPorEstado[estadoEncontrado]) {
+      this.ciudadesFiltradas = this.ciudadesPorEstado[estadoEncontrado];
+      // Limpiar ciudad si no está en la lista del nuevo estado
+      if (this.shippingAddress.city && !this.ciudadesFiltradas.includes(this.shippingAddress.city)) {
+        this.shippingAddress.city = '';
+      }
+    } else {
+      this.ciudadesFiltradas = [];
+    }
+  }
+
+  onAddressInput(event: any): void {
+    let value = event.target.value;
+    // Limitar a 200 caracteres
+    if (value.length > 200) {
+      value = value.substring(0, 200);
+      this.shippingAddress.address = value;
+      event.target.value = value;
+    }
+    this.onAddressFieldChange();
   }
 
   formatAddress(address: UserAddress): string {

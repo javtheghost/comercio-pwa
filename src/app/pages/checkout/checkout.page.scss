@@ -12,8 +12,21 @@
 
 .address-mode-switch {
   margin-bottom: 16px;
+  position: relative;
+  z-index: 10;
+  
   ion-segment {
     --background: var(--ion-color-light-shade);
+    position: relative;
+    z-index: 10;
+    pointer-events: auto !important;
+  }
+  
+  ion-segment-button {
+    position: relative;
+    z-index: 10;
+    pointer-events: auto !important;
+    cursor: pointer;
   }
 }
 
