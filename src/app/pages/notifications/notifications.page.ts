@@ -98,9 +98,13 @@ export class NotificationsPage implements OnInit, OnDestroy {
     // ✅ Listener automático para notificaciones en tiempo real
     // Solo actualiza la UI si hay cambios REALES detectados
     this.globalNotifListener = () => {
+      console.log('🔔 [EVENT LISTENER] notifications:updated disparado');
       this.ngZone.runOutsideAngular(() => {
         if (this.shouldAutoUpdate) {
+          console.log('✅ [EVENT LISTENER] Auto-update habilitado, verificando cambios...');
           this.checkAndUpdateIfChanged();
+        } else {
+          console.log('⏭️ [EVENT LISTENER] Auto-update deshabilitado');
         }
       });
     };
@@ -129,7 +133,17 @@ export class NotificationsPage implements OnInit, OnDestroy {
     try {
       // Cargar notificaciones reales desde localStorage
       // En producción, esto vendría de una API
-  const savedNotifications = this.getSavedNotifications();
+      const savedNotifications = this.getSavedNotifications();
+      
+      console.log('📋 [LOAD NOTIFICATIONS] Notificaciones cargadas:', {
+        cantidad: savedNotifications.length,
+        primeras3: savedNotifications.slice(0, 3).map(n => ({
+          id: n.id,
+          title: n.title,
+          timestamp: n.timestamp
+        }))
+      });
+      
       this.notifications = savedNotifications;
 
       // Filtrar notificaciones eliminadas
@@ -196,6 +210,10 @@ export class NotificationsPage implements OnInit, OnDestroy {
       // ✅ Comparar con las que ya están en pantalla
       if (this.hasNotificationsChanged(savedNotifications)) {
         console.log('🔄 [NOTIFICATIONS PAGE] Cambios detectados, actualizando UI...');
+        console.log('📊 [BEFORE UPDATE]', {
+          enPantalla: this.notifications.length,
+          ids: this.notifications.map(n => n.id)
+        });
         
         // ✅ Volver a entrar a la zona de Angular para actualizar UI
         this.ngZone.run(() => {
@@ -716,10 +734,17 @@ export class NotificationsPage implements OnInit, OnDestroy {
 
   private filterDeletedNotifications(): void {
     const deletedIds = this.getDeletedNotifications();
+    const beforeFilter = this.notifications.length;
     this.notifications = this.notifications.filter(notification =>
       !deletedIds.includes(notification.id)
     );
-    console.log('✅ Notificaciones filtradas, eliminadas:', deletedIds.length);
+    const afterFilter = this.notifications.length;
+    console.log('✅ Notificaciones filtradas:', {
+      antes: beforeFilter,
+      despues: afterFilter,
+      eliminadas: deletedIds.length,
+      deletedIds: deletedIds
+    });
   }
 
   // Método público para agregar notificaciones reales
