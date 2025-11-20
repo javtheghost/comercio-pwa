@@ -63,16 +63,15 @@
       <ion-card-content>
         <ion-list lines="none">
           <ion-item *ngFor="let item of order?.items" class="item-row" detail="false">
-            <div class="thumb" *ngIf="item.product?.image; else placeholder">
-              <img [src]="item.product?.image | imageUrl" alt="{{ item.product?.name }}" loading="lazy" />
+            <div class="thumb">
+              <img 
+                [src]="getItemImageUrl(item) | imageUrl" 
+                [alt]="item.name || item.product?.name || 'Producto'" 
+                loading="lazy"
+                (error)="$any($event.target).src = '/assets/images/no-image.png'" />
             </div>
-            <ng-template #placeholder>
-              <div class="thumb placeholder">
-                <ion-icon name="image-outline"></ion-icon>
-              </div>
-            </ng-template>
             <ion-label>
-              <h3>{{ item.product?.name || 'Producto' }}</h3>
+              <h3>{{ item.name || item.product?.name || 'Producto' }}</h3>
               <p *ngIf="item.product_variant">Variante: {{ item.product_variant.name }}</p>
               <p class="muted">Cantidad: {{ item.quantity }}</p>
             </ion-label>
@@ -84,7 +83,7 @@
 
     <!-- Actions -->
     <div class="actions ion-padding-horizontal ion-padding-bottom">
-      <ion-button expand="block" color="primary" *ngIf="order?.status === 'pending'" (click)="onCancelOrder()">
+      <ion-button expand="block" color="primary" *ngIf="order.status === 'pending'" (click)="onCancelOrder()">
         <ion-icon name="close-circle-outline" slot="start"></ion-icon>
         Cancelar Orden
       </ion-button>

@@ -54,6 +54,9 @@ export interface Order {
     quantity: number;
     unit_price: number;
     total_price: number;
+    name?: string;
+    image?: string;
+    product_image?: string;
     product?: {
       id: number;
       name: string;

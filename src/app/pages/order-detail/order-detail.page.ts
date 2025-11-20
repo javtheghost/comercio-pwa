@@ -160,4 +160,22 @@ export class OrderDetailPage implements OnInit, OnDestroy {
   goBack(): void {
     this.navCtrl.navigateBack(this.returnUrl);
   }
+
+  getItemImageUrl(item: any): string {
+    // Intentar obtener la imagen de diferentes posibles propiedades
+    const imageValue = item.image || item.product?.image || item.product_image;
+
+    if (imageValue && typeof imageValue === 'object') {
+      // Extraer URL del objeto de imagen
+      const imageObj = imageValue as any;
+      return imageObj.url || imageObj.src || imageObj.path || imageObj.image_url ||
+             imageObj.thumbnail || imageObj.medium || imageObj.large || '';
+    } else if (typeof imageValue === 'string') {
+      // Si ya es una string, devolverla directamente
+      return imageValue;
+    }
+
+    // Fallback a imagen por defecto
+    return '/assets/images/no-image.png';
+  }
 }
