@@ -21,34 +21,37 @@ export class ImageUrlPipe implements PipeTransform {
       return value;
     }
 
+    // Obtener la URL base del backend (sin /api)
+    const backendBase = environment.apiUrl.replace(/\/api\/?$/, '');
+
     // Si comienza con /storage/, construir URL completa del backend
     if (value.startsWith('/storage/')) {
-      return `${environment.apiUrl}${value}`;
+      return `${backendBase}${value}`;
     }
 
     // Si comienza con storage/ (sin barra inicial), agregar barra y construir URL
     if (value.startsWith('storage/')) {
-      return `${environment.apiUrl}/${value}`;
+      return `${backendBase}/${value}`;
     }
 
-    // Si comienza con /products/, remover la barra inicial y construir URL con /storage/products/
+    // Si comienza con /products/, construir URL con /storage/products/
     if (value.startsWith('/products/')) {
       const fileName = value.substring('/products/'.length);
-      return `${environment.apiUrl}/storage/products/${fileName}`;
+      return `${backendBase}/storage/products/${fileName}`;
     }
 
     // Si comienza con products/ (sin barra inicial), construir URL con /storage/products/
     if (value.startsWith('products/')) {
       const fileName = value.substring('products/'.length);
-      return `${environment.apiUrl}/storage/products/${fileName}`;
+      return `${backendBase}/storage/products/${fileName}`;
     }
 
     // Si comienza con /, asumir que es storage y construir URL del backend
     if (value.startsWith('/')) {
-      return `${environment.apiUrl}/storage${value}`;
+      return `${backendBase}/storage${value}`;
     }
 
     // Si es solo el nombre del archivo o ruta relativa, construir URL completa
-    return `${environment.apiUrl}/storage/products/${value}`;
+    return `${backendBase}/storage/products/${value}`;
   }
 }
