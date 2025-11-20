@@ -171,6 +171,18 @@ export class NotificationService {
         return;
       }
 
+      // ✅ Solicitar permisos de notificación al inicio (primera visita)
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        console.log('📲 Primera visita detectada, solicitando permisos de notificación...');
+        const permission = await Notification.requestPermission();
+        console.log(`📲 Permisos de notificación: ${permission}`);
+        
+        if (permission === 'denied') {
+          console.warn('⚠️ Usuario denegó permisos de notificación');
+          return;
+        }
+      }
+
       // Obtener la clave pública VAPID
       await this.getVapidPublicKey();
 

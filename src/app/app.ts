@@ -30,13 +30,67 @@ export class App implements OnInit {
       // 1. Inicializar sincronización de sesión entre tabs
       this.sessionSync.init();
       
-      // 2. Inicializar el servicio de notificaciones Web Push
+      // 2. Solicitar permisos de notificación con un diálogo amigable
+      await this.requestNotificationPermission();
+      
+      // 3. Inicializar el servicio de notificaciones Web Push
       await this.notificationService.initializePushNotifications();
 
-      // 3. Escuchar mensajes del Service Worker (para cart_abandoned clicks)
+      // 4. Escuchar mensajes del Service Worker (para cart_abandoned clicks)
       this.listenToServiceWorkerMessages();
     } catch (error) {
       console.error('❌ Error inicializando servicios:', error);
+    }
+  }
+
+  /**
+   * Solicita permisos de notificación al usuario de forma amigable
+   */
+  private async requestNotificationPermission(): Promise<void> {
+    try {
+      // Verificar si las notificaciones están disponibles
+      if (typeof Notification === 'undefined') {
+        console.log('ℹ️ Notificaciones no disponibles en este navegador');
+        return;
+      }
+
+      // Si ya se concedieron permisos, no hacer nada
+      if (Notification.permission === 'granted') {
+        console.log('✅ Permisos de notificación ya concedidos');
+        return;
+      }
+
+      // Si ya se denegaron permisos, no molestar al usuario
+      if (Notification.permission === 'denied') {
+        console.log('⚠️ Permisos de notificación denegados previamente');
+        return;
+      }
+
+      // Esperar un poco para que la app se cargue completamente
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Verificar si es la primera vez que se solicitan permisos
+      const hasRequestedBefore = localStorage.getItem('notification_permission_requested');
+      
+      if (!hasRequestedBefore) {
+        console.log('📲 Primera visita, solicitando permisos de notificación...');
+        
+        // Solicitar permisos
+        const permission = await Notification.requestPermission();
+        
+        // Marcar que ya se solicitaron permisos
+        localStorage.setItem('notification_permission_requested', 'true');
+        
+        console.log(`📲 Permisos de notificación: ${permission}`);
+        
+        if (permission === 'granted') {
+          console.log('✅ Usuario concedió permisos de notificación');
+        } else if (permission === 'denied') {
+          console.warn('⚠️ Usuario denegó permisos de notificación');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error solicitando permisos de notificación:', error);
     }
   }
 
