@@ -6,11 +6,12 @@ import { Subscription, firstValueFrom, timeout } from 'rxjs';
 import { OrderService, Order } from '../../services/order.service';
 import { NotificationService } from '../../services/notification.service';
 import { firstValueFrom as rxFirst } from 'rxjs';
+import { ImageUrlPipe } from '../../pipes/image-url.pipe';
 
 @Component({
   selector: 'app-order-detail',
   standalone: true,
-  imports: [IonicModule, CommonModule],
+  imports: [IonicModule, CommonModule, ImageUrlPipe],
   templateUrl: './order-detail.page.html',
   // Nota: styleUrls estándar; si el builder mostró error transitorio 'no se encontró', se debe a caché.
   styleUrls: ['./order-detail.page.scss']

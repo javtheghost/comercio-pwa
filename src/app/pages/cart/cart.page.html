@@ -32,7 +32,7 @@
     <ion-list *ngIf="cart && cart.items?.length">
       <div *ngFor="let item of cart.items; trackBy: trackByItemId" class="cart-item custom-cart-item">
         <div class="product-image">
-          <img [src]="item.product_image || '/assets/images/no-image.png'" [alt]="item.product_name" />
+          <img [src]="item.product_image | imageUrl" [alt]="item.product_name" />
         </div>
         <div class="product-info">
           <div class="product-title">{{ item.product_name }}</div>
@@ -64,7 +64,7 @@
 
       <ion-list *ngIf="offlineCart?.items?.length">
         <ion-item *ngFor="let item of offlineCart?.items; trackBy: trackByItemId" class="cart-item pending-item">
-          <ion-thumbnail slot="start" class="product-image"><img [src]="item.product_image || '/assets/images/no-image.png'" [alt]="item.product_name" /></ion-thumbnail>
+          <ion-thumbnail slot="start" class="product-image"><img [src]="item.product_image | imageUrl" [alt]="item.product_name" /></ion-thumbnail>
           <ion-label class="product-info"><h3>{{ item.product_name }}</h3><p class="price">{{ item.unit_price | currency:'MXN' }}</p><p class="total-price">Total: {{ item.total_price | currency:'MXN' }}</p><ion-text color="primary"><small>Guardado localmente</small></ion-text></ion-label>
           <div slot="end" class="quantity-controls"><div class="quantity-selector"><ion-button fill="clear" size="small" (click)="decreaseOfflineQuantity(item)"><ion-icon name="remove-outline"></ion-icon></ion-button><div class="quantity-input-container"><input type="number" [value]="item.quantity" (input)="updateOfflineQuantityFromInput(item,$event)" (blur)="commitOfflineQuantityInput(item,$event)" min="1" max="99" class="quantity-input"></div><ion-button fill="clear" size="small" (click)="increaseOfflineQuantity(item)"><ion-icon name="add-outline"></ion-icon></ion-button></div><ion-button fill="clear" color="danger" size="small" (click)="removeOfflineItem(item)"><ion-icon name="trash-outline"></ion-icon></ion-button></div>
         </ion-item>
@@ -73,7 +73,7 @@
 
     <ion-list *ngIf="hasOfflineItems()">
       <ion-item *ngFor="let item of offlineCart?.items; trackBy: trackByItemId" class="cart-item offline-item">
-        <ion-thumbnail slot="start" class="product-image"><img [src]="item.product_image || '/assets/images/no-image.png'" [alt]="item.product_name" /></ion-thumbnail>
+        <ion-thumbnail slot="start" class="product-image"><img [src]="item.product_image | imageUrl" [alt]="item.product_name" /></ion-thumbnail>
         <ion-label class="product-info"><h3>{{ item.product_name }}</h3><p class="price">{{ item.unit_price | currency:'MXN' }}</p><p class="total-price">Total: {{ item.total_price | currency:'MXN' }}</p><ion-text color="warning"><small>Sin conexión</small></ion-text></ion-label>
         <div slot="end" class="quantity-controls"><div class="quantity-selector"><ion-button fill="clear" size="small" (click)="decreaseOfflineQuantity(item)"><ion-icon name="remove-outline"></ion-icon></ion-button><div class="quantity-input-container"><input type="number" [value]="item.quantity" (input)="updateOfflineQuantityFromInput(item,$event)" (blur)="commitOfflineQuantityInput(item,$event)" min="1" max="99" class="quantity-input"></div><ion-button fill="clear" size="small" (click)="increaseOfflineQuantity(item)"><ion-icon name="add-outline"></ion-icon></ion-button></div><ion-button fill="clear" color="danger" size="small" (click)="removeOfflineItem(item)"><ion-icon name="trash-outline"></ion-icon></ion-button></div>
       </ion-item>

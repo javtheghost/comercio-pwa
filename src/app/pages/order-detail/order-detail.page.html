@@ -64,7 +64,7 @@
         <ion-list lines="none">
           <ion-item *ngFor="let item of order?.items" class="item-row" detail="false">
             <div class="thumb" *ngIf="item.product?.image; else placeholder">
-              <img [src]="item.product?.image" alt="{{ item.product?.name }}" loading="lazy" />
+              <img [src]="item.product?.image | imageUrl" alt="{{ item.product?.name }}" loading="lazy" />
             </div>
             <ng-template #placeholder>
               <div class="thumb placeholder">

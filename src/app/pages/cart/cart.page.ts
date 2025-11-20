@@ -9,11 +9,12 @@ import { OfflineCartService, OfflineCart, OfflineCartItem } from '../../services
 import { NavController } from '@ionic/angular';
 import { TabNavigationService } from '../../services/tab-navigation.service';
 import { environment } from '../../../environments/environment';
+import { ImageUrlPipe } from '../../pipes/image-url.pipe';
 
 @Component({
   selector: 'app-cart',
   standalone: true,
-  imports: [CommonModule, NgIf, NgForOf, CurrencyPipe, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonButton, IonIcon, IonList, IonThumbnail, IonSpinner, IonText, IonRefresher, IonRefresherContent],
+  imports: [CommonModule, NgIf, NgForOf, CurrencyPipe, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardContent, IonItem, IonLabel, IonButton, IonIcon, IonList, IonThumbnail, IonSpinner, IonText, IonRefresher, IonRefresherContent, ImageUrlPipe],
   templateUrl: './cart.page.html',
   styleUrls: ['./cart.page.scss']
 })
