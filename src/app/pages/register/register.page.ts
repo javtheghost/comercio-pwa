@@ -260,7 +260,7 @@ export class RegisterPage implements OnInit {
 
     try {
       // URL del backend para Google OAuth
-      const backendUrl = 'https://ecommerceapi.toolaccess.tech';
+      const backendUrl = 'https://api.book-smart.me';
       const googleUrl = `${backendUrl}/api/auth/google`;
 
       console.log('🔐 [REGISTER] Redirigiendo a Google OAuth:', googleUrl);
@@ -326,7 +326,7 @@ export class RegisterPage implements OnInit {
 
     try {
       // URL del backend para Facebook OAuth
-      const backendUrl = 'https://ecommerceapi.toolaccess.tech';
+      const backendUrl = 'https://api.book-smart.me';
       const facebookUrl = `${backendUrl}/api/auth/facebook`;
 
       console.log('🔐 [REGISTER] Redirigiendo a Facebook OAuth:', facebookUrl);

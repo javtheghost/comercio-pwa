@@ -375,7 +375,7 @@ onSkip() {
 
     try {
       // URL del backend para Google OAuth
-      const backendUrl = 'https://ecommerceapi.toolaccess.tech';
+      const backendUrl = 'https://api.book-smart.me';
       const googleUrl = `${backendUrl}/api/auth/google`;
 
       console.log('🔐 [LOGIN] Redirigiendo a Google OAuth:', googleUrl);
@@ -442,7 +442,7 @@ onSkip() {
 
     try {
       // URL del backend para Facebook OAuth
-      const backendUrl = 'https://ecommerceapi.toolaccess.tech';
+      const backendUrl = 'https://api.book-smart.me';
       const facebookUrl = `${backendUrl}/api/auth/facebook`;
 
       console.log('🔐 [LOGIN] Redirigiendo a Facebook OAuth:', facebookUrl);

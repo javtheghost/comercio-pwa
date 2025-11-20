@@ -2,7 +2,7 @@
 
 ## 🌐 URL del Backend Configurada
 
-**URL Base:** `https://ecommerceapi-production-fe72.up.railway.app`
+**URL Base:** `https://api.book-smart.me`
 
 ---
 
@@ -10,12 +10,12 @@
 
 ### 1. `src/environments/environment.ts` (Desarrollo)
 ```typescript
-apiUrl: 'https://ecommerceapi-production-fe72.up.railway.app/api'
+apiUrl: 'https://api.book-smart.me/api'
 ```
 
 ### 2. `src/environments/environment.prod.ts` (Producción)
 ```typescript
-apiUrl: 'https://ecommerceapi-production-fe72.up.railway.app/api'
+apiUrl: 'https://api.book-smart.me/api'
 ```
 
 ---
@@ -55,13 +55,13 @@ Los siguientes servicios ya están configurados para usar la URL correcta:
 ### 1. `favorites-api.service.ts`
 ```typescript
 private apiUrl = `${environment.apiUrl}/favorites`;
-// Resultado: https://ecommerceapi-production-fe72.up.railway.app/api/favorites
+// Resultado: https://api.book-smart.me/api/favorites
 ```
 
 ### 2. `notifications-api.service.ts`
 ```typescript
 private apiUrl = `${environment.apiUrl}/user-notifications`;
-// Resultado: https://ecommerceapi-production-fe72.up.railway.app/api/user-notifications
+// Resultado: https://api.book-smart.me/api/user-notifications
 ```
 
 ---
@@ -75,7 +75,7 @@ Para verificar que la configuración es correcta, abre la consola del navegador 
 console.log('API URL:', localStorage.getItem('auth_token') ? 'Configurada correctamente' : 'Token no encontrado');
 
 // Verificar que el backend responde
-fetch('https://ecommerceapi-production-fe72.up.railway.app/api/favorites', {
+fetch('https://api.book-smart.me/api/favorites', {
   headers: {
     'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
     'Content-Type': 'application/json'
@@ -137,7 +137,7 @@ Al iniciar sesión, deberías ver en la consola:
 **Causa:** Backend no está disponible
 
 **Solución:**
-1. Verificar que Railway está corriendo: https://ecommerceapi-production-fe72.up.railway.app
+1. Verificar que Railway está corriendo: https://api.book-smart.me
 2. Verificar que la URL en `environment.ts` es correcta
 3. Verificar que tienes conexión a internet
 

@@ -1,6 +1,6 @@
 {
-  "name": "comercio-pwa",
-  "short_name": "comercio-pwa",
+  "name": "Book Smart Store",
+  "short_name": "Book Smart",
   "display": "standalone",
   "scope": "./",
   "start_url": "./",

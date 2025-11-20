@@ -12,7 +12,7 @@ import { SessionSyncService } from './services/session-sync.service';
   styleUrl: './app.scss'
 })
 export class App implements OnInit {
-  protected readonly title = signal('comercio-pwa');
+  protected readonly title = signal('Book Smart Store');
   private authService = inject(AuthService);
   private notificationService = inject(NotificationService);
   private sessionSync = inject(SessionSyncService);

@@ -1,7 +1,7 @@
 // Service Worker para Web Push Notifications
 // Este archivo debe estar en la raíz del proyecto (src/sw.js)
 
-const CACHE_NAME = 'comercio-pwa-v1';
+const CACHE_NAME = 'book-smart-store-v1';
 const urlsToCache = [
   '/',
   '/index.html',
