@@ -18,6 +18,8 @@ export class ResetPasswordPage implements OnInit {
   showPassword = false;
   showConfirmPassword = false;
   token = '';
+  expires = 0;
+  signature = '';
 
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
@@ -35,20 +37,45 @@ export class ResetPasswordPage implements OnInit {
   }
 
   ngOnInit() {
-    // Obtener token y email de los query params
+    // Obtener TODOS los parámetros de los query params
     this.route.queryParams.subscribe(params => {
       this.token = params['token'] || '';
       const email = params['email'] || '';
+      const expires = params['expires'] || '';
+      const signature = params['signature'] || '';
       
-      if (!this.token || !email) {
-        this.showErrorToast('Enlace de recuperación inválido o expirado');
-        this.router.navigate(['/tabs/forgot-password']);
+      // Validar que TODOS los parámetros existan
+      if (!this.token || !email || !expires || !signature) {
+        this.showErrorToast('Enlace de recuperación inválido. Faltan parámetros.');
+        this.router.navigate(['/forgot-password']);
         return;
       }
 
+      // Validar que no haya expirado (opcional, el backend también lo valida)
+      const expiresTimestamp = parseInt(expires);
+      const now = Math.floor(Date.now() / 1000);
+      
+      if (expiresTimestamp < now) {
+        this.showErrorToast('Este enlace de recuperación ha expirado. Solicita uno nuevo.');
+        this.router.navigate(['/forgot-password']);
+        return;
+      }
+
+      // Actualizar el formulario
       this.resetPasswordForm.patchValue({
         email: email,
         token: this.token
+      });
+
+      // Guardar expires y signature para el POST
+      this.expires = expiresTimestamp;
+      this.signature = signature;
+
+      console.log('Parámetros extraídos correctamente:', {
+        email,
+        hasToken: !!this.token,
+        expires: this.expires,
+        hasSignature: !!this.signature
       });
     });
   }
@@ -107,9 +134,27 @@ export class ResetPasswordPage implements OnInit {
 
     this.submitting = true;
     
-    console.log('📤 Enviando reset password con datos:', this.resetPasswordForm.value);
+    // Construir el objeto con TODOS los datos requeridos
+    const resetData = {
+      email: this.resetPasswordForm.value.email,
+      password: this.resetPasswordForm.value.password,
+      password_confirmation: this.resetPasswordForm.value.password_confirmation,
+      token: this.resetPasswordForm.value.token,
+      expires: this.expires,
+      signature: this.signature
+    };
 
-    this.authService.resetPassword(this.resetPasswordForm.value).subscribe({
+    console.log('📤 Enviando reset password con datos:', {
+      email: resetData.email,
+      hasPassword: !!resetData.password,
+      hasConfirmation: !!resetData.password_confirmation,
+      token: resetData.token.substring(0, 20) + '...',
+      expires: resetData.expires,
+      expiresType: typeof resetData.expires,
+      signature: resetData.signature.substring(0, 20) + '...'
+    });
+
+    this.authService.resetPassword(resetData).subscribe({
       next: async (response) => {
         this.submitting = false;
         console.log('✅ Reset password response:', response);
@@ -122,16 +167,29 @@ export class ResetPasswordPage implements OnInit {
         });
         await toast.present();
 
-        // Redirigir al login después de 1 segundo
         setTimeout(() => {
           this.router.navigate(['/tabs/login']);
         }, 1000);
       },
       error: async (error) => {
         this.submitting = false;
-        console.error('❌ Reset password error:', error);
+        console.error('❌ Reset password error completo:', error);
         
-        const message = error.error?.message || error.message || 'Error al restablecer la contraseña. El enlace puede haber expirado.';
+        let message = 'Error al restablecer la contraseña.';
+        
+        if (error.error?.message) {
+          message = error.error.message;
+        } else if (error.status === 403) {
+          message = 'El enlace es inválido o ha expirado. Solicita uno nuevo.';
+        } else if (error.status === 422) {
+          const errors = error.error?.errors;
+          if (errors) {
+            message = Object.values(errors).flat().join(', ');
+          } else {
+            message = 'Error de validación. Verifica los datos ingresados.';
+          }
+        }
+        
         await this.showErrorToast(message);
       }
     });

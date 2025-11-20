@@ -58,4 +58,6 @@ export interface ResetPasswordRequest {
   password: string;
   password_confirmation: string;
   token: string;
+  expires: number;
+  signature: string;
 }
