@@ -181,6 +181,9 @@ export class AuthService {
       // Store auth data using security service
       await this.securityService.setSecureToken(token);
       await this.securityService.setSecureUser(user);
+      
+      // Guardar timestamp de emisión del token para renovación automática (tokens Sanctum)
+      localStorage.setItem('token_issued_at', new Date().getTime().toString());
 
       // El refresh token se maneja automáticamente via cookies del backend
       // No necesitamos guardarlo en localStorage
@@ -583,6 +586,9 @@ export class AuthService {
 
     // Limpiar datos del localStorage
     this.securityService.clearSecureData();
+    
+    // Limpiar timestamp de emisión del token
+    localStorage.removeItem('token_issued_at');
 
     // Limpiar estado de autenticación (sin tocar el loading, se maneja en logout)
     this.authStateSubject.next({

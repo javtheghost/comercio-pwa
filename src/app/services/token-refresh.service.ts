@@ -16,6 +16,8 @@ export class TokenRefreshService implements OnDestroy {
   private refreshTimer?: Subscription;
   private readonly CHECK_INTERVAL = 5 * 60 * 1000; // Verificar cada 5 minutos
   private readonly REFRESH_BEFORE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // Renovar 7 días antes (en milisegundos)
+  private readonly TOKEN_LIFETIME = 30 * 24 * 60 * 60 * 1000; // 30 días de vida del token (en milisegundos)
+  private tokenIssuedAt?: number | null; // Timestamp cuando se emitió el token
 
   constructor(
     private authService: AuthService,
@@ -81,18 +83,46 @@ export class TokenRefreshService implements OnDestroy {
         return;
       }
 
+      // Intentar obtener expiración del token (JWT o Sanctum)
       const expiryDate = this.getTokenExpiryDate(token);
       
       if (!expiryDate) {
-        console.warn('⚠️ [TOKEN REFRESH] No se pudo obtener fecha de expiración del token');
+        console.log('ℹ️ [TOKEN REFRESH] Token tipo Sanctum detectado (sin expiración en payload)');
+        
+        // Para tokens Sanctum, usar el timestamp guardado en localStorage
+        if (!this.tokenIssuedAt) {
+          this.tokenIssuedAt = this.getTokenIssuedTimestamp();
+        }
+        
+        if (!this.tokenIssuedAt) {
+          console.warn('⚠️ [TOKEN REFRESH] No se pudo determinar fecha de emisión del token');
+          return;
+        }
+        
+        const now = new Date().getTime();
+        const tokenAge = now - this.tokenIssuedAt;
+        const timeUntilExpiry = this.TOKEN_LIFETIME - tokenAge;
+        const daysUntilExpiry = Math.floor(timeUntilExpiry / (24 * 60 * 60 * 1000));
+
+        console.log(`🕐 [TOKEN REFRESH] Token Sanctum tiene ${daysUntilExpiry} días hasta expirar (edad: ${Math.floor(tokenAge / (24 * 60 * 60 * 1000))} días)`);
+
+        // Si el token tiene más de 23 días (quedan menos de 7 para expirar), renovarlo
+        if (timeUntilExpiry <= this.REFRESH_BEFORE_EXPIRY && timeUntilExpiry > 0) {
+          console.log(`🔄 [TOKEN REFRESH] Token próximo a expirar, renovando automáticamente...`);
+          await this.refreshToken();
+        } else if (timeUntilExpiry <= 0) {
+          console.warn('⚠️ [TOKEN REFRESH] Token ya expirado, cerrando sesión');
+          this.authService.logout().subscribe();
+        }
         return;
       }
 
+      // Para tokens JWT
       const now = new Date().getTime();
       const timeUntilExpiry = expiryDate.getTime() - now;
       const daysUntilExpiry = Math.floor(timeUntilExpiry / (24 * 60 * 60 * 1000));
 
-      console.log(`🕐 [TOKEN REFRESH] Token expira en ${daysUntilExpiry} días (${new Date(expiryDate).toLocaleString()})`);
+      console.log(`🕐 [TOKEN REFRESH] Token JWT expira en ${daysUntilExpiry} días (${new Date(expiryDate).toLocaleString()})`);
 
       // Si el token expira en menos de 7 días, renovarlo
       if (timeUntilExpiry <= this.REFRESH_BEFORE_EXPIRY && timeUntilExpiry > 0) {
@@ -118,6 +148,9 @@ export class TokenRefreshService implements OnDestroy {
         this.authService.refreshToken().subscribe({
           next: (response) => {
             console.log('✅ [TOKEN REFRESH] Token renovado exitosamente');
+            // Actualizar timestamp de emisión
+            this.tokenIssuedAt = new Date().getTime();
+            this.saveTokenIssuedTimestamp(this.tokenIssuedAt);
             resolve();
           },
           error: (error) => {
@@ -129,6 +162,37 @@ export class TokenRefreshService implements OnDestroy {
     } catch (error) {
       console.error('❌ [TOKEN REFRESH] Error en refreshToken:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Obtiene el timestamp de emisión del token desde localStorage
+   */
+  private getTokenIssuedTimestamp(): number | null {
+    try {
+      const stored = localStorage.getItem('token_issued_at');
+      if (stored) {
+        return parseInt(stored, 10);
+      }
+      
+      // Si no existe, asumir que se emitió ahora (primera vez)
+      const now = new Date().getTime();
+      this.saveTokenIssuedTimestamp(now);
+      return now;
+    } catch (error) {
+      console.error('❌ [TOKEN REFRESH] Error obteniendo timestamp de emisión:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Guarda el timestamp de emisión del token en localStorage
+   */
+  private saveTokenIssuedTimestamp(timestamp: number): void {
+    try {
+      localStorage.setItem('token_issued_at', timestamp.toString());
+    } catch (error) {
+      console.error('❌ [TOKEN REFRESH] Error guardando timestamp de emisión:', error);
     }
   }
 
