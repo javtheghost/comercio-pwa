@@ -68,7 +68,7 @@
                 [src]="getItemImageUrl(item) | imageUrl" 
                 [alt]="item.name || item.product?.name || 'Producto'" 
                 loading="lazy"
-                (error)="$any($event.target).src = '/assets/images/no-image.png'" />
+                (error)="onImageError($event)" />
             </div>
             <ion-label>
               <h3>{{ item.name || item.product?.name || 'Producto' }}</h3>

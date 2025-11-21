@@ -162,20 +162,19 @@ export class OrderDetailPage implements OnInit, OnDestroy {
   }
 
   getItemImageUrl(item: any): string {
-    // Intentar obtener la imagen de diferentes posibles propiedades
-    const imageValue = item.image || item.product?.image || item.product_image;
+    // Usar product_image primero (igual que en cart.page.html)
+    // Luego intentar otras propiedades como fallback
+    return item.product_image || 
+           item.image || 
+           item.product?.image || 
+           this.getPlaceholderImage();
+  }
 
-    if (imageValue && typeof imageValue === 'object') {
-      // Extraer URL del objeto de imagen
-      const imageObj = imageValue as any;
-      return imageObj.url || imageObj.src || imageObj.path || imageObj.image_url ||
-             imageObj.thumbnail || imageObj.medium || imageObj.large || '';
-    } else if (typeof imageValue === 'string') {
-      // Si ya es una string, devolverla directamente
-      return imageValue;
-    }
+  getPlaceholderImage(): string {
+    return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect width="100" height="100" fill="%23f0f0f0"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="14"%3ESin imagen%3C/text%3E%3C/svg%3E';
+  }
 
-    // Fallback a imagen por defecto
-    return '/assets/images/no-image.png';
+  onImageError(event: any): void {
+    event.target.src = this.getPlaceholderImage();
   }
 }
