@@ -117,7 +117,7 @@ export class AuthApiService {
    */
   refreshToken(): Observable<LoginResponse> {
     const headers = this.getAuthHeaders();
-    return this.http.post<LoginResponse>(`${this.baseUrl}/auth/refresh`, {}, {
+    return this.http.post<LoginResponse>(`${this.baseUrl}/auth/refresh-token`, {}, {
       headers: headers,
       withCredentials: true
     });

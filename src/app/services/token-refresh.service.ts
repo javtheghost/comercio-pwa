@@ -1,0 +1,202 @@
+import { Injectable, OnDestroy } from '@angular/core';
+import { AuthService } from './auth.service';
+import { SecurityService } from './security.service';
+import { interval, Subscription } from 'rxjs';
+
+interface TokenPayload {
+  exp?: number; // Timestamp de expiración
+  iat?: number; // Timestamp de emisión
+  [key: string]: any;
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class TokenRefreshService implements OnDestroy {
+  private refreshTimer?: Subscription;
+  private readonly CHECK_INTERVAL = 5 * 60 * 1000; // Verificar cada 5 minutos
+  private readonly REFRESH_BEFORE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // Renovar 7 días antes (en milisegundos)
+
+  constructor(
+    private authService: AuthService,
+    private securityService: SecurityService
+  ) {
+    this.initializeTokenRefresh();
+  }
+
+  /**
+   * Inicializa el sistema de renovación automática
+   */
+  private initializeTokenRefresh(): void {
+    console.log('🔄 [TOKEN REFRESH] Inicializando sistema de renovación automática');
+    
+    // Suscribirse a cambios en el estado de autenticación
+    this.authService.authState$.subscribe(state => {
+      if (state.isAuthenticated && state.token) {
+        this.startRefreshTimer();
+      } else {
+        this.stopRefreshTimer();
+      }
+    });
+  }
+
+  /**
+   * Inicia el timer de verificación
+   */
+  private startRefreshTimer(): void {
+    // Detener timer existente si hay
+    this.stopRefreshTimer();
+
+    console.log('⏰ [TOKEN REFRESH] Iniciando timer de verificación');
+    
+    // Verificar inmediatamente
+    this.checkAndRefreshToken();
+
+    // Configurar verificación periódica
+    this.refreshTimer = interval(this.CHECK_INTERVAL).subscribe(() => {
+      this.checkAndRefreshToken();
+    });
+  }
+
+  /**
+   * Detiene el timer de verificación
+   */
+  private stopRefreshTimer(): void {
+    if (this.refreshTimer) {
+      console.log('⏹️ [TOKEN REFRESH] Deteniendo timer de verificación');
+      this.refreshTimer.unsubscribe();
+      this.refreshTimer = undefined;
+    }
+  }
+
+  /**
+   * Verifica si el token necesita renovarse y lo renueva si es necesario
+   */
+  private async checkAndRefreshToken(): Promise<void> {
+    try {
+      const token = this.securityService.getTokenSync();
+      
+      if (!token) {
+        console.log('⚠️ [TOKEN REFRESH] No hay token para verificar');
+        return;
+      }
+
+      const expiryDate = this.getTokenExpiryDate(token);
+      
+      if (!expiryDate) {
+        console.warn('⚠️ [TOKEN REFRESH] No se pudo obtener fecha de expiración del token');
+        return;
+      }
+
+      const now = new Date().getTime();
+      const timeUntilExpiry = expiryDate.getTime() - now;
+      const daysUntilExpiry = Math.floor(timeUntilExpiry / (24 * 60 * 60 * 1000));
+
+      console.log(`🕐 [TOKEN REFRESH] Token expira en ${daysUntilExpiry} días (${new Date(expiryDate).toLocaleString()})`);
+
+      // Si el token expira en menos de 7 días, renovarlo
+      if (timeUntilExpiry <= this.REFRESH_BEFORE_EXPIRY && timeUntilExpiry > 0) {
+        console.log(`🔄 [TOKEN REFRESH] Token próximo a expirar, renovando automáticamente...`);
+        await this.refreshToken();
+      } else if (timeUntilExpiry <= 0) {
+        console.warn('⚠️ [TOKEN REFRESH] Token ya expirado, cerrando sesión');
+        this.authService.logout().subscribe();
+      }
+    } catch (error) {
+      console.error('❌ [TOKEN REFRESH] Error verificando token:', error);
+    }
+  }
+
+  /**
+   * Renueva el token
+   */
+  private async refreshToken(): Promise<void> {
+    try {
+      console.log('🔑 [TOKEN REFRESH] Renovando token...');
+      
+      await new Promise<void>((resolve, reject) => {
+        this.authService.refreshToken().subscribe({
+          next: (response) => {
+            console.log('✅ [TOKEN REFRESH] Token renovado exitosamente');
+            resolve();
+          },
+          error: (error) => {
+            console.error('❌ [TOKEN REFRESH] Error renovando token:', error);
+            reject(error);
+          }
+        });
+      });
+    } catch (error) {
+      console.error('❌ [TOKEN REFRESH] Error en refreshToken:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Decodifica un JWT sin verificar la firma (solo para leer exp)
+   */
+  private decodeToken(token: string): TokenPayload | null {
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        console.warn('⚠️ [TOKEN REFRESH] Token no tiene formato JWT válido');
+        return null;
+      }
+
+      const payload = parts[1];
+      const decoded = JSON.parse(atob(payload));
+      return decoded;
+    } catch (error) {
+      console.error('❌ [TOKEN REFRESH] Error decodificando token:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Obtiene la fecha de expiración del token
+   */
+  private getTokenExpiryDate(token: string): Date | null {
+    const payload = this.decodeToken(token);
+    
+    if (!payload || !payload.exp) {
+      return null;
+    }
+
+    // exp viene en segundos, convertir a milisegundos
+    return new Date(payload.exp * 1000);
+  }
+
+  /**
+   * Verifica si el token está próximo a expirar
+   */
+  public isTokenNearExpiry(): boolean {
+    const token = this.securityService.getTokenSync();
+    
+    if (!token) {
+      return false;
+    }
+
+    const expiryDate = this.getTokenExpiryDate(token);
+    
+    if (!expiryDate) {
+      return false;
+    }
+
+    const now = new Date().getTime();
+    const timeUntilExpiry = expiryDate.getTime() - now;
+
+    return timeUntilExpiry <= this.REFRESH_BEFORE_EXPIRY && timeUntilExpiry > 0;
+  }
+
+  /**
+   * Fuerza la renovación del token (para uso manual)
+   */
+  public async forceRefresh(): Promise<void> {
+    console.log('🔄 [TOKEN REFRESH] Renovación manual solicitada');
+    await this.refreshToken();
+  }
+
+  ngOnDestroy(): void {
+    this.stopRefreshTimer();
+  }
+}

@@ -357,22 +357,54 @@ export class AuthService {
   }
 
   refreshToken(): Observable<LoginResponse> {
+    console.log('🔄 [AUTH SERVICE] Renovando token...');
     return this.authApiService.refreshToken().pipe(
-      tap((response: LoginResponse) => {
+      tap(async (response: any) => {
+        console.log('✅ [AUTH SERVICE] Respuesta de refresh-token:', response);
+        
+        // Manejar diferentes estructuras de respuesta
+        let token = null;
+        let user = null;
+        
         if (response.success && response.data) {
-          const { user, token } = response.data;
-
-          this.securityService.setSecureToken(token);
-          this.securityService.setSecureUser(user);
-
+          // Estructura: { success: true, data: { token, user } }
+          token = response.data.token;
+          user = response.data.user;
+        } else if (response.token) {
+          // Estructura: { token, user }
+          token = response.token;
+          user = response.user;
+        }
+        
+        if (token) {
+          console.log('🔑 [AUTH SERVICE] Guardando nuevo token');
+          await this.securityService.setSecureToken(token);
+          
+          if (user) {
+            console.log('👤 [AUTH SERVICE] Actualizando datos del usuario');
+            await this.securityService.setSecureUser(user);
+          }
+          
+          // Actualizar estado
           this.authStateSubject.next({
             isAuthenticated: true,
-            user,
+            user: user || this.authStateSubject.value.user,
             token,
             loading: false,
             error: null
           });
+          
+          console.log('✅ [AUTH SERVICE] Token renovado y estado actualizado');
+        } else {
+          console.error('❌ [AUTH SERVICE] No se recibió token en la respuesta de refresh');
+          throw new Error('No se recibió token en la respuesta');
         }
+      }),
+      catchError((error) => {
+        console.error('❌ [AUTH SERVICE] Error renovando token:', error);
+        // Si falla la renovación, cerrar sesión
+        this.clearAuthData();
+        return throwError(() => error);
       })
     );
   }

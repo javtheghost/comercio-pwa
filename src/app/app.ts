@@ -3,6 +3,7 @@ import { IonApp, IonRouterOutlet } from '@ionic/angular/standalone';
 import { AuthService } from './services/auth.service';
 import { NotificationService } from './services/notification.service';
 import { SessionSyncService } from './services/session-sync.service';
+import { TokenRefreshService } from './services/token-refresh.service';
 
 @Component({
   selector: 'app-root',
@@ -16,6 +17,7 @@ export class App implements OnInit {
   private authService = inject(AuthService);
   private notificationService = inject(NotificationService);
   private sessionSync = inject(SessionSyncService);
+  private tokenRefresh = inject(TokenRefreshService); // Inyectar para que se inicialice
 
   constructor() {
     // Hacer el método de debug disponible globalmente para desarrollo
@@ -38,6 +40,9 @@ export class App implements OnInit {
 
       // 4. Escuchar mensajes del Service Worker (para cart_abandoned clicks)
       this.listenToServiceWorkerMessages();
+      
+      // 5. El TokenRefreshService se inicializa automáticamente al ser inyectado
+      console.log('✅ [APP] Sistema de renovación automática de tokens inicializado');
     } catch (error) {
       console.error('❌ Error inicializando servicios:', error);
     }

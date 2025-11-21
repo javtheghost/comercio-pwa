@@ -87,7 +87,7 @@ async function handleTokenRefresh(
       throw new Error('No hay token para renovar');
     }
 
-    const refreshUrl = `${environment.apiUrl.replace(/\/$/, '')}/auth/refresh`;
+    const refreshUrl = `${environment.apiUrl.replace(/\/$/, '')}/auth/refresh-token`;
     console.log('🔑 [AUTH INTERCEPTOR] Llamando a refresh URL:', refreshUrl);
 
     // Llamar al endpoint de refresh con el token actual (usar URL absoluta para evitar problemas de host)
