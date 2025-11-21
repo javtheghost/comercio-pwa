@@ -203,7 +203,7 @@ export class TokenRefreshService implements OnDestroy {
     try {
       const parts = token.split('.');
       if (parts.length !== 3) {
-        console.warn('⚠️ [TOKEN REFRESH] Token no tiene formato JWT válido');
+        // Token no es JWT (probablemente Sanctum), esto es normal
         return null;
       }
 
