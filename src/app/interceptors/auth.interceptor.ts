@@ -115,6 +115,11 @@ async function handleTokenRefresh(
 
     // Guardar el nuevo token
     await securityService.setSecureToken(newToken);
+    
+    // Actualizar timestamp de emisión del token (importante para refresh proactivo)
+    const now = new Date().getTime();
+    localStorage.setItem('token_issued_at', now.toString());
+    console.log('🕐 [AUTH INTERCEPTOR] Timestamp del token actualizado');
 
     // Actualizar datos del usuario si vienen en la respuesta
     if (userData) {

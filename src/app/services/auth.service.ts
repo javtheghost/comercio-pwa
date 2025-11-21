@@ -383,6 +383,11 @@ export class AuthService {
           console.log('🔑 [AUTH SERVICE] Guardando nuevo token');
           await this.securityService.setSecureToken(token);
           
+          // Actualizar timestamp de emisión del token (importante para refresh proactivo)
+          const now = new Date().getTime();
+          localStorage.setItem('token_issued_at', now.toString());
+          console.log('🕐 [AUTH SERVICE] Timestamp del token actualizado');
+          
           if (user) {
             console.log('👤 [AUTH SERVICE] Actualizando datos del usuario');
             await this.securityService.setSecureUser(user);
