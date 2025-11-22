@@ -181,7 +181,7 @@ export class AuthService {
       // Store auth data using security service
       await this.securityService.setSecureToken(token);
       await this.securityService.setSecureUser(user);
-      
+
       // Guardar timestamp de emisión del token para renovación automática (tokens Sanctum)
       localStorage.setItem('token_issued_at', new Date().getTime().toString());
 
@@ -269,6 +269,9 @@ export class AuthService {
           // Store auth data using security service
           this.securityService.setSecureToken(token);
           this.securityService.setSecureUser(user);
+
+          // Guardar timestamp de emisión del token para renovación automática
+          localStorage.setItem('token_issued_at', new Date().getTime().toString());
 
           // Update auth state
           this.authStateSubject.next({
@@ -364,11 +367,11 @@ export class AuthService {
     return this.authApiService.refreshToken().pipe(
       tap(async (response: any) => {
         console.log('✅ [AUTH SERVICE] Respuesta de refresh-token:', response);
-        
+
         // Manejar diferentes estructuras de respuesta
         let token = null;
         let user = null;
-        
+
         if (response.success && response.data) {
           // Estructura: { success: true, data: { token, user } }
           token = response.data.token;
@@ -378,21 +381,21 @@ export class AuthService {
           token = response.token;
           user = response.user;
         }
-        
+
         if (token) {
           console.log('🔑 [AUTH SERVICE] Guardando nuevo token');
           await this.securityService.setSecureToken(token);
-          
+
           // Actualizar timestamp de emisión del token (importante para refresh proactivo)
           const now = new Date().getTime();
           localStorage.setItem('token_issued_at', now.toString());
           console.log('🕐 [AUTH SERVICE] Timestamp del token actualizado');
-          
+
           if (user) {
             console.log('👤 [AUTH SERVICE] Actualizando datos del usuario');
             await this.securityService.setSecureUser(user);
           }
-          
+
           // Actualizar estado
           this.authStateSubject.next({
             isAuthenticated: true,
@@ -401,7 +404,7 @@ export class AuthService {
             loading: false,
             error: null
           });
-          
+
           console.log('✅ [AUTH SERVICE] Token renovado y estado actualizado');
         } else {
           console.error('❌ [AUTH SERVICE] No se recibió token en la respuesta de refresh');
@@ -437,6 +440,9 @@ export class AuthService {
           // Guardar token y usuario
           await this.securityService.setSecureToken(token);
           await this.securityService.setSecureUser(user);
+
+          // Guardar timestamp de emisión del token para renovación automática
+          localStorage.setItem('token_issued_at', new Date().getTime().toString());
 
           // Actualizar estado
           this.authStateSubject.next({
@@ -591,7 +597,7 @@ export class AuthService {
 
     // Limpiar datos del localStorage
     this.securityService.clearSecureData();
-    
+
     // Limpiar timestamp de emisión del token
     localStorage.removeItem('token_issued_at');
 

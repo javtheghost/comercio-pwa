@@ -23,7 +23,10 @@ export class App implements OnInit {
     // Hacer el método de debug disponible globalmente para desarrollo
     if (typeof window !== 'undefined') {
       (window as any).debugAuth = () => this.authService.debugAuthState();
-      console.log('🔧 [DEBUG] Método debugAuth() disponible globalmente. Ejecuta: debugAuth()');
+      (window as any).diagnoseTokenRefresh = () => this.tokenRefresh.diagnoseTokenRefresh();
+      console.log('🔧 [DEBUG] Métodos de debug disponibles globalmente:');
+      console.log('  - debugAuth() - Verifica estado de autenticación');
+      console.log('  - diagnoseTokenRefresh() - Diagnostica sistema de refresh de tokens');
     }
   }
 
@@ -31,16 +34,16 @@ export class App implements OnInit {
     try {
       // 1. Inicializar sincronización de sesión entre tabs
       this.sessionSync.init();
-      
+
       // 2. Solicitar permisos de notificación con un diálogo amigable
       await this.requestNotificationPermission();
-      
+
       // 3. Inicializar el servicio de notificaciones Web Push
       await this.notificationService.initializePushNotifications();
 
       // 4. Escuchar mensajes del Service Worker (para cart_abandoned clicks)
       this.listenToServiceWorkerMessages();
-      
+
       // 5. El TokenRefreshService se inicializa automáticamente al ser inyectado
       console.log('✅ [APP] Sistema de renovación automática de tokens inicializado');
     } catch (error) {
@@ -76,18 +79,18 @@ export class App implements OnInit {
 
       // Verificar si es la primera vez que se solicitan permisos
       const hasRequestedBefore = localStorage.getItem('notification_permission_requested');
-      
+
       if (!hasRequestedBefore) {
         console.log('📲 Primera visita, solicitando permisos de notificación...');
-        
+
         // Solicitar permisos
         const permission = await Notification.requestPermission();
-        
+
         // Marcar que ya se solicitaron permisos
         localStorage.setItem('notification_permission_requested', 'true');
-        
+
         console.log(`📲 Permisos de notificación: ${permission}`);
-        
+
         if (permission === 'granted') {
           console.log('✅ Usuario concedió permisos de notificación');
         } else if (permission === 'denied') {
@@ -114,7 +117,7 @@ export class App implements OnInit {
           if (cartId) {
             localStorage.setItem('abandoned_cart_id', cartId.toString());
             console.log('💾 Cart ID guardado desde push notification:', cartId);
-            
+
             // Opcional: Mostrar un toast indicando que se cargó el carrito
             console.log('🛒 Carrito abandonado restaurado. ID:', cartId);
           }

@@ -31,7 +31,7 @@ export class TokenRefreshService implements OnDestroy {
    */
   private initializeTokenRefresh(): void {
     console.log('🔄 [TOKEN REFRESH] Inicializando sistema de renovación automática');
-    
+
     // Suscribirse a cambios en el estado de autenticación
     this.authService.authState$.subscribe(state => {
       if (state.isAuthenticated && state.token) {
@@ -50,7 +50,7 @@ export class TokenRefreshService implements OnDestroy {
     this.stopRefreshTimer();
 
     console.log('⏰ [TOKEN REFRESH] Iniciando timer de verificación');
-    
+
     // Verificar inmediatamente
     this.checkAndRefreshToken();
 
@@ -77,7 +77,7 @@ export class TokenRefreshService implements OnDestroy {
   private async checkAndRefreshToken(): Promise<void> {
     try {
       const token = this.securityService.getTokenSync();
-      
+
       if (!token) {
         console.log('⚠️ [TOKEN REFRESH] No hay token para verificar');
         return;
@@ -85,34 +85,56 @@ export class TokenRefreshService implements OnDestroy {
 
       // Intentar obtener expiración del token (JWT o Sanctum)
       const expiryDate = this.getTokenExpiryDate(token);
-      
+
       if (!expiryDate) {
         console.log('ℹ️ [TOKEN REFRESH] Token tipo Sanctum detectado (sin expiración en payload)');
-        
+
         // Para tokens Sanctum, usar el timestamp guardado en localStorage
         if (!this.tokenIssuedAt) {
           this.tokenIssuedAt = this.getTokenIssuedTimestamp();
         }
-        
-        if (!this.tokenIssuedAt) {
-          console.warn('⚠️ [TOKEN REFRESH] No se pudo determinar fecha de emisión del token');
+
+        const now = new Date().getTime();
+
+        // Validar timestamp
+        if (!this.tokenIssuedAt || isNaN(this.tokenIssuedAt)) {
+          console.warn('⚠️ [TOKEN REFRESH] Timestamp inválido, intentando renovar token...');
+          try {
+            await this.refreshToken();
+          } catch (error) {
+            console.error('❌ [TOKEN REFRESH] Error renovando token con timestamp inválido, cerrando sesión');
+            this.authService.logout().subscribe();
+          }
           return;
         }
-        
-        const now = new Date().getTime();
+
+        // Validar que no esté en el futuro (con margen de 1 hora por diferencias de zona horaria)
+        if (this.tokenIssuedAt > now + (60 * 60 * 1000)) {
+          console.warn('⚠️ [TOKEN REFRESH] Timestamp en el futuro, corrigiendo...');
+          this.tokenIssuedAt = now;
+          this.saveTokenIssuedTimestamp(this.tokenIssuedAt);
+        }
+
         const tokenAge = now - this.tokenIssuedAt;
         const timeUntilExpiry = this.TOKEN_LIFETIME - tokenAge;
         const daysUntilExpiry = Math.floor(timeUntilExpiry / (24 * 60 * 60 * 1000));
 
         console.log(`🕐 [TOKEN REFRESH] Token Sanctum tiene ${daysUntilExpiry} días hasta expirar (edad: ${Math.floor(tokenAge / (24 * 60 * 60 * 1000))} días)`);
 
-        // Si el token tiene más de 23 días (quedan menos de 7 para expirar), renovarlo
-        if (timeUntilExpiry <= this.REFRESH_BEFORE_EXPIRY && timeUntilExpiry > 0) {
-          console.log(`🔄 [TOKEN REFRESH] Token próximo a expirar, renovando automáticamente...`);
-          await this.refreshToken();
-        } else if (timeUntilExpiry <= 0) {
-          console.warn('⚠️ [TOKEN REFRESH] Token ya expirado, cerrando sesión');
-          this.authService.logout().subscribe();
+        // Si el token está próximo a expirar O ya expiró, intentar renovar
+        if (timeUntilExpiry <= this.REFRESH_BEFORE_EXPIRY) {
+          if (timeUntilExpiry > 0) {
+            console.log(`🔄 [TOKEN REFRESH] Token próximo a expirar, renovando automáticamente...`);
+          } else {
+            console.warn('⚠️ [TOKEN REFRESH] Token expirado, intentando renovar...');
+          }
+
+          try {
+            await this.refreshToken();
+          } catch (error) {
+            console.error('❌ [TOKEN REFRESH] Error renovando token expirado, cerrando sesión');
+            this.authService.logout().subscribe();
+          }
         }
         return;
       }
@@ -143,7 +165,7 @@ export class TokenRefreshService implements OnDestroy {
   private async refreshToken(): Promise<void> {
     try {
       console.log('🔑 [TOKEN REFRESH] Renovando token...');
-      
+
       await new Promise<void>((resolve, reject) => {
         this.authService.refreshToken().subscribe({
           next: (response) => {
@@ -172,13 +194,34 @@ export class TokenRefreshService implements OnDestroy {
     try {
       const stored = localStorage.getItem('token_issued_at');
       if (stored) {
-        return parseInt(stored, 10);
+        const timestamp = parseInt(stored, 10);
+
+        // Validar que sea un número válido
+        if (isNaN(timestamp)) {
+          console.warn('⚠️ [TOKEN REFRESH] Timestamp corrupto en localStorage');
+          return null;
+        }
+
+        // Validar que no esté en el futuro (con margen de 1 hora)
+        const now = new Date().getTime();
+        if (timestamp > now + (60 * 60 * 1000)) {
+          console.warn('⚠️ [TOKEN REFRESH] Timestamp en el futuro, ignorando');
+          return null;
+        }
+
+        // Validar que no sea demasiado antiguo (>35 días)
+        const maxAge = 35 * 24 * 60 * 60 * 1000;
+        if (now - timestamp > maxAge) {
+          console.warn('⚠️ [TOKEN REFRESH] Timestamp demasiado antiguo (>35 días)');
+          return null;
+        }
+
+        return timestamp;
       }
-      
-      // Si no existe, asumir que se emitió ahora (primera vez)
-      const now = new Date().getTime();
-      this.saveTokenIssuedTimestamp(now);
-      return now;
+
+      // Si no existe, NO asumir nada - retornar null
+      console.warn('⚠️ [TOKEN REFRESH] No existe token_issued_at en localStorage');
+      return null;
     } catch (error) {
       console.error('❌ [TOKEN REFRESH] Error obteniendo timestamp de emisión:', error);
       return null;
@@ -221,7 +264,7 @@ export class TokenRefreshService implements OnDestroy {
    */
   private getTokenExpiryDate(token: string): Date | null {
     const payload = this.decodeToken(token);
-    
+
     if (!payload || !payload.exp) {
       return null;
     }
@@ -235,13 +278,13 @@ export class TokenRefreshService implements OnDestroy {
    */
   public isTokenNearExpiry(): boolean {
     const token = this.securityService.getTokenSync();
-    
+
     if (!token) {
       return false;
     }
 
     const expiryDate = this.getTokenExpiryDate(token);
-    
+
     if (!expiryDate) {
       return false;
     }
@@ -258,6 +301,47 @@ export class TokenRefreshService implements OnDestroy {
   public async forceRefresh(): Promise<void> {
     console.log('🔄 [TOKEN REFRESH] Renovación manual solicitada');
     await this.refreshToken();
+  }
+
+  /**
+   * Método de diagnóstico para verificar el estado del sistema de refresh
+   */
+  public diagnoseTokenRefresh(): void {
+    console.log('🔍 [TOKEN REFRESH DIAGNOSTIC] ===== DIAGNÓSTICO =====');
+
+    const token = this.securityService.getTokenSync();
+    console.log('🔍 Token presente:', token ? 'SÍ' : 'NO');
+
+    const storedTimestamp = localStorage.getItem('token_issued_at');
+    console.log('🔍 token_issued_at en localStorage:', storedTimestamp || 'NO EXISTE');
+
+    if (storedTimestamp) {
+      const timestamp = parseInt(storedTimestamp, 10);
+      if (!isNaN(timestamp)) {
+        const now = new Date().getTime();
+        const age = now - timestamp;
+        const days = Math.floor(age / (24 * 60 * 60 * 1000));
+        const hours = Math.floor((age % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+
+        console.log(`🔍 Edad del token: ${days} días, ${hours} horas`);
+        console.log(`🔍 Fecha de emisión: ${new Date(timestamp).toLocaleString()}`);
+
+        const timeUntilExpiry = this.TOKEN_LIFETIME - age;
+        const daysUntilExpiry = Math.floor(timeUntilExpiry / (24 * 60 * 60 * 1000));
+        console.log(`🔍 Días hasta expiración: ${daysUntilExpiry}`);
+
+        if (timeUntilExpiry <= this.REFRESH_BEFORE_EXPIRY) {
+          console.log('⚠️ Token debería renovarse AHORA');
+        } else {
+          console.log('✅ Token NO necesita renovación todavía');
+        }
+      } else {
+        console.log('❌ Timestamp corrupto (no es un número)');
+      }
+    }
+
+    console.log('🔍 Timer activo:', this.refreshTimer ? 'SÍ' : 'NO');
+    console.log('🔍 [TOKEN REFRESH DIAGNOSTIC] ===== FIN =====');
   }
 
   ngOnDestroy(): void {
