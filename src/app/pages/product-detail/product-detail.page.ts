@@ -20,6 +20,7 @@ import { Product, ProductUI, ProductVariant, VariantInfo } from '../../interface
 import { ProductVariantSelectorComponent, VariantSelection } from '../../components/product-variant-selector/product-variant-selector.component';
 import { AddToCartToastComponent } from '../../components/add-to-cart-toast/add-to-cart-toast.component';
 import { FavoritesService } from '../../services/favorites.service';
+import { CurrencyPipe } from '../../pipes/currency.pipe';
 
 @Component({
   selector: 'app-product-detail',
@@ -34,10 +35,11 @@ import { FavoritesService } from '../../services/favorites.service';
     IonButton,
     IonIcon,
     IonBadge,
-  IonSpinner,
-  IonFooter,
+    IonSpinner,
+    IonFooter,
     ProductVariantSelectorComponent,
-    AddToCartToastComponent
+    AddToCartToastComponent,
+    CurrencyPipe
   ],
   templateUrl: './product-detail.page.html',
   styleUrls: ['./product-detail.page.scss']
@@ -185,7 +187,7 @@ export class ProductDetailPage implements OnInit {
           });
         }
 
-  // Cargar información de variantes usando la nueva API
+        // Cargar información de variantes usando la nueva API
         this.loadVariantInfo();
 
         this.loading = false;
@@ -317,13 +319,13 @@ export class ProductDetailPage implements OnInit {
       if (!Array.isArray(val)) {
         const obj: any = val;
         const out: any = {};
-        out.size = obj.size ?? obj.talla ?? obj.Size ?? obj.Talla ?? obj.SIZE ?? undefined;
+        out.size = obj.size ?? obj.talla ?? obj.Size ?? obj.Talla ?? obj.SIZE ?? obj.Capacidad ?? obj.capacidad ?? undefined;
         out.color = obj.color ?? obj.Color ?? obj.colour ?? obj.COLOUR ?? undefined;
         if (Array.isArray(obj.attributes)) {
           for (const item of obj.attributes) {
             const type = (item.type || item.name || '').toString().toLowerCase();
             const value = item.value ?? item.val ?? item.label ?? undefined;
-            if (type.includes('size') || type.includes('talla')) out.size = value;
+            if (type.includes('size') || type.includes('talla') || type.includes('capacidad')) out.size = value;
             if (type.includes('color') || type.includes('colour')) out.color = value;
           }
         }
@@ -333,7 +335,7 @@ export class ProductDetailPage implements OnInit {
       (val as any[]).forEach((item: any) => {
         const type = (item.type || item.name || '').toString().toLowerCase();
         const value = item.value ?? item.val ?? item.label ?? undefined;
-        if (type.includes('size') || type.includes('talla')) out.size = value;
+        if (type.includes('size') || type.includes('talla') || type.includes('capacidad')) out.size = value;
         if (type.includes('color') || type.includes('colour')) out.color = value;
       });
       return out;
@@ -352,7 +354,7 @@ export class ProductDetailPage implements OnInit {
           .reduce((acc, bp) => acc + (Number(bp.stock) || 0), 0);
         if (sum > 0) return sum;
       }
-    } catch {}
+    } catch { }
     // Fallback al stock_quantity del producto si no hay branch_products
     return Number(product.stock_quantity || 0);
   }
@@ -392,7 +394,7 @@ export class ProductDetailPage implements OnInit {
     });
   }
 
-    calculateDiscount(price: string, comparePrice: string): number | undefined {
+  calculateDiscount(price: string, comparePrice: string): number | undefined {
     if (!comparePrice || parseFloat(comparePrice) <= parseFloat(price)) {
       return undefined;
     }
@@ -514,7 +516,7 @@ export class ProductDetailPage implements OnInit {
     console.log('🎨 Color seleccionado:', color);
   }
 
-  
+
 
   addToCart() {
     if (!this.product) {
@@ -599,13 +601,13 @@ export class ProductDetailPage implements OnInit {
         if (!Array.isArray(val)) {
           const obj: any = val;
           const out: any = {};
-          out.size = obj.size ?? obj.talla ?? obj.Size ?? obj.Talla ?? obj.SIZE ?? undefined;
+          out.size = obj.size ?? obj.talla ?? obj.Size ?? obj.Talla ?? obj.SIZE ?? obj.Capacidad ?? obj.capacidad ?? undefined;
           out.color = obj.color ?? obj.Color ?? obj.colour ?? obj.COLOUR ?? undefined;
           if (Array.isArray(obj.attributes)) {
             for (const item of obj.attributes) {
               const type = (item.type || item.name || '').toString().toLowerCase();
               const value = item.value ?? item.val ?? item.label ?? undefined;
-              if (type.includes('size') || type.includes('talla')) out.size = value;
+              if (type.includes('size') || type.includes('talla') || type.includes('capacidad')) out.size = value;
               if (type.includes('color') || type.includes('colour')) out.color = value;
             }
           }
@@ -615,7 +617,7 @@ export class ProductDetailPage implements OnInit {
         (val as any[]).forEach((item: any) => {
           const type = (item.type || item.name || '').toString().toLowerCase();
           const value = item.value ?? item.val ?? item.label ?? undefined;
-          if (type.includes('size') || type.includes('talla')) out.size = value;
+          if (type.includes('size') || type.includes('talla') || type.includes('capacidad')) out.size = value;
           if (type.includes('color') || type.includes('colour')) out.color = value;
         });
         return out;

@@ -269,7 +269,7 @@ export class ProductVariantSelectorComponent implements OnInit, OnChanges {
         const obj = raw as any;
         const out: any = {};
         // Soportar claves en distintos idiomas/casos
-        out.size = obj.size ?? obj.talla ?? obj.Size ?? obj.Talla ?? obj.SIZE ?? undefined;
+        out.size = obj.size ?? obj.talla ?? obj.Size ?? obj.Talla ?? obj.SIZE ?? obj.Capacidad ?? obj.capacidad ?? undefined;
         out.color = obj.color ?? obj.Color ?? obj.colour ?? obj.COLOUR ?? undefined;
         out.material = obj.material ?? obj.Material ?? undefined;
 
@@ -279,7 +279,7 @@ export class ProductVariantSelectorComponent implements OnInit, OnChanges {
           for (const item of arr) {
             const type = (item.type || item.name || '').toString().toLowerCase();
             const value = item.value ?? item.val ?? item.label ?? undefined;
-            if (type.includes('size') || type.includes('talla')) out.size = value;
+            if (type.includes('size') || type.includes('talla') || type.includes('capacidad')) out.size = value;
             if (type.includes('color') || type.includes('colour')) out.color = value;
             if (type.includes('material')) out.material = value;
           }
@@ -292,7 +292,7 @@ export class ProductVariantSelectorComponent implements OnInit, OnChanges {
       (raw as any[]).forEach((item: any) => {
         const type = (item.type || item.name || '').toString().toLowerCase();
         const value = item.value ?? item.val ?? item.label ?? undefined;
-        if (type.includes('size') || type.includes('talla')) out.size = value;
+        if (type.includes('size') || type.includes('talla') || type.includes('capacidad')) out.size = value;
         if (type.includes('color') || type.includes('colour')) out.color = value;
         if (type.includes('material')) out.material = value;
       });

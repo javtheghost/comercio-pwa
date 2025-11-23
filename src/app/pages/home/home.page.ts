@@ -33,6 +33,7 @@ import { OfflineCartService } from '../../services/offline-cart.service';
 import { AuthService } from '../../services/auth.service';
 import { ToastController } from '@ionic/angular/standalone';
 import { AddToCartToastComponent } from '../../components/add-to-cart-toast/add-to-cart-toast.component';
+import { CurrencyPipe } from '../../pipes/currency.pipe';
 
 @Component({
   selector: 'app-home',
@@ -60,7 +61,8 @@ import { AddToCartToastComponent } from '../../components/add-to-cart-toast/add-
     IonFabButton,
     IonRefresher,
     IonRefresherContent,
-    AddToCartToastComponent
+    AddToCartToastComponent,
+    CurrencyPipe
   ],
   templateUrl: './home.page.html',
   styleUrls: ['./home.page.scss']
@@ -167,9 +169,9 @@ export class HomePage implements OnInit {
       this.loadFromCache();
     } else {
       console.log('🔄 Caché expirado o vacío, cargando desde API...');
-    this.resetState();
-    this.loadProducts();
-    this.loadCategories();
+      this.resetState();
+      this.loadProducts();
+      this.loadCategories();
     }
   }
 
@@ -182,8 +184,8 @@ export class HomePage implements OnInit {
 
     // Solo limpiar productos y categorías si no se cargaron desde caché
     if (!this.hasLoadedFromCache) {
-    this.products = [];
-    this.categories = [];
+      this.products = [];
+      this.categories = [];
     }
 
     this.hasLoadedFromCache = false;
@@ -216,25 +218,25 @@ export class HomePage implements OnInit {
       return;
     }
 
-     this.productService.getProductsPaginated(this.currentPage, this.itemsPerPage).subscribe({
-       next: (response: PaginatedResponse<Product>) => {
-         console.log('✅ Respuesta exitosa del API:', response);
-         console.log('🔍 Productos recibidos:', response.data);
+    this.productService.getProductsPaginated(this.currentPage, this.itemsPerPage).subscribe({
+      next: (response: PaginatedResponse<Product>) => {
+        console.log('✅ Respuesta exitosa del API:', response);
+        console.log('🔍 Productos recibidos:', response.data);
 
-         this.products = ProductUtils.mapProductsToUI(response.data);
-         // Aplicar estado de favoritos a los productos cargados
-         this.applyFavoritesToCurrentProducts?.();
-         this.hasMoreProducts = response.current_page < response.last_page;
+        this.products = ProductUtils.mapProductsToUI(response.data);
+        // Aplicar estado de favoritos a los productos cargados
+        this.applyFavoritesToCurrentProducts?.();
+        this.hasMoreProducts = response.current_page < response.last_page;
 
-         // Debug: verificar categorías de productos
-         this.products.forEach((product, index) => {
-           console.log(`🔍 Producto ${index + 1}:`, {
-             id: product.id,
-             name: product.name,
-             hasCategory: !!product.category,
-             categoryName: product.category?.name || 'SIN CATEGORÍA'
-           });
-         });
+        // Debug: verificar categorías de productos
+        this.products.forEach((product, index) => {
+          console.log(`🔍 Producto ${index + 1}:`, {
+            id: product.id,
+            name: product.name,
+            hasCategory: !!product.category,
+            categoryName: product.category?.name || 'SIN CATEGORÍA'
+          });
+        });
 
         console.log('📦 Productos mapeados:', this.products.length);
         console.log('🔄 Cambiando loading a false...');
@@ -277,25 +279,25 @@ export class HomePage implements OnInit {
     });
   }
 
-    loadCategories() {
+  loadCategories() {
     console.log('📂 Iniciando carga de categorías...');
     this.loadingCategories = true;
     this.cdr.detectChanges(); // Forzar detección de cambios para mostrar skeleton
 
-      // Evitar llamadas de red si estamos offline
-      if (this.isOffline()) {
-        console.warn('📴 [HOME] Offline - evitando llamada a getRootCategories');
-        if (this.isCacheValid()) {
-          this.loadFromCache();
-        } else {
-          this.loadingCategories = false;
-          this.cdr.detectChanges();
-          this.showOfflineToast('Sin conexión. No se pudieron cargar las categorías.');
-        }
-        return;
+    // Evitar llamadas de red si estamos offline
+    if (this.isOffline()) {
+      console.warn('📴 [HOME] Offline - evitando llamada a getRootCategories');
+      if (this.isCacheValid()) {
+        this.loadFromCache();
+      } else {
+        this.loadingCategories = false;
+        this.cdr.detectChanges();
+        this.showOfflineToast('Sin conexión. No se pudieron cargar las categorías.');
       }
+      return;
+    }
 
-      this.productService.getRootCategories().subscribe({
+    this.productService.getRootCategories().subscribe({
       next: (categories: Category[]) => {
         console.log('✅ Categorías cargadas exitosamente:', categories);
         this.categories = categories;
@@ -332,7 +334,7 @@ export class HomePage implements OnInit {
         price: Number(product.price || 0),
         image: this.getProductImageUrl(product)
       });
-    } catch {}
+    } catch { }
   }
 
 
@@ -468,7 +470,7 @@ export class HomePage implements OnInit {
         : this.products;
       if (source && source.length > 0) {
         this.products = source.filter(p => p.category?.id === categoryId);
-          this.applyFavoritesToCurrentProducts();
+        this.applyFavoritesToCurrentProducts();
         this.loading = false;
         this.cdr.detectChanges();
       } else {
@@ -484,25 +486,25 @@ export class HomePage implements OnInit {
       next: (products: Product[]) => {
         console.log(`📂 Productos de categoría ${categoryId}:`, products);
 
-         // Validar que products sea un array válido
-         if (products && Array.isArray(products)) {
-           this.products = ProductUtils.mapProductsToUI(products);
-           this.applyFavoritesToCurrentProducts();
-           console.log(`✅ ${products.length} productos cargados para la categoría ${categoryId}`);
+        // Validar que products sea un array válido
+        if (products && Array.isArray(products)) {
+          this.products = ProductUtils.mapProductsToUI(products);
+          this.applyFavoritesToCurrentProducts();
+          console.log(`✅ ${products.length} productos cargados para la categoría ${categoryId}`);
 
-           // Debug: verificar categorías de productos filtrados
-           this.products.forEach((product, index) => {
-             console.log(`🔍 Producto filtrado ${index + 1}:`, {
-               id: product.id,
-               name: product.name,
-               hasCategory: !!product.category,
-               categoryName: product.category?.name || 'SIN CATEGORÍA'
-             });
-           });
-         } else {
-           console.warn(`⚠️ No se recibieron productos válidos para la categoría ${categoryId}`);
-           this.products = [];
-         }
+          // Debug: verificar categorías de productos filtrados
+          this.products.forEach((product, index) => {
+            console.log(`🔍 Producto filtrado ${index + 1}:`, {
+              id: product.id,
+              name: product.name,
+              hasCategory: !!product.category,
+              categoryName: product.category?.name || 'SIN CATEGORÍA'
+            });
+          });
+        } else {
+          console.warn(`⚠️ No se recibieron productos válidos para la categoría ${categoryId}`);
+          this.products = [];
+        }
 
         this.loading = false;
         this.cdr.detectChanges(); // Forzar detección de cambios
@@ -532,7 +534,7 @@ export class HomePage implements OnInit {
         // Intentar diferentes propiedades comunes para la URL de imagen
         const imageObj = imageValue as any; // Type assertion para evitar errores de TypeScript
         imageUrl = imageObj.url || imageObj.src || imageObj.path || imageObj.image_url ||
-                   imageObj.thumbnail || imageObj.medium || imageObj.large || '';
+          imageObj.thumbnail || imageObj.medium || imageObj.large || '';
 
 
       } else if (typeof imageValue === 'string') {
@@ -616,7 +618,7 @@ export class HomePage implements OnInit {
       // Extraer URL del objeto de imagen
       const imageObj = imageValue as any;
       return imageObj.url || imageObj.src || imageObj.path || imageObj.image_url ||
-             imageObj.thumbnail || imageObj.medium || imageObj.large || '';
+        imageObj.thumbnail || imageObj.medium || imageObj.large || '';
     } else if (typeof imageValue === 'string') {
       // Si ya es una string, devolverla directamente
       return imageValue;
@@ -663,8 +665,8 @@ export class HomePage implements OnInit {
         console.log('📦 Productos de página', this.currentPage, ':', response.data);
 
         // Convertir productos a UI y agregarlos a la lista existente
-  const newProducts = ProductUtils.mapProductsToUI(response.data);
-  this.applyFavoritesToProducts(newProducts);
+        const newProducts = ProductUtils.mapProductsToUI(response.data);
+        this.applyFavoritesToProducts(newProducts);
         this.products = [...this.products, ...newProducts];
 
         // Verificar si hay más páginas disponibles
@@ -931,7 +933,7 @@ export class HomePage implements OnInit {
     try {
       const ids = new Set(this.favorites.getAll().map(f => f.id));
       list.forEach(p => p.isFavorite = ids.has(p.id));
-    } catch {}
+    } catch { }
   }
 
   private applyFavoritesToCurrentProducts(): void {
@@ -946,13 +948,13 @@ export class HomePage implements OnInit {
           ...p,
           isFavorite: ids.has(p.id)
         }));
-      } catch {}
+      } catch { }
     }
   }
 
   ngOnDestroy() {
-    try { this.favoritesSub?.unsubscribe(); } catch {}
-    try { this.favoritesCountSub?.unsubscribe(); } catch {}
+    try { this.favoritesSub?.unsubscribe(); } catch { }
+    try { this.favoritesCountSub?.unsubscribe(); } catch { }
   }
 
   /**

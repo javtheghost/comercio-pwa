@@ -5,7 +5,8 @@
     </ion-button>
     <ion-title>Detalles del Producto</ion-title>
     <ion-button fill="clear" slot="end" (click)="toggleFavorite()" aria-label="Favorito">
-      <ion-icon [name]="product?.isFavorite ? 'heart' : 'heart-outline'" [color]="product?.isFavorite ? 'danger' : 'medium'"></ion-icon>
+      <ion-icon [name]="product?.isFavorite ? 'heart' : 'heart-outline'"
+        [color]="product?.isFavorite ? 'danger' : 'medium'"></ion-icon>
     </ion-button>
   </ion-toolbar>
 </ion-header>
@@ -16,10 +17,7 @@
       <!-- Product Image Section -->
       <div class="product-image-section">
         <img [src]="product.image" [alt]="product.name" class="product-image">
-        <ion-badge
-          *ngIf="product.discount"
-          color="danger"
-          class="discount-badge">
+        <ion-badge *ngIf="product.discount" color="danger" class="discount-badge">
           -{{ product.discount }}%
         </ion-badge>
       </div>
@@ -28,8 +26,8 @@
       <div class="product-info">
         <h1 class="product-name">{{ product.name }}</h1>
         <div class="product-price">
-          <span class="current-price">${{ product.price }}</span>
-          <span class="original-price" *ngIf="product.originalPrice">${{ product.originalPrice }}</span>
+          <span class="current-price">{{ product.price | currency }}</span>
+          <span class="original-price" *ngIf="product.originalPrice">{{ product.originalPrice | currency }}</span>
         </div>
         <p class="product-description" *ngIf="product.description">
           {{ product.description }}
@@ -37,21 +35,15 @@
         <!-- Variant Selector Component y detalles de variantes -->
         <div *ngIf="!loadingVariants && variantInfo as vInfo">
           <!-- Mostrar selector cuando existan variantes reales o cuando el backend entregue opciones de variantes -->
-          <ng-container *ngIf="(product.variants && product.variants.length > 0) || vInfo.needs_variants; else singleSizeBlock">
-            <app-product-variant-selector
-              [variants]="product.variants || []"
-              [attributes]="product.attributes || []"
-              [attributeAssignments]="product.attribute_assignments || []"
-              [basePrice]="product.price || '0'"
-              [baseImage]="product.image || ''"
-              [baseStock]="product.track_stock ? productBaseStock : 999"
-              [branchProducts]="product.branch_products || []"
-              [selectedSize]="selectedSize"
-              [selectedColor]="selectedColor"
-              [availableSizesOverride]="vInfo.available_sizes || []"
+          <ng-container
+            *ngIf="(product.variants && product.variants.length > 0) || vInfo.needs_variants; else singleSizeBlock">
+            <app-product-variant-selector [variants]="product.variants || []" [attributes]="product.attributes || []"
+              [attributeAssignments]="product.attribute_assignments || []" [basePrice]="product.price || '0'"
+              [baseImage]="product.image || ''" [baseStock]="product.track_stock ? productBaseStock : 999"
+              [branchProducts]="product.branch_products || []" [selectedSize]="selectedSize"
+              [selectedColor]="selectedColor" [availableSizesOverride]="vInfo.available_sizes || []"
               [availableColorsOverride]="vInfo.available_colors || []"
-              (selectionChange)="onVariantSelectionChange($event)"
-              (variantChange)="onVariantChange($event)">
+              (selectionChange)="onVariantSelectionChange($event)" (variantChange)="onVariantChange($event)">
             </app-product-variant-selector>
           </ng-container>
 
@@ -73,7 +65,8 @@
             </div>
           </div>
           <ng-template #singleSizeBlock>
-            <div class="no-variants" *ngIf="(!product.variants || product.variants.length === 0) && !vInfo.needs_variants">
+            <div class="no-variants"
+              *ngIf="(!product.variants || product.variants.length === 0) && !vInfo.needs_variants">
               <p class="no-variants-text">
                 <ion-icon name="checkmark-circle-outline"></ion-icon>
                 Producto de talla única - No requiere selección de variantes
@@ -106,33 +99,23 @@
   <div class="action-bar">
     <div class="price-section">
       <span class="price-label">Precio</span>
-      <span class="price-amount">${{ currentPrice || product.price }}</span>
+      <span class="price-amount">{{ (currentPrice || product.price) | currency }}</span>
       <span class="stock-info" *ngIf="!selectionMissing && currentStock > 0">
         {{ currentStock }} disponibles
       </span>
     </div>
-    <ion-button
-      class="add-to-cart-btn"
-      (click)="addToCart()"
-      [disabled]="!canAddToCart">
+    <ion-button class="add-to-cart-btn" (click)="addToCart()" [disabled]="!canAddToCart">
       @if (addingToCart) {
-        <ion-spinner name="crescent" slot="start"></ion-spinner>
+      <ion-spinner name="crescent" slot="start"></ion-spinner>
       } @else {
-        <ion-icon name="cart-outline" slot="start"></ion-icon>
+      <ion-icon name="cart-outline" slot="start"></ion-icon>
       }
-      {{ selectionMissing ? 'Selecciona opciones' : (currentStock <= 0 ? 'Agotado' : (addingToCart ? 'Agregando...' : 'Agregar al Carrito')) }}
-    </ion-button>
+      {{ selectionMissing ? 'Selecciona opciones' : (currentStock <= 0 ? 'Agotado' : (addingToCart ? 'Agregando...'
+        : 'Agregar al Carrito' )) }} </ion-button>
   </div>
 </ion-footer>
 
 <!-- Toast de confirmación -->
-<app-add-to-cart-toast
-  [show]="showToast"
-  [productName]="toastProductName"
-  [productImage]="toastProductImage"
-  [selectedSize]="toastSelectedSize"
-  [selectedColor]="toastSelectedColor"
-  [price]="toastPrice"
-  (close)="closeToast()">
+<app-add-to-cart-toast [show]="showToast" [productName]="toastProductName" [productImage]="toastProductImage"
+  [selectedSize]="toastSelectedSize" [selectedColor]="toastSelectedColor" [price]="toastPrice" (close)="closeToast()">
 </app-add-to-cart-toast>
-
